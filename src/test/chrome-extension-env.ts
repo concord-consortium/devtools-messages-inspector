@@ -7,7 +7,7 @@
 // - panel chrome.runtime.connect → background's chrome.runtime.onConnect (via port pairs)
 
 import { ChromeEvent, createPortPair } from './chrome-api';
-import { HarnessTab, HarnessFrame, HarnessDocument, HarnessWindow } from './harness-models';
+import { HarnessTab, HarnessFrame, HarnessDocument, HarnessWindow, createProxyPair } from './harness-models';
 import type { MockPort } from './chrome-api';
 import type { BackgroundChrome } from '../background-core';
 import type { ContentWindow, ContentChrome } from '../content-core';
@@ -83,7 +83,19 @@ export class ChromeExtensionEnv {
       tabId: config.tabId,
       url: config.url,
     });
-    return this.createTab(config);
+
+    const popupFrame = this.createTab(config);
+
+    // Wire opener/openee proxy pair
+    const openerWin = sourceFrame.window!;
+    const popupWin = popupFrame.window!;
+    const { aForB: openerProxyForPopup, bForA: popupProxyForOpener } =
+      createProxyPair(openerWin, popupWin);
+
+    popupWin.setOpenerProxy(openerWin, openerProxyForPopup);
+    openerWin.registerOpeneeProxy(popupWin, popupProxyForOpener);
+
+    return popupFrame;
   }
 
   /**

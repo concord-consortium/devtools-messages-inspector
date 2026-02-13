@@ -171,6 +171,30 @@ describe('content → background → panel integration', () => {
     expect(payload.source.tabId).toBe(TAB_ID);
   });
 
+  it('delivers an openee→opener message to the opener panel', async () => {
+    const topFrame = env.createTab({ tabId: TAB_ID, url: 'https://opener.example.com/', title: 'Opener' });
+    const { messages } = env.connectPanel(TAB_ID);
+    await flushPromises();
+
+    const POPUP_TAB_ID = 2;
+    const popupFrame = env.openPopup(topFrame, { tabId: POPUP_TAB_ID, url: 'https://popup.example.com/', title: 'Popup' });
+    await flushPromises();
+
+    const openerWin = topFrame.window!;
+    const popupWin = popupFrame.window!;
+
+    // Popup sends a message received by opener
+    openerWin.dispatchMessage(
+      { type: 'hello-from-popup' },
+      'https://popup.example.com',
+      popupWin
+    );
+
+    const msgPayloads = messages.filter(m => m.type === 'message');
+    expect(msgPayloads).toHaveLength(1);
+    expect(msgPayloads[0].payload.source.type).toBe('openee');
+  });
+
   it('buffers messages for tabs opened from monitored tabs', async () => {
     const { topFrame } = setupTwoFrames();
     env.connectPanel(TAB_ID);
