@@ -249,6 +249,17 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
         }
       };
 
+      enrichedPayload.target.tabId = tabId;
+
+      // For same-tab source types, set source.tabId = target.tabId
+      const sourceType = message.payload.source.type;
+      if (sourceType === 'parent' || sourceType === 'self' || sourceType === 'top' || sourceType === 'child') {
+        enrichedPayload.source = {
+          ...enrichedPayload.source,
+          tabId: tabId
+        };
+      }
+
       if (message.payload.source.type === 'parent') {
         try {
           const frame = await chrome.webNavigation.getFrame({ tabId, frameId });

@@ -148,6 +148,29 @@ describe('content → background → panel integration', () => {
     expect(clearMsgs).toHaveLength(0);
   });
 
+  it('sets target.tabId on captured messages', async () => {
+    const { parentWin, childWin } = setupTwoFrames();
+    const { messages } = env.connectPanel(TAB_ID);
+    await flushPromises();
+
+    parentWin.dispatchMessage({ type: 'test' }, 'https://child.example.com', childWin);
+
+    const payload = messages.filter(m => m.type === 'message')[0].payload;
+    expect(payload.target.tabId).toBe(TAB_ID);
+  });
+
+  it('sets source.tabId for same-tab messages', async () => {
+    const { parentWin, childWin } = setupTwoFrames();
+    const { messages } = env.connectPanel(TAB_ID);
+    await flushPromises();
+
+    // child→parent (same tab)
+    parentWin.dispatchMessage({ type: 'test' }, 'https://child.example.com', childWin);
+
+    const payload = messages.filter(m => m.type === 'message')[0].payload;
+    expect(payload.source.tabId).toBe(TAB_ID);
+  });
+
   it('buffers messages for tabs opened from monitored tabs', async () => {
     const { topFrame } = setupTwoFrames();
     env.connectPanel(TAB_ID);
