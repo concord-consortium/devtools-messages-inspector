@@ -55,6 +55,9 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
   // Track which frames have been injected to avoid double-injection
   const injectedFrames = new Map<number, Set<number>>();
 
+  // Bidirectional opener relationships: tabId -> Set of related tabIds
+  const openerRelationships = new Map<number, Set<number>>();
+
   // Inject content script into a specific tab and frame
   async function injectContentScript(tabId: number, frameId: number | null = null): Promise<void> {
     try {
@@ -258,6 +261,18 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
           ...enrichedPayload.source,
           tabId: tabId
         };
+      } else if (sourceType === 'opener') {
+        // Opener is in a related tab
+        const relatedTabs = openerRelationships.get(tabId);
+        if (relatedTabs) {
+          for (const relatedTabId of relatedTabs) {
+            enrichedPayload.source = {
+              ...enrichedPayload.source,
+              tabId: relatedTabId
+            };
+            break; // Each tab has at most one opener
+          }
+        }
       }
 
       if (message.payload.source.type === 'parent') {
@@ -306,6 +321,22 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
           buffer.push(enrichedPayload);
         }
       }
+
+      // Cross-tab routing for opener-type messages
+      if (enrichedPayload.source.type === 'opener') {
+        const relatedTabs = openerRelationships.get(tabId);
+        if (relatedTabs) {
+          for (const relatedTabId of relatedTabs) {
+            const relatedPanel = panelConnections.get(relatedTabId);
+            if (relatedPanel) {
+              relatedPanel.postMessage({
+                type: 'message',
+                payload: enrichedPayload
+              });
+            }
+          }
+        }
+      }
     })();
   });
 
@@ -314,8 +345,19 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
     const sourceTabId = details.sourceTabId;
     const newTabId = details.tabId;
 
-    if (panelConnections.has(sourceTabId)) {
+    if (panelConnections.has(sourceTabId) || bufferingEnabledTabs.has(sourceTabId)) {
       bufferingEnabledTabs.add(newTabId);
+
+      // Record bidirectional opener relationship
+      if (!openerRelationships.has(sourceTabId)) {
+        openerRelationships.set(sourceTabId, new Set());
+      }
+      openerRelationships.get(sourceTabId)!.add(newTabId);
+
+      if (!openerRelationships.has(newTabId)) {
+        openerRelationships.set(newTabId, new Set());
+      }
+      openerRelationships.get(newTabId)!.add(sourceTabId);
     }
   });
 
@@ -348,5 +390,14 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
     messageBuffers.delete(tabId);
     bufferingEnabledTabs.delete(tabId);
     injectedFrames.delete(tabId);
+
+    // Clean up opener relationships
+    const related = openerRelationships.get(tabId);
+    if (related) {
+      for (const relatedTabId of related) {
+        openerRelationships.get(relatedTabId)?.delete(tabId);
+      }
+      openerRelationships.delete(tabId);
+    }
   });
 }

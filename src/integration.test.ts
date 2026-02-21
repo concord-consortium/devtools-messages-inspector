@@ -203,6 +203,31 @@ describe('content → background → panel integration', () => {
     expect(msgPayloads[0].payload.source.type).toBe('openee');
   });
 
+  it('routes opener→popup messages to the opener tab panel', async () => {
+    const topFrame = env.createTab({ tabId: TAB_ID, url: 'https://opener.example.com/', title: 'Opener' });
+    const { messages: openerMessages } = env.connectPanel(TAB_ID);
+    await flushPromises();
+
+    const POPUP_TAB_ID = 2;
+    const popupFrame = env.openPopup(topFrame, { tabId: POPUP_TAB_ID, url: 'https://popup.example.com/', title: 'Popup' });
+    await flushPromises();
+
+    const popupWin = popupFrame.window!;
+
+    // Opener sends a message that popup receives — captured in popup's tab
+    popupWin.dispatchMessage(
+      { type: 'init-from-opener' },
+      'https://opener.example.com',
+      topFrame.window!
+    );
+    await flushPromises();
+
+    // Should appear in opener's panel too (cross-tab routing)
+    const openerMsgs = openerMessages.filter(m => m.type === 'message' && m.payload.data?.type === 'init-from-opener');
+    expect(openerMsgs).toHaveLength(1);
+    expect(openerMsgs[0].payload.source.type).toBe('opener');
+  });
+
   it('buffers messages for tabs opened from monitored tabs', async () => {
     const { topFrame } = setupTwoFrames();
     env.connectPanel(TAB_ID);
