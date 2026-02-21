@@ -198,7 +198,9 @@ describe('content → background → panel integration', () => {
       popupWin
     );
 
-    const msgPayloads = messages.filter(m => m.type === 'message');
+    const msgPayloads = messages.filter(m =>
+      m.type === 'message' && m.payload.data?.type !== '__frames_inspector_register__'
+    );
     expect(msgPayloads).toHaveLength(1);
     expect(msgPayloads[0].payload.source.type).toBe('openee');
   });
@@ -226,6 +228,41 @@ describe('content → background → panel integration', () => {
     const openerMsgs = openerMessages.filter(m => m.type === 'message' && m.payload.data?.type === 'init-from-opener');
     expect(openerMsgs).toHaveLength(1);
     expect(openerMsgs[0].payload.source.type).toBe('opener');
+  });
+
+  it('routes openee→opener messages to the openee tab panel', async () => {
+    const topFrame = env.createTab({ tabId: TAB_ID, url: 'https://opener.example.com/', title: 'Opener' });
+    const { messages: openerMessages } = env.connectPanel(TAB_ID);
+    await flushPromises();
+
+    const POPUP_TAB_ID = 2;
+    const popupFrame = env.openPopup(topFrame, { tabId: POPUP_TAB_ID, url: 'https://popup.example.com/', title: 'Popup' });
+    await flushPromises();
+
+    // Connect popup panel too
+    const { messages: popupMessages } = env.connectPanel(POPUP_TAB_ID);
+    await flushPromises();
+
+    const openerWin = topFrame.window!;
+    const popupWin = popupFrame.window!;
+
+    // Simulate popup's registration arriving at opener (triggers openeeWindowToTab mapping)
+    openerWin.dispatchMessage(
+      { type: '__frames_inspector_register__', targetType: 'opener', frameId: 0, tabId: POPUP_TAB_ID, documentId: 'doc-f0' },
+      'https://popup.example.com',
+      popupWin
+    );
+
+    // Popup sends message to opener — captured in opener's tab
+    openerWin.dispatchMessage(
+      { type: 'hello-from-popup' },
+      'https://popup.example.com',
+      popupWin
+    );
+
+    // Should appear in popup's panel too (cross-tab routing)
+    const popupMsgs = popupMessages.filter(m => m.type === 'message' && m.payload.data?.type === 'hello-from-popup');
+    expect(popupMsgs).toHaveLength(1);
   });
 
   it('buffers messages for tabs opened from monitored tabs', async () => {

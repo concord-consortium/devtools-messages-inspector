@@ -58,6 +58,9 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
   // Bidirectional opener relationships: tabId -> Set of related tabIds
   const openerRelationships = new Map<number, Set<number>>();
 
+  // Maps "${capturingTabId}:${windowId}" to the openee's tab info
+  const openeeWindowToTab = new Map<string, { tabId: number; frameId: number }>();
+
   // Inject content script into a specific tab and frame
   async function injectContentScript(tabId: number, frameId: number | null = null): Promise<void> {
     try {
@@ -304,6 +307,15 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
         }
       }
 
+      // Extract openee registration data for cross-tab routing
+      const rawData = message.payload.data as any;
+      if (rawData?.type === '__frames_inspector_register__'
+          && rawData?.targetType === 'opener'
+          && message.payload.source.windowId) {
+        const key = `${tabId}:${message.payload.source.windowId}`;
+        openeeWindowToTab.set(key, { tabId: rawData.tabId, frameId: rawData.frameId });
+      }
+
       const panel = panelConnections.get(tabId);
       if (panel) {
         enrichedPayload.buffered = false;
@@ -334,6 +346,25 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
                 payload: enrichedPayload
               });
             }
+          }
+        }
+      }
+
+      // Cross-tab routing for openee-type messages
+      if (enrichedPayload.source.type === 'openee' && message.payload.source.windowId) {
+        const key = `${tabId}:${message.payload.source.windowId}`;
+        const openeeInfo = openeeWindowToTab.get(key);
+        if (openeeInfo) {
+          enrichedPayload.source = {
+            ...enrichedPayload.source,
+            tabId: openeeInfo.tabId
+          };
+          const relatedPanel = panelConnections.get(openeeInfo.tabId);
+          if (relatedPanel) {
+            relatedPanel.postMessage({
+              type: 'message',
+              payload: enrichedPayload
+            });
           }
         }
       }

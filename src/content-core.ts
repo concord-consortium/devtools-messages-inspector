@@ -217,7 +217,6 @@ export function initContentScript(win: ContentWindow, chrome: ContentChrome): vo
       if (event.data.targetType === 'opener' && event.source) {
         openedWindows.add(event.source);
       }
-      return;
     }
 
     const capturedMessage: RawCapturedMessage = {
