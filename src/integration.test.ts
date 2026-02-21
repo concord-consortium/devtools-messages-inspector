@@ -183,6 +183,14 @@ describe('content → background → panel integration', () => {
     const openerWin = topFrame.window!;
     const popupWin = popupFrame.window!;
 
+    // Simulate the popup's content script sending its opener registration
+    // (In production this happens via frame-identity → sendRegistrationMessages → postMessage)
+    openerWin.dispatchMessage(
+      { type: '__frames_inspector_register__', targetType: 'opener', frameId: 0, tabId: POPUP_TAB_ID, documentId: 'doc-f0' },
+      'https://popup.example.com',
+      popupWin
+    );
+
     // Popup sends a message received by opener
     openerWin.dispatchMessage(
       { type: 'hello-from-popup' },
