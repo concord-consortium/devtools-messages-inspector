@@ -251,11 +251,10 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
         target: {
           ...message.payload.target,
           frameId: frameId,
+          tabId: tabId,
           documentId: sender.documentId
         }
       };
-
-      enrichedPayload.target.tabId = tabId;
 
       // For same-tab source types, set source.tabId = target.tabId
       const sourceType = message.payload.source.type;

@@ -76,6 +76,7 @@ function childMsg(
       origin: target.origin,
       documentTitle: target.title,
       frameId: target.frameId,
+      tabId: TAB_ID,
       documentId: target.documentId,
     },
     source: {
@@ -112,6 +113,7 @@ function parentMsg(
       origin: target.origin,
       documentTitle: target.title,
       frameId: target.frameId,
+      tabId: TAB_ID,
       documentId: target.documentId,
     },
     source: {

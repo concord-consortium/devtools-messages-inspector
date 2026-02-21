@@ -52,6 +52,13 @@ export const FIELD_INFO: Record<string, FieldInfoEntry> = {
     filter: null
   },
 
+  tabId: {
+    label: 'Tab',
+    description: 'The Chrome tab ID of the window.',
+    technical: 'Set by the background script from sender.tab.id or the opener relationship registry.',
+    filter: null
+  },
+
   // Frame/document fields (generic, used by FrameDetail and column label derivation)
   frameId: {
     label: 'Frame',
