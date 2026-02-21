@@ -27,6 +27,20 @@
     <span id="popup-status"></span>
   </div>
 
+  <div class="controls" id="opener-controls" style="display: none">
+    <h3>Opener Communication</h3>
+    <button onclick="sendToOpener('ping')">Send ping to opener</button>
+    <button onclick="sendToOpener('data')">Send data to opener</button>
+    <span id="opener-status"></span>
+  </div>
+
+  <div class="controls">
+    <h3>Received Messages</h3>
+    <button onclick="respondToLastMessage()" id="respond-btn" disabled>Respond to last message</button>
+    <span id="respond-status"></span>
+    <div class="log" id="message-log" style="font-family: monospace; font-size: 12px; margin-top: 10px; max-height: 200px; overflow-y: auto;"></div>
+  </div>
+
   <div class="controls">
     <h3>Link with target="_blank"</h3>
     <a href="test-page.html" target="_blank">Open in New Tab (no opener)</a>
@@ -93,12 +107,51 @@
       }
     }
 
+    // Opener detection
+    if (window.opener) {
+      document.getElementById('opener-controls').style.display = '';
+    }
+
+    function sendToOpener(type) {
+      if (window.opener) {
+        window.opener.postMessage({ type, from: 'opened-page', timestamp: performance.now() }, '*');
+        document.getElementById('opener-status').textContent = 'Sent ' + type;
+      }
+    }
+
+    // Message logging and response
+    let lastMessageSource = null;
+    let lastMessageOrigin = null;
+
     window.addEventListener('message', (e) => {
       if (e.data.type === 'popup-ready') {
         document.getElementById('popup-status').textContent =
           'Popup ready (' + e.data.timing + ' at ' + e.data.timestamp.toFixed(2) + 'ms)';
       }
+
+      // Log all received messages
+      const logEl = document.getElementById('message-log');
+      logEl.textContent += JSON.stringify(e.data) + '\n';
+      logEl.scrollTop = logEl.scrollHeight;
+
+      // Track last message source for responding
+      if (e.source && e.source !== window) {
+        lastMessageSource = e.source;
+        lastMessageOrigin = e.origin;
+        document.getElementById('respond-btn').disabled = false;
+        document.getElementById('respond-status').textContent = 'Ready to respond (from ' + e.origin + ')';
+      }
     });
+
+    function respondToLastMessage() {
+      if (lastMessageSource) {
+        lastMessageSource.postMessage(
+          { type: 'response', from: location.origin, timestamp: performance.now() },
+          lastMessageOrigin || '*'
+        );
+        document.getElementById('respond-status').textContent = 'Response sent to ' + lastMessageOrigin;
+      }
+    }
 
     let dynamicIframe = null;
     let dynamicIframeCount = 0;
