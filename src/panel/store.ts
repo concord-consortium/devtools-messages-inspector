@@ -156,6 +156,7 @@ class PanelStore {
       case 'child': return '↖';
       case 'self': return '↻';
       case 'opener': return '←';
+      case 'openee': return '→';
       default: return '?';
     }
   }
