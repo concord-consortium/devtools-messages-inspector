@@ -66,13 +66,15 @@ export interface FrameInfo {
   parentFrameId: number;
   title: string;
   origin: string;
-  iframes: { src: string; id: string; domPath: string }[];
+  iframes: { src: string; id: string; domPath: string; windowId?: string }[];
+  windowId?: string;
   isOpener?: boolean;
   children?: FrameInfo[];
 }
 
 export interface OpenerInfo {
   origin: string | null;
+  windowId?: string;
 }
 
 // Messages sent from background to content script
@@ -90,7 +92,7 @@ export interface GetFrameInfoMessage {
 export interface FrameInfoResponse {
   title: string;
   origin: string;
-  iframes: { src: string; id: string; domPath: string }[];
+  iframes: { src: string; id: string; domPath: string; windowId?: string }[];
   opener?: OpenerInfo | null;
 }
 

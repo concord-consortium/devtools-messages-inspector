@@ -66,31 +66,39 @@ export class FrameStore {
     frameId: number;
     tabId: number;
     documentId?: string;
+    windowId?: string;
     url: string;
     parentFrameId: number;
     title: string;
     origin: string;
-    iframes: { src: string; id: string; domPath: string }[];
+    iframes: { src: string; id: string; domPath: string; windowId?: string }[];
   }>): Frame[] {
     // Create/update frames and documents
     for (const frameData of frames) {
       const frame = this.getOrCreateFrame(frameData.tabId, frameData.frameId, frameData.parentFrameId);
       frame.parentFrameId = frameData.parentFrameId;
 
+      let doc: FrameDocument | undefined;
       if (frameData.documentId) {
-        const doc = this.getOrCreateDocumentById(frameData.documentId);
+        doc = this.getOrCreateDocumentById(frameData.documentId);
+      } else if (frameData.windowId) {
+        doc = this.getOrCreateDocumentByWindowId(frameData.windowId);
+      }
+
+      if (doc) {
         doc.url = frameData.url;
         doc.origin = frameData.origin;
         doc.title = frameData.title;
         doc.frame = frame;
-        frame.currentDocument = doc;
       } else if (frameData.url || frameData.origin || frameData.title) {
-        frame.currentDocument = new FrameDocument({
+        // Create a new document if we have some info but no id to correlate with existing ones
+        doc = new FrameDocument({
           url: frameData.url || undefined,
           origin: frameData.origin || undefined,
           title: frameData.title || undefined,
         });
       }
+      frame.currentDocument = doc;
     }
 
     // Build parent-child relationships

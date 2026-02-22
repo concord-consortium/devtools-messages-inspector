@@ -233,6 +233,7 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
           parentFrameId: -1,
           title: '',
           origin: (openerInfo as OpenerInfo).origin || '',
+          windowId: (openerInfo as OpenerInfo).windowId,
           iframes: [],
           isOpener: true
         };
@@ -244,10 +245,13 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
           openerFrame.frameId = opener.frameId;
           try {
             const navFrame = await chrome.webNavigation.getFrame({ tabId: opener.tabId, frameId: opener.frameId });
-            if (navFrame?.url) {
-              openerFrame.url = navFrame.url;
-              if (!openerFrame.origin) {
-                try { openerFrame.origin = new URL(navFrame.url).origin; } catch { /* ignore */ }
+            if (navFrame) {
+              if (navFrame.documentId) openerFrame.documentId = navFrame.documentId;
+              if (navFrame.url) {
+                openerFrame.url = navFrame.url;
+                if (!openerFrame.origin) {
+                  try { openerFrame.origin = new URL(navFrame.url).origin; } catch { /* ignore */ }
+                }
               }
             }
           } catch { /* tab may be closed */ }

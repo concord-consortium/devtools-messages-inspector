@@ -234,7 +234,10 @@ export function initContentScript(win: ContentWindow, chrome: ContentChrome): vo
   function getOpenerInfo(): OpenerInfo | null {
     if (!win.opener) return null;
 
-    const info: OpenerInfo = { origin: null };
+    const info: OpenerInfo = {
+      origin: null,
+      windowId: getOrCreateSourceWindow(win.opener).windowId
+    };
 
     // window.origin is accessible cross-origin (unlike location.origin)
     try {
@@ -266,7 +269,8 @@ export function initContentScript(win: ContentWindow, chrome: ContentChrome): vo
       const iframes = Array.from(win.document.querySelectorAll('iframe') as NodeListOf<HTMLIFrameElement>).map(iframe => ({
         src: iframe.src || '',
         id: iframe.id || '',
-        domPath: getDomPath(iframe)
+        domPath: getDomPath(iframe),
+        windowId: iframe.contentWindow ? getOrCreateSourceWindow(iframe.contentWindow).windowId : undefined
       }));
 
       const response: FrameInfoResponse = {
