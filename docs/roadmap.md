@@ -1,5 +1,7 @@
 # Remaining for Version 1
 - in content script rename to eventSourceInfo (or something like that) instead of sourceWindow. The source of a message doesn't have to be a window. Also their is a source info interface which adds further confusion.
+- check new usage of getOrCreateDocumentById for sources that are from the opener or opened windows. It seems like it might be able to follow the pattern where it uses getOrCreateDocumentByWindowId when there isn't a documentId.
+- check frameKey implementation, it seems the `opener:` prefix isn't needed and the `opener` fallback would happen automatically with out special handling.
 - make content script more generic so it just proxies messages from the background worker. This way it doesn't need any specific handling of registration messages. And in the future we can add support in the Frames panel for sending messages to frames from other frames.
 - add 'focusedFrame' (or something like that) to messages view. this would be a pull down menu that lets you choose a frame (kind of like in the console tab). If this is selected only messages going to and from this frame are shown. And there are icons indicating if a message is going into this frame or out of it. We'll have to think about these icons so they are different than the ones currently used for the sourceType
 - add links between hierarchy and messages view: 

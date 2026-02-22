@@ -89,11 +89,7 @@ class PanelStore {
     return this.messages.find(m => m.id === this.selectedMessageId);
   }
 
-  // Unique key for a frame in the hierarchy (handles opener/regular frameId collisions)
   frameKey(frame: FrameInfo): string {
-    if (frame.isOpener) {
-      return frame.tabId != null ? `opener:${frame.tabId}:${frame.frameId}` : 'opener';
-    }
     return frame.tabId != null ? `${frame.tabId}:${frame.frameId}` : String(frame.frameId);
   }
 

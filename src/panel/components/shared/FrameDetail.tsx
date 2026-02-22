@@ -43,11 +43,10 @@ export const FrameDetail = observer(({ frame, document: docOverride, ownerElemen
         <Field id="sourceType">{store.getDirectionIcon(sourceType)} {sourceType}</Field>
       )}
       {frame && (
-        <Field id="frameId">
-          {frame.tabId !== store.tabId
-            ? `tab[${frame.tabId}].frame[${frame.frameId}]`
-            : `frame[${frame.frameId}]`}
-        </Field>
+        <Field id="tabId">tab[{frame.tabId}]</Field>
+      )}
+      {frame && (
+        <Field id="frameId">frame[{frame.frameId}]</Field>
       )}
       {doc?.url && (
         <Field id="document.url">{doc.url}</Field>
