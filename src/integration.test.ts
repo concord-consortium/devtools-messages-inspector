@@ -265,6 +265,57 @@ describe('content → background → panel integration', () => {
     expect(popupMsgs).toHaveLength(1);
   });
 
+  it('routes opener→openee to opener panel when popup opened before DevTools', async () => {
+    // Scenario: popup opened BEFORE DevTools is connected.
+    // onCreatedNavigationTarget fires but the panel condition fails,
+    // so openerRelationships is NOT established. Registration still flows,
+    // establishing openeeWindowToTab. The opener→openee cross-tab routing
+    // should still work (via registration-based relationship).
+    const topFrame = env.createTab({ tabId: TAB_ID, url: 'https://opener.example.com/', title: 'Opener' });
+
+    const POPUP_TAB_ID = 2;
+    // Open popup BEFORE connecting any panels
+    const popupFrame = env.openPopup(topFrame, { tabId: POPUP_TAB_ID, url: 'https://popup.example.com/', title: 'Popup' });
+
+    // NOW connect panels (after popup was already opened)
+    const { messages: openerMessages } = env.connectPanel(TAB_ID);
+    env.connectPanel(POPUP_TAB_ID);
+    await flushPromises();
+
+    const openerWin = topFrame.window!;
+    const popupWin = popupFrame.window!;
+
+    // Registration flows from popup to opener
+    openerWin.dispatchMessage(
+      { type: '__frames_inspector_register__', targetType: 'opener', frameId: 0, tabId: POPUP_TAB_ID, documentId: 'doc-f0' },
+      'https://popup.example.com',
+      popupWin
+    );
+
+    // Openee sends to opener (cross-tab routing via openeeWindowToTab works)
+    openerWin.dispatchMessage(
+      { type: 'hello-from-popup' },
+      'https://popup.example.com',
+      popupWin
+    );
+    await flushPromises();
+
+    // Opener responds to openee
+    popupWin.dispatchMessage(
+      { type: 'response', from: 'opener' },
+      'https://opener.example.com',
+      openerWin
+    );
+    await flushPromises();
+
+    // Opener panel should show the response (cross-tab routing for opener messages)
+    const openerResponseMsgs = openerMessages.filter(m =>
+      m.type === 'message' && m.payload.data?.type === 'response'
+    );
+    expect(openerResponseMsgs).toHaveLength(1);
+    expect(openerResponseMsgs[0].payload.source.type).toBe('opener');
+  });
+
   it('buffers messages for tabs opened from monitored tabs', async () => {
     const { topFrame } = setupTwoFrames();
     env.connectPanel(TAB_ID);

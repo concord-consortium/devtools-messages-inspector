@@ -58,6 +58,14 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
   // Bidirectional opener relationships: tabId -> Set of related tabIds
   const openerRelationships = new Map<number, Set<number>>();
 
+  // Record a bidirectional opener/openee relationship between two tabs
+  function recordOpenerRelationship(openerTabId: number, openeeTabId: number): void {
+    if (!openerRelationships.has(openerTabId)) openerRelationships.set(openerTabId, new Set());
+    openerRelationships.get(openerTabId)!.add(openeeTabId);
+    if (!openerRelationships.has(openeeTabId)) openerRelationships.set(openeeTabId, new Set());
+    openerRelationships.get(openeeTabId)!.add(openerTabId);
+  }
+
   // Maps "${capturingTabId}:${windowId}" to the openee's tab info
   const openeeWindowToTab = new Map<string, { tabId: number; frameId: number }>();
 
@@ -313,6 +321,11 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
           && message.payload.source.windowId) {
         const key = `${tabId}:${message.payload.source.windowId}`;
         openeeWindowToTab.set(key, { tabId: rawData.tabId, frameId: rawData.frameId });
+
+        // Also establish opener relationship from registration, as a fallback
+        // for cases where onCreatedNavigationTarget didn't set it up (e.g.,
+        // popup opened before the panel was connected).
+        recordOpenerRelationship(tabId, rawData.tabId as number);
       }
 
       const panel = panelConnections.get(tabId);
@@ -374,20 +387,10 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
   chrome.webNavigation.onCreatedNavigationTarget.addListener((details) => {
     const sourceTabId = details.sourceTabId;
     const newTabId = details.tabId;
-
     if (panelConnections.has(sourceTabId) || bufferingEnabledTabs.has(sourceTabId)) {
       bufferingEnabledTabs.add(newTabId);
 
-      // Record bidirectional opener relationship
-      if (!openerRelationships.has(sourceTabId)) {
-        openerRelationships.set(sourceTabId, new Set());
-      }
-      openerRelationships.get(sourceTabId)!.add(newTabId);
-
-      if (!openerRelationships.has(newTabId)) {
-        openerRelationships.set(newTabId, new Set());
-      }
-      openerRelationships.get(newTabId)!.add(sourceTabId);
+      recordOpenerRelationship(sourceTabId, newTabId);
     }
   });
 
