@@ -62,8 +62,9 @@ export class FrameStore {
   }
 
   // Called when hierarchy data arrives from webNavigation.getAllFrames()
-  processHierarchy(tabId: number, frames: Array<{
+  processHierarchy(frames: Array<{
     frameId: number;
+    tabId: number;
     documentId?: string;
     url: string;
     parentFrameId: number;
@@ -73,7 +74,7 @@ export class FrameStore {
   }>): Frame[] {
     // Create/update frames and documents
     for (const frameData of frames) {
-      const frame = this.getOrCreateFrame(tabId, frameData.frameId, frameData.parentFrameId);
+      const frame = this.getOrCreateFrame(frameData.tabId, frameData.frameId, frameData.parentFrameId);
       frame.parentFrameId = frameData.parentFrameId;
 
       if (frameData.documentId) {
@@ -83,21 +84,27 @@ export class FrameStore {
         doc.title = frameData.title;
         doc.frame = frame;
         frame.currentDocument = doc;
+      } else if (frameData.url || frameData.origin || frameData.title) {
+        frame.currentDocument = new FrameDocument({
+          url: frameData.url || undefined,
+          origin: frameData.origin || undefined,
+          title: frameData.title || undefined,
+        });
       }
     }
 
     // Build parent-child relationships
     const roots: Frame[] = [];
     for (const frameData of frames) {
-      const frame = this.getFrame(tabId, frameData.frameId)!;
+      const frame = this.getFrame(frameData.tabId, frameData.frameId)!;
       frame.children = [];
     }
     for (const frameData of frames) {
-      const frame = this.getFrame(tabId, frameData.frameId)!;
+      const frame = this.getFrame(frameData.tabId, frameData.frameId)!;
       if (frameData.parentFrameId === -1) {
         roots.push(frame);
       } else {
-        const parent = this.getFrame(tabId, frameData.parentFrameId);
+        const parent = this.getFrame(frameData.tabId, frameData.parentFrameId);
         if (parent) {
           parent.children.push(frame);
         } else {

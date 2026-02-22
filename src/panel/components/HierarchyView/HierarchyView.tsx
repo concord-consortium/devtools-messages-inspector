@@ -6,13 +6,15 @@ import { store } from '../../store';
 import { requestFrameHierarchy } from '../../connection';
 import { FrameInfo } from '../../types';
 import { FrameDetail } from '../shared/FrameDetail';
+import { frameStore } from '../../models';
 
 // Frame row component
 const FrameRow = observer(({ frame, depth }: { frame: FrameInfo; depth: number }) => {
-  const isSelected = frame.frameId === store.selectedFrameId;
+  const key = store.frameKey(frame);
+  const isSelected = key === store.selectedFrameKey;
 
   const handleClick = () => {
-    store.selectFrame(frame.frameId);
+    store.selectFrame(key);
   };
 
   const indentClass = `frame-indent-${Math.min(depth, 4)}`;
@@ -87,9 +89,8 @@ const FrameDetailPane = observer(() => {
     );
   }
 
-  // Get Frame model for non-opener frames
-  const frameModel = typeof frameInfo.frameId === 'number'
-    ? store.getFrame(frameInfo.frameId)
+  const frameModel = (typeof frameInfo.frameId === 'number' && frameInfo.tabId != null)
+    ? frameStore.getFrame(frameInfo.tabId, frameInfo.frameId)
     : undefined;
 
   return (
@@ -102,7 +103,10 @@ const FrameDetailPane = observer(() => {
         <div className="frame-properties">
           <table className="context-table">
             <tbody>
-              <FrameDetail frame={frameModel} />
+              <FrameDetail
+                frame={frameModel}
+                sourceType={frameInfo.isOpener ? 'opener' : undefined}
+              />
             </tbody>
           </table>
         </div>

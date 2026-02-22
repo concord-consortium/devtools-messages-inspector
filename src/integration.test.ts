@@ -316,6 +316,35 @@ describe('content → background → panel integration', () => {
     expect(openerResponseMsgs[0].payload.source.type).toBe('opener');
   });
 
+  it('includes opener in frame hierarchy for popup tabs', async () => {
+    const topFrame = env.createTab({ tabId: TAB_ID, url: 'https://opener.example.com/', title: 'Opener' });
+    env.connectPanel(TAB_ID);
+    await flushPromises();
+
+    const POPUP_TAB_ID = 2;
+    env.openPopup(topFrame, { tabId: POPUP_TAB_ID, url: 'https://popup.example.com/', title: 'Popup' });
+    await flushPromises();
+
+    // Connect popup panel and request hierarchy
+    const { port: popupPort, messages: popupMessages } = env.connectPanel(POPUP_TAB_ID);
+    await flushPromises();
+
+    popupPort.postMessage({ type: 'get-frame-hierarchy', tabId: POPUP_TAB_ID });
+    await flushPromises();
+
+    const hierarchyMsg = popupMessages.find(m => m.type === 'frame-hierarchy');
+    expect(hierarchyMsg).toBeDefined();
+
+    const frames = hierarchyMsg!.payload;
+    // Should have 2 entries: the opener and the popup's own frame 0
+    expect(frames).toHaveLength(2);
+
+    const openerEntry = frames.find((f: any) => f.isOpener);
+    expect(openerEntry).toBeDefined();
+    expect(openerEntry.tabId).toBe(TAB_ID); // opener's tab
+    expect(openerEntry.frameId).toBe(0);    // opener's frame
+  });
+
   it('buffers messages for tabs opened from monitored tabs', async () => {
     const { topFrame } = setupTwoFrames();
     env.connectPanel(TAB_ID);

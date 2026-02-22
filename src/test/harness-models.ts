@@ -165,6 +165,9 @@ export class CrossOriginWindowProxy {
     }, 0);
   }
 
+  // window.origin is accessible cross-origin in real browsers
+  get origin(): string { return this._target.location.origin; }
+
   get closed(): boolean { return false; }
 }
 

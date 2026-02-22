@@ -61,6 +61,7 @@ export type CapturedMessage = IMessage;
 export interface FrameInfo {
   frameId: number | string;
   documentId?: string;
+  tabId?: number;
   url: string;
   parentFrameId: number;
   title: string;

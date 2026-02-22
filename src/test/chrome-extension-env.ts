@@ -80,6 +80,7 @@ export class ChromeExtensionEnv {
     // Fire onCreatedNavigationTarget first so buffering is enabled before the page load
     this.bgOnCreatedNavTarget.fire({
       sourceTabId: sourceFrame.tab.id,
+      sourceFrameId: sourceFrame.frameId,
       tabId: config.tabId,
       url: config.url,
     });
@@ -202,8 +203,11 @@ export class ChromeExtensionEnv {
       documentId,
     };
 
-    const onMessage = new ChromeEvent<(msg: any, sender: any, sendResponse: any) => any>();
-    env.contentOnMessage.set(`${tabId}:${frameId}`, onMessage);
+    const key = `${tabId}:${frameId}`;
+    // Reuse existing event if already created (content script guards against
+    // double-injection, so the listener is still on the original event).
+    const onMessage = env.contentOnMessage.get(key) ?? new ChromeEvent<(msg: any, sender: any, sendResponse: any) => any>();
+    env.contentOnMessage.set(key, onMessage);
 
     return {
       runtime: {

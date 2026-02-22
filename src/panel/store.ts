@@ -35,7 +35,7 @@ class PanelStore {
 
   // Hierarchy
   frameHierarchy: FrameInfo[] = [];
-  selectedFrameId: string | number | null = null;
+  selectedFrameKey: string | null = null;
 
   // Settings
   settings: Settings = {
@@ -89,9 +89,17 @@ class PanelStore {
     return this.messages.find(m => m.id === this.selectedMessageId);
   }
 
+  // Unique key for a frame in the hierarchy (handles opener/regular frameId collisions)
+  frameKey(frame: FrameInfo): string {
+    if (frame.isOpener) {
+      return frame.tabId != null ? `opener:${frame.tabId}:${frame.frameId}` : 'opener';
+    }
+    return frame.tabId != null ? `${frame.tabId}:${frame.frameId}` : String(frame.frameId);
+  }
+
   // Computed: selected frame
   get selectedFrame(): FrameInfo | undefined {
-    return this.frameHierarchy.find(f => f.frameId === this.selectedFrameId);
+    return this.frameHierarchy.find(f => this.frameKey(f) === this.selectedFrameKey);
   }
 
   // Get the Frame model for a given frameId in the current tab
@@ -291,13 +299,12 @@ class PanelStore {
   setFrameHierarchy(frames: FrameInfo[]): void {
     this.frameHierarchy = frames;
 
-    // Process non-opener frames through FrameStore
-    const numericFrames = frames.filter(f => typeof f.frameId === 'number') as Array<FrameInfo & { frameId: number }>;
-    frameStore.processHierarchy(this.tabId, numericFrames);
+    const processable = frames.filter(f => typeof f.frameId === 'number' && f.tabId != null) as Array<FrameInfo & { frameId: number; tabId: number }>;
+    frameStore.processHierarchy(processable);
   }
 
-  selectFrame(frameId: string | number | null): void {
-    this.selectedFrameId = frameId;
+  selectFrame(key: string | null): void {
+    this.selectedFrameKey = key;
   }
 
   updateSettings(partial: Partial<Settings>): void {
@@ -331,8 +338,8 @@ class PanelStore {
 
   // Build tree structure from flat frame list
   buildFrameTree(): FrameInfo[] {
-    const frameMap = new Map<number | string, FrameInfo>(
-      this.frameHierarchy.map(f => [f.frameId, { ...f, children: [] }])
+    const frameMap = new Map<string, FrameInfo>(
+      this.frameHierarchy.map(f => [this.frameKey(f), { ...f, children: [] }])
     );
     const roots: FrameInfo[] = [];
 
@@ -340,7 +347,8 @@ class PanelStore {
       if (frame.parentFrameId === -1) {
         roots.push(frame);
       } else {
-        const parent = frameMap.get(frame.parentFrameId);
+        const parentKey = frame.tabId != null ? `${frame.tabId}:${frame.parentFrameId}` : String(frame.parentFrameId);
+        const parent = frameMap.get(parentKey);
         if (parent) {
           parent.children!.push(frame);
         } else {

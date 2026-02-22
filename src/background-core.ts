@@ -32,9 +32,9 @@ export interface BackgroundChrome {
   };
   webNavigation: {
     getAllFrames(details: { tabId: number }): Promise<Array<{ frameId: number; parentFrameId: number; documentId?: string; url: string }> | null>;
-    getFrame(details: { tabId: number; frameId: number }): Promise<{ documentId?: string; parentFrameId?: number } | null>;
+    getFrame(details: { tabId: number; frameId: number }): Promise<{ documentId?: string; parentFrameId?: number; url?: string } | null>;
     onCommitted: { addListener(cb: (details: { tabId: number; frameId: number; url: string }) => void): void };
-    onCreatedNavigationTarget: { addListener(cb: (details: { sourceTabId: number; tabId: number; url: string }) => void): void };
+    onCreatedNavigationTarget: { addListener(cb: (details: { sourceTabId: number; sourceFrameId: number; tabId: number; url: string }) => void): void };
   };
   storage: { local: { get(keys: string | string[]): Promise<Record<string, any>> } };
 }
@@ -55,15 +55,17 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
   // Track which frames have been injected to avoid double-injection
   const injectedFrames = new Map<number, Set<number>>();
 
-  // Bidirectional opener relationships: tabId -> Set of related tabIds
-  const openerRelationships = new Map<number, Set<number>>();
+  // For each opened tab, the frame that opened it (via window.open)
+  const openedTabs = new Map<number, { tabId: number; frameId: number }>();
+  // For each opener frame key ("tabId:frameId"), the tabs it opened
+  const openerFrames = new Map<string, Set<number>>();
 
-  // Record a bidirectional opener/openee relationship between two tabs
-  function recordOpenerRelationship(openerTabId: number, openeeTabId: number): void {
-    if (!openerRelationships.has(openerTabId)) openerRelationships.set(openerTabId, new Set());
-    openerRelationships.get(openerTabId)!.add(openeeTabId);
-    if (!openerRelationships.has(openeeTabId)) openerRelationships.set(openeeTabId, new Set());
-    openerRelationships.get(openeeTabId)!.add(openerTabId);
+  // Record an opener relationship
+  function recordOpenerRelationship(openerTabId: number, openerFrameId: number, openeeTabId: number): void {
+    openedTabs.set(openeeTabId, { tabId: openerTabId, frameId: openerFrameId });
+    const key = `${openerTabId}:${openerFrameId}`;
+    if (!openerFrames.has(key)) openerFrames.set(key, new Set());
+    openerFrames.get(key)!.add(openeeTabId);
   }
 
   // Maps "${capturingTabId}:${windowId}" to the openee's tab info
@@ -197,6 +199,7 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
           return {
             frameId: frame.frameId,
             documentId: frame.documentId,
+            tabId,
             url: frame.url,
             parentFrameId: frame.parentFrameId,
             title: info?.title || '',
@@ -211,6 +214,7 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
           return {
             frameId: frame.frameId,
             documentId: frame.documentId,
+            tabId,
             url: frame.url,
             parentFrameId: frame.parentFrameId,
             title: '',
@@ -223,7 +227,7 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
       const frames = await Promise.all(frameInfoPromises);
 
       if (openerInfo) {
-        frames.unshift({
+        const openerFrame: FrameInfo = {
           frameId: 'opener',
           url: '',
           parentFrameId: -1,
@@ -231,7 +235,33 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
           origin: (openerInfo as OpenerInfo).origin || '',
           iframes: [],
           isOpener: true
-        });
+        };
+
+        // Enrich opener with info from webNavigation if we know which frame opened us
+        const opener = openedTabs.get(tabId);
+        if (opener) {
+          openerFrame.tabId = opener.tabId;
+          openerFrame.frameId = opener.frameId;
+          try {
+            const navFrame = await chrome.webNavigation.getFrame({ tabId: opener.tabId, frameId: opener.frameId });
+            if (navFrame?.url) {
+              openerFrame.url = navFrame.url;
+              if (!openerFrame.origin) {
+                try { openerFrame.origin = new URL(navFrame.url).origin; } catch { /* ignore */ }
+              }
+            }
+          } catch { /* tab may be closed */ }
+          try {
+            // Get title from content script in the opener frame
+            const info = await chrome.tabs.sendMessage(opener.tabId,
+              { type: 'get-frame-info' } as GetFrameInfoMessage,
+              { frameId: opener.frameId }
+            ) as FrameInfoResponse | undefined;
+            if (info?.title) openerFrame.title = info.title;
+          } catch { /* content script may not be injected */ }
+        }
+
+        frames.unshift(openerFrame);
       }
 
       return frames;
@@ -273,14 +303,12 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
         };
       } else if (sourceType === 'opener') {
         // Opener is in a related tab
-        const relatedTabs = openerRelationships.get(tabId);
-        if (relatedTabs) {
-          for (const relatedTabId of relatedTabs) {
-            enrichedPayload.source = {
-              ...enrichedPayload.source,
-              tabId: relatedTabId
-            };
-            break; // Each tab has at most one opener
+        const opener = openedTabs.get(tabId);
+        if (opener) {
+          enrichedPayload.source = {
+            ...enrichedPayload.source,
+            tabId: opener.tabId,
+            frameId: opener.frameId
           }
         }
       }
@@ -325,7 +353,8 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
         // Also establish opener relationship from registration, as a fallback
         // for cases where onCreatedNavigationTarget didn't set it up (e.g.,
         // popup opened before the panel was connected).
-        recordOpenerRelationship(tabId, rawData.tabId as number);
+        // frameId here is the opener's frame (where the message was received).
+        recordOpenerRelationship(tabId, frameId, rawData.tabId as number);
       }
 
       const panel = panelConnections.get(tabId);
@@ -348,16 +377,14 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
 
       // Cross-tab routing for opener-type messages
       if (enrichedPayload.source.type === 'opener') {
-        const relatedTabs = openerRelationships.get(tabId);
-        if (relatedTabs) {
-          for (const relatedTabId of relatedTabs) {
-            const relatedPanel = panelConnections.get(relatedTabId);
-            if (relatedPanel) {
-              relatedPanel.postMessage({
-                type: 'message',
-                payload: enrichedPayload
-              });
-            }
+        const opener = openedTabs.get(tabId);
+        if (opener) {
+          const relatedPanel = panelConnections.get(opener.tabId);
+          if (relatedPanel) {
+            relatedPanel.postMessage({
+              type: 'message',
+              payload: enrichedPayload
+            });
           }
         }
       }
@@ -386,11 +413,12 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
   // Enable buffering for tabs opened from monitored tabs
   chrome.webNavigation.onCreatedNavigationTarget.addListener((details) => {
     const sourceTabId = details.sourceTabId;
+    const sourceFrameId = details.sourceFrameId;
     const newTabId = details.tabId;
     if (panelConnections.has(sourceTabId) || bufferingEnabledTabs.has(sourceTabId)) {
       bufferingEnabledTabs.add(newTabId);
 
-      recordOpenerRelationship(sourceTabId, newTabId);
+      recordOpenerRelationship(sourceTabId, sourceFrameId, newTabId);
     }
   });
 
@@ -425,12 +453,23 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
     injectedFrames.delete(tabId);
 
     // Clean up opener relationships
-    const related = openerRelationships.get(tabId);
-    if (related) {
-      for (const relatedTabId of related) {
-        openerRelationships.get(relatedTabId)?.delete(tabId);
+    const opener = openedTabs.get(tabId);
+    if (opener) {
+      // This tab was opened by opener — remove it from the opener's set
+      const key = `${opener.tabId}:${opener.frameId}`;
+      openerFrames.get(key)?.delete(tabId);
+      if (openerFrames.get(key)?.size === 0) openerFrames.delete(key);
+      openedTabs.delete(tabId);
+    }
+    // Also clean up any tabs this tab opened (as an opener frame)
+    // Check all frames in this tab — iterate openerFrames for keys starting with tabId
+    for (const [key, openedSet] of openerFrames) {
+      if (key.startsWith(`${tabId}:`)) {
+        for (const openedTabId of openedSet) {
+          openedTabs.delete(openedTabId);
+        }
+        openerFrames.delete(key);
       }
-      openerRelationships.delete(tabId);
     }
   });
 }

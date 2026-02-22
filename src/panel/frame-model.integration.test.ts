@@ -446,4 +446,49 @@ describe('Frame model integration', () => {
       expect(store.filteredMessages).toHaveLength(0);
     });
   });
+
+  // ===================================================================
+  // buildFrameTree — opener frame should not be dropped when its
+  // frameId collides with a regular frame's frameId
+  // ===================================================================
+  describe('buildFrameTree with opener', () => {
+    it('includes opener frame even when its frameId matches a regular frame', () => {
+      // This simulates the hierarchy data returned by getFrameHierarchy for a popup tab:
+      // - The opener (from a different tab) has frameId=0
+      // - The popup's own top frame also has frameId=0
+      store.setFrameHierarchy([
+        { frameId: 0, tabId: OPENER_TAB_ID, url: OPENER_FRAME.url, parentFrameId: -1, title: OPENER_FRAME.title, origin: OPENER_FRAME.origin, iframes: [], isOpener: true },
+        { frameId: 0, tabId: TAB_ID, url: FRAME_A.url, parentFrameId: -1, title: FRAME_A.title, origin: FRAME_A.origin, iframes: [] },
+      ]);
+
+      const tree = store.buildFrameTree();
+      expect(tree).toHaveLength(2);
+
+      const openerNode = tree.find(f => f.isOpener);
+      expect(openerNode).toBeDefined();
+      expect(openerNode!.origin).toBe(OPENER_FRAME.origin);
+
+      const regularNode = tree.find(f => !f.isOpener);
+      expect(regularNode).toBeDefined();
+      expect(regularNode!.origin).toBe(FRAME_A.origin);
+    });
+
+    it('can select the regular frame without also selecting opener', () => {
+      store.setFrameHierarchy([
+        { frameId: 0, tabId: OPENER_TAB_ID, url: OPENER_FRAME.url, parentFrameId: -1, title: OPENER_FRAME.title, origin: OPENER_FRAME.origin, iframes: [], isOpener: true },
+        { frameId: 0, tabId: TAB_ID, url: FRAME_A.url, parentFrameId: -1, title: FRAME_A.title, origin: FRAME_A.origin, iframes: [] },
+      ]);
+
+      const tree = store.buildFrameTree();
+      const regularNode = tree.find(f => !f.isOpener)!;
+
+      // Simulate clicking the regular frame[0] in the hierarchy table
+      store.selectFrame(store.frameKey(regularNode));
+
+      // The selected frame should be the regular frame, not the opener
+      expect(store.selectedFrame).toBeDefined();
+      expect(store.selectedFrame!.isOpener).toBeFalsy();
+      expect(store.selectedFrame!.origin).toBe(FRAME_A.origin);
+    });
+  });
 });
