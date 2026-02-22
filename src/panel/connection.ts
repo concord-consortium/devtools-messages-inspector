@@ -16,7 +16,7 @@ export function connect(): void {
 
   port.onMessage.addListener((msg: { type: string; payload?: CapturedMessage | FrameInfo[] }) => {
     if (msg.type === 'message' && msg.payload) {
-      processIncomingMessage(msg.payload as IMessage, tabId);
+      processIncomingMessage(msg.payload as IMessage);
     } else if (msg.type === 'clear') {
       store.clearMessages();
     } else if (msg.type === 'frame-hierarchy' && msg.payload) {
@@ -35,20 +35,23 @@ export function connect(): void {
 // 3. Create a Message model instance
 // 4. Handle registration if applicable
 // 5. Push to the store
-export function processIncomingMessage(msg: IMessage, tabId: number): void {
+export function processIncomingMessage(msg: IMessage): void {
   // --- Target ---
-  const targetDoc = frameStore.getOrCreateDocumentById(msg.target.documentId!);
-  targetDoc.url = msg.target.url;
-  targetDoc.origin = msg.target.origin;
-  targetDoc.title = msg.target.documentTitle;
+  let targetOwnerElement: OwnerElement | undefined = undefined;
+  if (msg.target.documentId) {
+    const targetDoc = frameStore.getOrCreateDocumentById(msg.target.documentId);
+    targetDoc.url = msg.target.url;
+    targetDoc.origin = msg.target.origin;
+    targetDoc.title = msg.target.documentTitle;
 
-  const targetFrame = frameStore.getOrCreateFrame(tabId, msg.target.frameId);
-  if (!targetDoc.frame) {
-    targetDoc.frame = targetFrame;
-    targetFrame.currentDocument = targetDoc;
+    const targetFrame = frameStore.getOrCreateFrame(msg.target.tabId, msg.target.frameId);
+    if (!targetDoc.frame) {
+      targetDoc.frame = targetFrame;
+      targetFrame.currentDocument = targetDoc;
+    }
+
+    targetOwnerElement = targetFrame.currentOwnerElement;
   }
-
-  const targetOwnerElement = targetFrame.currentOwnerElement;
 
   // --- Source ---
   if (msg.source.documentId) {

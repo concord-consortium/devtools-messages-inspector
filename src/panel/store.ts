@@ -204,8 +204,8 @@ class PanelStore {
             return true;
           }
 
-          const targetFrameId = msg.target.frameId;
-          if (targetFrameId === filterFrameId && this.tabId === filterTabId) {
+          const targetFrame = msg.targetFrame;
+          if (targetFrame && targetFrame.frameId === filterFrameId && targetFrame.tabId === filterTabId) {
             return true;
           }
 
