@@ -128,11 +128,6 @@ export function initContentScript(win: ContentWindow, chrome: ContentChrome): vo
     return entry;
   }
 
-  function getWindowId(sourceWindow: object | null): string | null {
-    if (!sourceWindow) return null;
-    return getOrCreateSourceWindow(sourceWindow).windowId;
-  }
-
   // Create data preview (truncated string representation)
   function createDataPreview(data: unknown, maxLength = 100): string {
     try {
@@ -161,12 +156,6 @@ export function initContentScript(win: ContentWindow, chrome: ContentChrome): vo
     return null;
   }
 
-  // Determine the relationship between this window and the message source
-  function getSourceRelationship(eventSource: object | null): string {
-    if (!eventSource) return 'unknown';
-    return getOrCreateSourceWindow(eventSource).type;
-  }
-
   interface SourceInfo {
     type: string;
     origin: string;
@@ -187,12 +176,14 @@ export function initContentScript(win: ContentWindow, chrome: ContentChrome): vo
 
   // Collect source info from a message event
   function getSourceInfo(event: MessageEvent): SourceInfo {
-    const sourceType = getSourceRelationship(event.source);
+    const eventSource = event.source;
+    const sourceWindow = eventSource ? getOrCreateSourceWindow(eventSource) : null;
+    const sourceType = sourceWindow ? sourceWindow.type : 'unknown';
 
     const source: SourceInfo = {
       type: sourceType,
       origin: event.origin,
-      windowId: getWindowId(event.source),
+      windowId: sourceWindow ? sourceWindow.windowId : null,
       iframeSrc: null,
       iframeId: null,
       iframeDomPath: null
