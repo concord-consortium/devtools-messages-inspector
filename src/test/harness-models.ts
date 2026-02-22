@@ -223,7 +223,7 @@ export class HarnessWindow {
   /** Proxies of child windows, keyed by the raw child HarnessWindow.
    *  Used by dispatchMessage() to resolve raw window sources to proxies. */
   private _childProxies = new Map<HarnessWindow, CrossOriginWindowProxy>();
-  private _openeeProxies = new Map<HarnessWindow, CrossOriginWindowProxy>();
+  private _openedWindowProxies = new Map<HarnessWindow, CrossOriginWindowProxy>();
 
   constructor(options: HarnessWindowOptions) {
     this.location = { ...options.location };
@@ -292,9 +292,9 @@ export class HarnessWindow {
       } else if (source === this._rawParent && this._parentProxy) {
         resolvedSource = this._parentProxy;
       }
-      const openeeProxy = this._openeeProxies.get(source);
-      if (openeeProxy) {
-        resolvedSource = openeeProxy;
+      const openedWindowProxy = this._openedWindowProxies.get(source);
+      if (openedWindowProxy) {
+        resolvedSource = openedWindowProxy;
       } else if (source === this._rawOpener && this._openerProxy) {
         resolvedSource = this._openerProxy;
       }
@@ -334,8 +334,8 @@ export class HarnessWindow {
   }
 
   /** Register a proxy for an opened window (for dispatchMessage source resolution). */
-  registerOpeneeProxy(openeeWin: HarnessWindow, proxy: CrossOriginWindowProxy): void {
-    this._openeeProxies.set(openeeWin, proxy);
+  registerOpenedWindowProxy(openedWin: HarnessWindow, proxy: CrossOriginWindowProxy): void {
+    this._openedWindowProxies.set(openedWin, proxy);
   }
 
   /** Set the opener relationship with a cross-origin proxy. */

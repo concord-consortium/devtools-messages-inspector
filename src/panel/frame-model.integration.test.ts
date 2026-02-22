@@ -143,13 +143,13 @@ function parentMsg(
 }
 
 /**
- * Cross-tab message routed to the openee's panel.
+ * Cross-tab message routed to the opened window's panel.
  *
- * When the openee sends a message to the opener, the opener's content script
- * captures it and the background routes a copy to the openee's panel.
- * The target is the opener (a different tab), the source is the openee (current tab).
+ * When the opened window sends a message to the opener, the opener's content script
+ * captures it and the background routes a copy to the opened window's panel.
+ * The target is the opener (a different tab), the source is the opened window (current tab).
  */
-function crossTabOpeneeToOpenerMsg(
+function crossTabOpenedToOpenerMsg(
   data: Record<string, unknown> = { type: 'hello-opener' },
 ): IMessage {
   return {
@@ -164,9 +164,9 @@ function crossTabOpeneeToOpenerMsg(
       documentId: OPENER_FRAME.documentId,
     },
     source: {
-      type: 'openee',
+      type: 'opened',
       origin: FRAME_A.origin,
-      windowId: 'win-openee',
+      windowId: 'win-opened',
       iframeSrc: null,
       iframeId: null,
       iframeDomPath: null,
@@ -416,7 +416,7 @@ describe('Frame model integration', () => {
   // ===================================================================
   describe('cross-tab target', () => {
     it('target frame is created with the target tabId, not the panel tabId', () => {
-      processIncomingMessage(crossTabOpeneeToOpenerMsg());
+      processIncomingMessage(crossTabOpenedToOpenerMsg());
 
       // Target frame should be in the opener's tab, not the current tab
       const targetFrame = frameStore.getFrame(OPENER_TAB_ID, OPENER_FRAME.frameId);
@@ -434,7 +434,7 @@ describe('Frame model integration', () => {
     });
 
     it('frame filter matches cross-tab target by tab and frame', () => {
-      processIncomingMessage(crossTabOpeneeToOpenerMsg());
+      processIncomingMessage(crossTabOpenedToOpenerMsg());
 
       // Filter with explicit tab should match the target
       store.setFilter(`frame:tab[${OPENER_TAB_ID}].frame[${OPENER_FRAME.frameId}]`);

@@ -157,7 +157,7 @@ export function initContentScript(win: ContentWindow, chrome: ContentChrome): vo
     for (let i = 0; i < win.frames.length; i++) {
       if (eventSource === win.frames[i]) return 'child';
     }
-    if (openedWindows.has(eventSource)) return 'openee';
+    if (openedWindows.has(eventSource)) return 'opened';
     return 'unknown';
   }
 
@@ -213,7 +213,7 @@ export function initContentScript(win: ContentWindow, chrome: ContentChrome): vo
     // Stop propagation of registration messages to prevent app from seeing them
     if (event.data?.type === '__frames_inspector_register__') {
       event.stopImmediatePropagation();
-      // Track windows that sent us an opener registration (they are our openees)
+      // Track windows that sent us an opener registration (they are windows we opened)
       if (event.data.targetType === 'opener' && event.source) {
         openedWindows.add(event.source);
       }

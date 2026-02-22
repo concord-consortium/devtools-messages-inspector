@@ -171,7 +171,7 @@ describe('content → background → panel integration', () => {
     expect(payload.source.tabId).toBe(TAB_ID);
   });
 
-  it('delivers an openee→opener message to the opener panel', async () => {
+  it('delivers an opened→opener message to the opener panel', async () => {
     const topFrame = env.createTab({ tabId: TAB_ID, url: 'https://opener.example.com/', title: 'Opener' });
     const { messages } = env.connectPanel(TAB_ID);
     await flushPromises();
@@ -202,7 +202,7 @@ describe('content → background → panel integration', () => {
       m.type === 'message' && m.payload.data?.type !== '__frames_inspector_register__'
     );
     expect(msgPayloads).toHaveLength(1);
-    expect(msgPayloads[0].payload.source.type).toBe('openee');
+    expect(msgPayloads[0].payload.source.type).toBe('opened');
   });
 
   it('routes opener→popup messages to the opener tab panel', async () => {
@@ -230,7 +230,7 @@ describe('content → background → panel integration', () => {
     expect(openerMsgs[0].payload.source.type).toBe('opener');
   });
 
-  it('routes openee→opener messages to the openee tab panel', async () => {
+  it('routes opened→opener messages to the opened tab panel', async () => {
     const topFrame = env.createTab({ tabId: TAB_ID, url: 'https://opener.example.com/', title: 'Opener' });
     const { messages: openerMessages } = env.connectPanel(TAB_ID);
     await flushPromises();
@@ -246,7 +246,7 @@ describe('content → background → panel integration', () => {
     const openerWin = topFrame.window!;
     const popupWin = popupFrame.window!;
 
-    // Simulate popup's registration arriving at opener (triggers openeeWindowToTab mapping)
+    // Simulate popup's registration arriving at opener (triggers openedWindowToTab mapping)
     openerWin.dispatchMessage(
       { type: '__frames_inspector_register__', targetType: 'opener', frameId: 0, tabId: POPUP_TAB_ID, documentId: 'doc-f0' },
       'https://popup.example.com',
@@ -265,11 +265,11 @@ describe('content → background → panel integration', () => {
     expect(popupMsgs).toHaveLength(1);
   });
 
-  it('routes opener→openee to opener panel when popup opened before DevTools', async () => {
+  it('routes opener→opened to opener panel when popup opened before DevTools', async () => {
     // Scenario: popup opened BEFORE DevTools is connected.
     // onCreatedNavigationTarget fires but the panel condition fails,
     // so openerRelationships is NOT established. Registration still flows,
-    // establishing openeeWindowToTab. The opener→openee cross-tab routing
+    // establishing openedWindowToTab. The opener→opened cross-tab routing
     // should still work (via registration-based relationship).
     const topFrame = env.createTab({ tabId: TAB_ID, url: 'https://opener.example.com/', title: 'Opener' });
 
@@ -292,7 +292,7 @@ describe('content → background → panel integration', () => {
       popupWin
     );
 
-    // Openee sends to opener (cross-tab routing via openeeWindowToTab works)
+    // Opened window sends to opener (cross-tab routing via openedWindowToTab works)
     openerWin.dispatchMessage(
       { type: 'hello-from-popup' },
       'https://popup.example.com',
@@ -300,7 +300,7 @@ describe('content → background → panel integration', () => {
     );
     await flushPromises();
 
-    // Opener responds to openee
+    // Opener responds to opened window
     popupWin.dispatchMessage(
       { type: 'response', from: 'opener' },
       'https://opener.example.com',

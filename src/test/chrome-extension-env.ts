@@ -87,14 +87,14 @@ export class ChromeExtensionEnv {
 
     const popupFrame = this.createTab(config);
 
-    // Wire opener/openee proxy pair
+    // Wire opener/opened-window proxy pair
     const openerWin = sourceFrame.window!;
     const popupWin = popupFrame.window!;
     const { aForB: openerProxyForPopup, bForA: popupProxyForOpener } =
       createProxyPair(openerWin, popupWin);
 
     popupWin.setOpenerProxy(openerWin, openerProxyForPopup);
-    openerWin.registerOpeneeProxy(popupWin, popupProxyForOpener);
+    openerWin.registerOpenedWindowProxy(popupWin, popupProxyForOpener);
 
     return popupFrame;
   }

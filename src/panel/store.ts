@@ -163,8 +163,8 @@ class PanelStore {
       case 'top': return '↘';
       case 'child': return '↖';
       case 'self': return '↻';
-      case 'opener': return '←';
-      case 'openee': return '→';
+      case 'opener': return '→';
+      case 'opened': return '←';
       default: return '?';
     }
   }
