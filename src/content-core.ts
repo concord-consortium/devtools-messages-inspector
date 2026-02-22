@@ -44,8 +44,7 @@ export function initContentScript(win: ContentWindow, chrome: ContentChrome): vo
   if (win.__postmessage_devtools_content__) return;
   win.__postmessage_devtools_content__ = true;
 
-  const sourceWindows = new WeakMap<object, { windowId: string }>();
-  const openedWindows = new WeakSet<object>();
+  const sourceWindows = new WeakMap<object, { windowId: string; type: string }>();
 
   interface RegistrationMessage {
     type: '__frames_inspector_register__';
@@ -107,16 +106,31 @@ export function initContentScript(win: ContentWindow, chrome: ContentChrome): vo
     return id;
   }
 
-  // Get or create a stable windowId for a source window
-  function getWindowId(sourceWindow: object | null): string | null {
-    if (!sourceWindow) return null;
+  // Compute the source type from window reference comparisons
+  function computeSourceType(eventSource: object): string {
+    if (eventSource === win) return 'self';
+    if (eventSource === win.parent && win.parent !== win) return 'parent';
+    if (eventSource === win.top && win.top !== win) return 'top';
+    if (win.opener && eventSource === win.opener) return 'opener';
+    for (let i = 0; i < win.frames.length; i++) {
+      if (eventSource === win.frames[i]) return 'child';
+    }
+    return 'unknown';
+  }
 
+  // Get or create a stable entry for a source window
+  function getOrCreateSourceWindow(sourceWindow: object): { windowId: string; type: string } {
     let entry = sourceWindows.get(sourceWindow);
     if (!entry) {
-      entry = { windowId: generateId() };
+      entry = { windowId: generateId(), type: computeSourceType(sourceWindow) };
       sourceWindows.set(sourceWindow, entry);
     }
-    return entry.windowId;
+    return entry;
+  }
+
+  function getWindowId(sourceWindow: object | null): string | null {
+    if (!sourceWindow) return null;
+    return getOrCreateSourceWindow(sourceWindow).windowId;
   }
 
   // Create data preview (truncated string representation)
@@ -150,15 +164,7 @@ export function initContentScript(win: ContentWindow, chrome: ContentChrome): vo
   // Determine the relationship between this window and the message source
   function getSourceRelationship(eventSource: object | null): string {
     if (!eventSource) return 'unknown';
-    if (eventSource === win) return 'self';
-    if (eventSource === win.parent && win.parent !== win) return 'parent';
-    if (eventSource === win.top && win.top !== win) return 'top';
-    if (win.opener && eventSource === win.opener) return 'opener';
-    for (let i = 0; i < win.frames.length; i++) {
-      if (eventSource === win.frames[i]) return 'child';
-    }
-    if (openedWindows.has(eventSource)) return 'opened';
-    return 'unknown';
+    return getOrCreateSourceWindow(eventSource).type;
   }
 
   interface SourceInfo {
@@ -213,10 +219,6 @@ export function initContentScript(win: ContentWindow, chrome: ContentChrome): vo
     // Stop propagation of registration messages to prevent app from seeing them
     if (event.data?.type === '__frames_inspector_register__') {
       event.stopImmediatePropagation();
-      // Track windows that sent us an opener registration (they are windows we opened)
-      if (event.data.targetType === 'opener' && event.source) {
-        openedWindows.add(event.source);
-      }
     }
 
     const capturedMessage: RawCapturedMessage = {

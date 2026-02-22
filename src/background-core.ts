@@ -294,8 +294,23 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
         }
       };
 
+      // Detect opened-window source type from registration data
+      // (content script can't determine this — background tracks it via openedWindowToTab)
+      if (message.payload.source.windowId) {
+        const windowKey = `${tabId}:${message.payload.source.windowId}`;
+        const openedWindow = openedWindowToTab.get(windowKey);
+        if (openedWindow) {
+          enrichedPayload.source = {
+            ...enrichedPayload.source,
+            type: 'opened',
+            tabId: openedWindow.tabId,
+            frameId: openedWindow.frameId
+          };
+        }
+      }
+
       // For same-tab source types, set source.tabId = target.tabId
-      const sourceType = message.payload.source.type;
+      const sourceType = enrichedPayload.source.type;
       if (sourceType === 'parent' || sourceType === 'self' || sourceType === 'top' || sourceType === 'child') {
         enrichedPayload.source = {
           ...enrichedPayload.source,
@@ -375,36 +390,14 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
         }
       }
 
-      // Cross-tab routing for opener-type messages
-      if (enrichedPayload.source.type === 'opener') {
-        const opener = openedTabs.get(tabId);
-        if (opener) {
-          const relatedPanel = panelConnections.get(opener.tabId);
-          if (relatedPanel) {
-            relatedPanel.postMessage({
-              type: 'message',
-              payload: enrichedPayload
-            });
-          }
-        }
-      }
-
-      // Cross-tab routing for opened-window messages
-      if (enrichedPayload.source.type === 'opened' && message.payload.source.windowId) {
-        const key = `${tabId}:${message.payload.source.windowId}`;
-        const openedInfo = openedWindowToTab.get(key);
-        if (openedInfo) {
-          enrichedPayload.source = {
-            ...enrichedPayload.source,
-            tabId: openedInfo.tabId
-          };
-          const relatedPanel = panelConnections.get(openedInfo.tabId);
-          if (relatedPanel) {
-            relatedPanel.postMessage({
-              type: 'message',
-              payload: enrichedPayload
-            });
-          }
+      // Cross-tab routing: forward to the source's tab panel if it's a different tab
+      if (enrichedPayload.source.tabId && enrichedPayload.source.tabId !== tabId) {
+        const relatedPanel = panelConnections.get(enrichedPayload.source.tabId);
+        if (relatedPanel) {
+          relatedPanel.postMessage({
+            type: 'message',
+            payload: enrichedPayload
+          });
         }
       }
     })();
