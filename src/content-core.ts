@@ -44,7 +44,7 @@ export function initContentScript(win: ContentWindow, chrome: ContentChrome): vo
   if (win.__postmessage_devtools_content__) return;
   win.__postmessage_devtools_content__ = true;
 
-  const sourceWindows = new WeakMap<object, { windowId: string }>();
+  const sourceWindows = new WeakMap<object, { windowId: string; type: string }>();
 
   interface RegistrationMessage {
     type: '__frames_inspector_register__';
@@ -106,16 +106,26 @@ export function initContentScript(win: ContentWindow, chrome: ContentChrome): vo
     return id;
   }
 
-  // Get or create a stable windowId for a source window
-  function getWindowId(sourceWindow: object | null): string | null {
-    if (!sourceWindow) return null;
+  // Compute the source type from window reference comparisons
+  function computeSourceType(eventSource: object): string {
+    if (eventSource === win) return 'self';
+    if (eventSource === win.parent && win.parent !== win) return 'parent';
+    if (eventSource === win.top && win.top !== win) return 'top';
+    if (win.opener && eventSource === win.opener) return 'opener';
+    for (let i = 0; i < win.frames.length; i++) {
+      if (eventSource === win.frames[i]) return 'child';
+    }
+    return 'unknown';
+  }
 
+  // Get or create a stable entry for a source window
+  function getOrCreateSourceWindow(sourceWindow: object): { windowId: string; type: string } {
     let entry = sourceWindows.get(sourceWindow);
     if (!entry) {
-      entry = { windowId: generateId() };
+      entry = { windowId: generateId(), type: computeSourceType(sourceWindow) };
       sourceWindows.set(sourceWindow, entry);
     }
-    return entry.windowId;
+    return entry;
   }
 
   // Create data preview (truncated string representation)
@@ -146,19 +156,6 @@ export function initContentScript(win: ContentWindow, chrome: ContentChrome): vo
     return null;
   }
 
-  // Determine the relationship between this window and the message source
-  function getSourceRelationship(eventSource: object | null): string {
-    if (!eventSource) return 'unknown';
-    if (eventSource === win) return 'self';
-    if (eventSource === win.parent && win.parent !== win) return 'parent';
-    if (eventSource === win.top && win.top !== win) return 'top';
-    if (win.opener && eventSource === win.opener) return 'opener';
-    for (let i = 0; i < win.frames.length; i++) {
-      if (eventSource === win.frames[i]) return 'child';
-    }
-    return 'unknown';
-  }
-
   interface SourceInfo {
     type: string;
     origin: string;
@@ -179,12 +176,14 @@ export function initContentScript(win: ContentWindow, chrome: ContentChrome): vo
 
   // Collect source info from a message event
   function getSourceInfo(event: MessageEvent): SourceInfo {
-    const sourceType = getSourceRelationship(event.source);
+    const eventSource = event.source;
+    const sourceWindow = eventSource ? getOrCreateSourceWindow(eventSource) : null;
+    const sourceType = sourceWindow ? sourceWindow.type : 'unknown';
 
     const source: SourceInfo = {
       type: sourceType,
       origin: event.origin,
-      windowId: getWindowId(event.source),
+      windowId: sourceWindow ? sourceWindow.windowId : null,
       iframeSrc: null,
       iframeId: null,
       iframeDomPath: null
@@ -235,7 +234,10 @@ export function initContentScript(win: ContentWindow, chrome: ContentChrome): vo
   function getOpenerInfo(): OpenerInfo | null {
     if (!win.opener) return null;
 
-    const info: OpenerInfo = { origin: null };
+    const info: OpenerInfo = {
+      origin: null,
+      windowId: getOrCreateSourceWindow(win.opener).windowId
+    };
 
     // window.origin is accessible cross-origin (unlike location.origin)
     try {
@@ -267,7 +269,8 @@ export function initContentScript(win: ContentWindow, chrome: ContentChrome): vo
       const iframes = Array.from(win.document.querySelectorAll('iframe') as NodeListOf<HTMLIFrameElement>).map(iframe => ({
         src: iframe.src || '',
         id: iframe.id || '',
-        domPath: getDomPath(iframe)
+        domPath: getDomPath(iframe),
+        windowId: iframe.contentWindow ? getOrCreateSourceWindow(iframe.contentWindow).windowId : undefined
       }));
 
       const response: FrameInfoResponse = {

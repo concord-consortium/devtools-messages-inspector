@@ -148,6 +148,232 @@ describe('content → background → panel integration', () => {
     expect(clearMsgs).toHaveLength(0);
   });
 
+  it('sets target.tabId on captured messages', async () => {
+    const { parentWin, childWin } = setupTwoFrames();
+    const { messages } = env.connectPanel(TAB_ID);
+    await flushPromises();
+
+    parentWin.dispatchMessage({ type: 'test' }, 'https://child.example.com', childWin);
+
+    const payload = messages.filter(m => m.type === 'message')[0].payload;
+    expect(payload.target.tabId).toBe(TAB_ID);
+  });
+
+  it('sets source.tabId for same-tab messages', async () => {
+    const { parentWin, childWin } = setupTwoFrames();
+    const { messages } = env.connectPanel(TAB_ID);
+    await flushPromises();
+
+    // child→parent (same tab)
+    parentWin.dispatchMessage({ type: 'test' }, 'https://child.example.com', childWin);
+
+    const payload = messages.filter(m => m.type === 'message')[0].payload;
+    expect(payload.source.tabId).toBe(TAB_ID);
+  });
+
+  it('delivers an opened→opener message to the opener panel', async () => {
+    const topFrame = env.createTab({ tabId: TAB_ID, url: 'https://opener.example.com/', title: 'Opener' });
+    const { messages } = env.connectPanel(TAB_ID);
+    await flushPromises();
+
+    const POPUP_TAB_ID = 2;
+    const popupFrame = env.openPopup(topFrame, { tabId: POPUP_TAB_ID, url: 'https://popup.example.com/', title: 'Popup' });
+    await flushPromises();
+
+    const openerWin = topFrame.window!;
+    const popupWin = popupFrame.window!;
+
+    // Simulate the popup's content script sending its opener registration
+    // (In production this happens via frame-identity → sendRegistrationMessages → postMessage)
+    openerWin.dispatchMessage(
+      { type: '__frames_inspector_register__', targetType: 'opener', frameId: 0, tabId: POPUP_TAB_ID, documentId: 'doc-f0' },
+      'https://popup.example.com',
+      popupWin
+    );
+
+    // Popup sends a message received by opener
+    openerWin.dispatchMessage(
+      { type: 'hello-from-popup' },
+      'https://popup.example.com',
+      popupWin
+    );
+
+    const msgPayloads = messages.filter(m =>
+      m.type === 'message' && m.payload.data?.type !== '__frames_inspector_register__'
+    );
+    expect(msgPayloads).toHaveLength(1);
+    expect(msgPayloads[0].payload.source.type).toBe('opened');
+  });
+
+  it('routes opener→popup messages to the opener tab panel', async () => {
+    const topFrame = env.createTab({ tabId: TAB_ID, url: 'https://opener.example.com/', title: 'Opener' });
+    const { messages: openerMessages } = env.connectPanel(TAB_ID);
+    await flushPromises();
+
+    const POPUP_TAB_ID = 2;
+    const popupFrame = env.openPopup(topFrame, { tabId: POPUP_TAB_ID, url: 'https://popup.example.com/', title: 'Popup' });
+    await flushPromises();
+
+    const popupWin = popupFrame.window!;
+
+    // Opener sends a message that popup receives — captured in popup's tab
+    popupWin.dispatchMessage(
+      { type: 'init-from-opener' },
+      'https://opener.example.com',
+      topFrame.window!
+    );
+    await flushPromises();
+
+    // Should appear in opener's panel too (cross-tab routing)
+    const openerMsgs = openerMessages.filter(m => m.type === 'message' && m.payload.data?.type === 'init-from-opener');
+    expect(openerMsgs).toHaveLength(1);
+    expect(openerMsgs[0].payload.source.type).toBe('opener');
+  });
+
+  it('enriches opener source with documentId from webNavigation', async () => {
+    const topFrame = env.createTab({ tabId: TAB_ID, url: 'https://opener.example.com/', title: 'Opener' });
+    env.connectPanel(TAB_ID);
+    await flushPromises();
+
+    const POPUP_TAB_ID = 2;
+    const popupFrame = env.openPopup(topFrame, { tabId: POPUP_TAB_ID, url: 'https://popup.example.com/', title: 'Popup' });
+    const { messages: popupMessages } = env.connectPanel(POPUP_TAB_ID);
+    await flushPromises();
+
+    // Opener sends a message that popup receives
+    popupFrame.window!.dispatchMessage(
+      { type: 'init-from-opener' },
+      'https://opener.example.com',
+      topFrame.window!
+    );
+    await flushPromises();
+
+    const msgPayloads = popupMessages.filter(m => m.type === 'message' && m.payload.data?.type === 'init-from-opener');
+    expect(msgPayloads).toHaveLength(1);
+
+    const payload = msgPayloads[0].payload;
+    expect(payload.source.type).toBe('opener');
+    expect(payload.source.tabId).toBe(TAB_ID);
+    expect(payload.source.frameId).toBe(0);
+    // documentId should be enriched via webNavigation.getFrame lookup
+    expect(payload.source.documentId).toBe('doc-f0');
+  });
+
+  it('routes opened→opener messages to the opened tab panel', async () => {
+    const topFrame = env.createTab({ tabId: TAB_ID, url: 'https://opener.example.com/', title: 'Opener' });
+    const { messages: openerMessages } = env.connectPanel(TAB_ID);
+    await flushPromises();
+
+    const POPUP_TAB_ID = 2;
+    const popupFrame = env.openPopup(topFrame, { tabId: POPUP_TAB_ID, url: 'https://popup.example.com/', title: 'Popup' });
+    await flushPromises();
+
+    // Connect popup panel too
+    const { messages: popupMessages } = env.connectPanel(POPUP_TAB_ID);
+    await flushPromises();
+
+    const openerWin = topFrame.window!;
+    const popupWin = popupFrame.window!;
+
+    // Simulate popup's registration arriving at opener (triggers openedWindowToTab mapping)
+    openerWin.dispatchMessage(
+      { type: '__frames_inspector_register__', targetType: 'opener', frameId: 0, tabId: POPUP_TAB_ID, documentId: 'doc-f0' },
+      'https://popup.example.com',
+      popupWin
+    );
+
+    // Popup sends message to opener — captured in opener's tab
+    openerWin.dispatchMessage(
+      { type: 'hello-from-popup' },
+      'https://popup.example.com',
+      popupWin
+    );
+
+    // Should appear in popup's panel too (cross-tab routing)
+    const popupMsgs = popupMessages.filter(m => m.type === 'message' && m.payload.data?.type === 'hello-from-popup');
+    expect(popupMsgs).toHaveLength(1);
+  });
+
+  it('routes opener→opened to opener panel when popup opened before DevTools', async () => {
+    // Scenario: popup opened BEFORE DevTools is connected.
+    // onCreatedNavigationTarget fires but the panel condition fails,
+    // so openerRelationships is NOT established. Registration still flows,
+    // establishing openedWindowToTab. The opener→opened cross-tab routing
+    // should still work (via registration-based relationship).
+    const topFrame = env.createTab({ tabId: TAB_ID, url: 'https://opener.example.com/', title: 'Opener' });
+
+    const POPUP_TAB_ID = 2;
+    // Open popup BEFORE connecting any panels
+    const popupFrame = env.openPopup(topFrame, { tabId: POPUP_TAB_ID, url: 'https://popup.example.com/', title: 'Popup' });
+
+    // NOW connect panels (after popup was already opened)
+    const { messages: openerMessages } = env.connectPanel(TAB_ID);
+    env.connectPanel(POPUP_TAB_ID);
+    await flushPromises();
+
+    const openerWin = topFrame.window!;
+    const popupWin = popupFrame.window!;
+
+    // Registration flows from popup to opener
+    openerWin.dispatchMessage(
+      { type: '__frames_inspector_register__', targetType: 'opener', frameId: 0, tabId: POPUP_TAB_ID, documentId: 'doc-f0' },
+      'https://popup.example.com',
+      popupWin
+    );
+
+    // Opened window sends to opener (cross-tab routing via openedWindowToTab works)
+    openerWin.dispatchMessage(
+      { type: 'hello-from-popup' },
+      'https://popup.example.com',
+      popupWin
+    );
+    await flushPromises();
+
+    // Opener responds to opened window
+    popupWin.dispatchMessage(
+      { type: 'response', from: 'opener' },
+      'https://opener.example.com',
+      openerWin
+    );
+    await flushPromises();
+
+    // Opener panel should show the response (cross-tab routing for opener messages)
+    const openerResponseMsgs = openerMessages.filter(m =>
+      m.type === 'message' && m.payload.data?.type === 'response'
+    );
+    expect(openerResponseMsgs).toHaveLength(1);
+    expect(openerResponseMsgs[0].payload.source.type).toBe('opener');
+  });
+
+  it('includes opener in frame hierarchy for popup tabs', async () => {
+    const topFrame = env.createTab({ tabId: TAB_ID, url: 'https://opener.example.com/', title: 'Opener' });
+    env.connectPanel(TAB_ID);
+    await flushPromises();
+
+    const POPUP_TAB_ID = 2;
+    env.openPopup(topFrame, { tabId: POPUP_TAB_ID, url: 'https://popup.example.com/', title: 'Popup' });
+    await flushPromises();
+
+    // Connect popup panel and request hierarchy
+    const { port: popupPort, messages: popupMessages } = env.connectPanel(POPUP_TAB_ID);
+    await flushPromises();
+
+    popupPort.postMessage({ type: 'get-frame-hierarchy', tabId: POPUP_TAB_ID });
+    await flushPromises();
+
+    const hierarchyMsg = popupMessages.find(m => m.type === 'frame-hierarchy');
+    expect(hierarchyMsg).toBeDefined();
+
+    const frames = hierarchyMsg!.payload;
+    // Should have 2 entries: the opener and the popup's own frame 0
+    expect(frames).toHaveLength(2);
+
+    const openerEntry = frames.find((f: any) => f.isOpener);
+    expect(openerEntry).toBeDefined();
+    expect(openerEntry.tabId).toBe(TAB_ID); // opener's tab
+    expect(openerEntry.frameId).toBe(0);    // opener's frame
+  });
+
   it('buffers messages for tabs opened from monitored tabs', async () => {
     const { topFrame } = setupTwoFrames();
     env.connectPanel(TAB_ID);

@@ -16,7 +16,7 @@ export function connect(): void {
 
   port.onMessage.addListener((msg: { type: string; payload?: CapturedMessage | FrameInfo[] }) => {
     if (msg.type === 'message' && msg.payload) {
-      processIncomingMessage(msg.payload as IMessage, tabId);
+      processIncomingMessage(msg.payload as IMessage);
     } else if (msg.type === 'clear') {
       store.clearMessages();
     } else if (msg.type === 'frame-hierarchy' && msg.payload) {
@@ -35,32 +35,46 @@ export function connect(): void {
 // 3. Create a Message model instance
 // 4. Handle registration if applicable
 // 5. Push to the store
-export function processIncomingMessage(msg: IMessage, tabId: number): void {
+export function processIncomingMessage(msg: IMessage): void {
   // --- Target ---
-  const targetDoc = frameStore.getOrCreateDocumentById(msg.target.documentId!);
-  targetDoc.url = msg.target.url;
-  targetDoc.origin = msg.target.origin;
-  targetDoc.title = msg.target.documentTitle;
+  let targetOwnerElement: OwnerElement | undefined = undefined;
+  if (msg.target.documentId) {
+    const targetDoc = frameStore.getOrCreateDocumentById(msg.target.documentId);
+    targetDoc.url = msg.target.url;
+    targetDoc.origin = msg.target.origin;
+    targetDoc.title = msg.target.documentTitle;
 
-  const targetFrame = frameStore.getOrCreateFrame(tabId, msg.target.frameId);
-  if (!targetDoc.frame) {
-    targetDoc.frame = targetFrame;
-    targetFrame.currentDocument = targetDoc;
+    const targetFrame = frameStore.getOrCreateFrame(msg.target.tabId, msg.target.frameId);
+    if (!targetDoc.frame) {
+      targetDoc.frame = targetFrame;
+      targetFrame.currentDocument = targetDoc;
+    }
+
+    targetOwnerElement = targetFrame.currentOwnerElement;
   }
 
-  const targetOwnerElement = targetFrame.currentOwnerElement;
-
   // --- Source ---
+  let sourceDoc: InstanceType<typeof FrameDocument> | undefined;
   if (msg.source.documentId) {
-    const sourceDoc = frameStore.getOrCreateDocumentById(msg.source.documentId);
+    sourceDoc = frameStore.getOrCreateDocumentById(msg.source.documentId);
     sourceDoc.origin = msg.source.origin;
     if (msg.source.windowId) {
       sourceDoc.windowId = msg.source.windowId;
       frameStore.documentsByWindowId.set(msg.source.windowId, sourceDoc);
     }
   } else if (msg.source.windowId) {
-    const sourceDoc = frameStore.getOrCreateDocumentByWindowId(msg.source.windowId);
+    sourceDoc = frameStore.getOrCreateDocumentByWindowId(msg.source.windowId);
     sourceDoc.origin = msg.source.origin;
+  }
+
+  // Link source FrameDocument to a Frame when tabId and frameId are available
+  // (e.g., opener/opened messages enriched by background with cross-tab info)
+  if (sourceDoc && !sourceDoc.frame && msg.source.tabId != null && msg.source.frameId != null) {
+    const sourceFrame = frameStore.getOrCreateFrame(msg.source.tabId, msg.source.frameId);
+    sourceDoc.frame = sourceFrame;
+    if (!sourceFrame.currentDocument) {
+      sourceFrame.currentDocument = sourceDoc;
+    }
   }
 
   // --- Source owner element (child messages) ---

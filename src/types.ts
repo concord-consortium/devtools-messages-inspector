@@ -32,6 +32,7 @@ export interface IMessage {
     origin: string;
     documentTitle: string;
     frameId: number;
+    tabId: number;
     documentId?: string;  // From sender.documentId in background script
     frameInfoError?: string;
   };
@@ -43,6 +44,7 @@ export interface IMessage {
     iframeId: string | null;
     iframeDomPath: string | null;
     frameId?: number;  // Computed for child messages
+    tabId?: number;
     documentId?: string;  // For parent messages, from webNavigation lookup
     frameInfoError?: string;
   };
@@ -59,17 +61,20 @@ export type CapturedMessage = IMessage;
 export interface FrameInfo {
   frameId: number | string;
   documentId?: string;
+  tabId?: number;
   url: string;
   parentFrameId: number;
   title: string;
   origin: string;
-  iframes: { src: string; id: string; domPath: string }[];
+  iframes: { src: string; id: string; domPath: string; windowId?: string }[];
+  windowId?: string;
   isOpener?: boolean;
   children?: FrameInfo[];
 }
 
 export interface OpenerInfo {
   origin: string | null;
+  windowId?: string;
 }
 
 // Messages sent from background to content script
@@ -87,7 +92,7 @@ export interface GetFrameInfoMessage {
 export interface FrameInfoResponse {
   title: string;
   origin: string;
-  iframes: { src: string; id: string; domPath: string }[];
+  iframes: { src: string; id: string; domPath: string; windowId?: string }[];
   opener?: OpenerInfo | null;
 }
 

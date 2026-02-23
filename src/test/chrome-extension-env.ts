@@ -7,7 +7,7 @@
 // - panel chrome.runtime.connect → background's chrome.runtime.onConnect (via port pairs)
 
 import { ChromeEvent, createPortPair } from './chrome-api';
-import { HarnessTab, HarnessFrame, HarnessDocument, HarnessWindow } from './harness-models';
+import { HarnessTab, HarnessFrame, HarnessDocument, HarnessWindow, createProxyPair } from './harness-models';
 import type { MockPort } from './chrome-api';
 import type { BackgroundChrome } from '../background-core';
 import type { ContentWindow, ContentChrome } from '../content-core';
@@ -80,10 +80,23 @@ export class ChromeExtensionEnv {
     // Fire onCreatedNavigationTarget first so buffering is enabled before the page load
     this.bgOnCreatedNavTarget.fire({
       sourceTabId: sourceFrame.tab.id,
+      sourceFrameId: sourceFrame.frameId,
       tabId: config.tabId,
       url: config.url,
     });
-    return this.createTab(config);
+
+    const popupFrame = this.createTab(config);
+
+    // Wire opener/opened-window proxy pair
+    const openerWin = sourceFrame.window!;
+    const popupWin = popupFrame.window!;
+    const { aForB: openerProxyForPopup, bForA: popupProxyForOpener } =
+      createProxyPair(openerWin, popupWin);
+
+    popupWin.setOpenerProxy(openerWin, openerProxyForPopup);
+    openerWin.registerOpenedWindowProxy(popupWin, popupProxyForOpener);
+
+    return popupFrame;
   }
 
   /**
@@ -190,8 +203,11 @@ export class ChromeExtensionEnv {
       documentId,
     };
 
-    const onMessage = new ChromeEvent<(msg: any, sender: any, sendResponse: any) => any>();
-    env.contentOnMessage.set(`${tabId}:${frameId}`, onMessage);
+    const key = `${tabId}:${frameId}`;
+    // Reuse existing event if already created (content script guards against
+    // double-injection, so the listener is still on the original event).
+    const onMessage = env.contentOnMessage.get(key) ?? new ChromeEvent<(msg: any, sender: any, sendResponse: any) => any>();
+    env.contentOnMessage.set(key, onMessage);
 
     return {
       runtime: {

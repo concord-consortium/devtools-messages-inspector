@@ -16,6 +16,7 @@ import { frameStore } from './models';
 import type { IMessage } from '../types';
 
 const TAB_ID = 42;
+const OPENER_TAB_ID = 99;
 
 // --- Frame definitions ---
 
@@ -51,6 +52,14 @@ const FRAME_C = {
   iframeId: 'iframe-c',
 };
 
+const OPENER_FRAME = {
+  frameId: 0,
+  documentId: 'doc-opener',
+  url: 'https://opener.example.com/page',
+  origin: 'https://opener.example.com',
+  title: 'Opener Page',
+};
+
 // --- Message factories ---
 // These build IMessage objects matching what the background script sends to the panel.
 
@@ -76,6 +85,7 @@ function childMsg(
       origin: target.origin,
       documentTitle: target.title,
       frameId: target.frameId,
+      tabId: TAB_ID,
       documentId: target.documentId,
     },
     source: {
@@ -112,6 +122,7 @@ function parentMsg(
       origin: target.origin,
       documentTitle: target.title,
       frameId: target.frameId,
+      tabId: TAB_ID,
       documentId: target.documentId,
     },
     source: {
@@ -123,6 +134,82 @@ function parentMsg(
       iframeDomPath: null,
       frameId: source.frameId,
       documentId: source.documentId,
+    },
+    data,
+    dataPreview: JSON.stringify(data).substring(0, 100),
+    dataSize: JSON.stringify(data).length,
+    messageType: (data as { type?: string }).type ?? null,
+  };
+}
+
+/**
+ * Cross-tab message routed to the opened window's panel.
+ *
+ * When the opened window sends a message to the opener, the opener's content script
+ * captures it and the background routes a copy to the opened window's panel.
+ * The target is the opener (a different tab), the source is the opened window (current tab).
+ */
+function crossTabOpenedToOpenerMsg(
+  data: Record<string, unknown> = { type: 'hello-opener' },
+): IMessage {
+  return {
+    id: `msg-${++msgId}`,
+    timestamp: Date.now() + msgId,
+    target: {
+      url: OPENER_FRAME.url,
+      origin: OPENER_FRAME.origin,
+      documentTitle: OPENER_FRAME.title,
+      frameId: OPENER_FRAME.frameId,
+      tabId: OPENER_TAB_ID,
+      documentId: OPENER_FRAME.documentId,
+    },
+    source: {
+      type: 'opened',
+      origin: FRAME_A.origin,
+      windowId: 'win-opened',
+      iframeSrc: null,
+      iframeId: null,
+      iframeDomPath: null,
+      tabId: TAB_ID,
+    },
+    data,
+    dataPreview: JSON.stringify(data).substring(0, 100),
+    dataSize: JSON.stringify(data).length,
+    messageType: (data as { type?: string }).type ?? null,
+  };
+}
+
+/**
+ * Opener sends postMessage to opened window (popup).
+ *
+ * Captured by the popup's content script. Background enriches source with the
+ * opener's tabId and frameId from the openedTabs mapping. No documentId is
+ * available for the source (cross-tab, no webNavigation lookup for opener).
+ * This message is routed to the popup's panel (TAB_ID = popup tab).
+ */
+function openerToOpenedMsg(
+  data: Record<string, unknown> = { type: 'init-from-opener' },
+): IMessage {
+  return {
+    id: `msg-${++msgId}`,
+    timestamp: Date.now() + msgId,
+    target: {
+      url: FRAME_A.url,
+      origin: FRAME_A.origin,
+      documentTitle: FRAME_A.title,
+      frameId: FRAME_A.frameId,
+      tabId: TAB_ID,
+      documentId: FRAME_A.documentId,
+    },
+    source: {
+      type: 'opener',
+      origin: OPENER_FRAME.origin,
+      windowId: 'win-opener',
+      iframeSrc: null,
+      iframeId: null,
+      iframeDomPath: null,
+      tabId: OPENER_TAB_ID,
+      frameId: OPENER_FRAME.frameId,
     },
     data,
     dataPreview: JSON.stringify(data).substring(0, 100),
@@ -167,7 +254,7 @@ describe('Frame model integration', () => {
   // ===================================================================
   describe('registration disabled', () => {
     it('child→parent: creates target doc+frame, source doc by windowId only', () => {
-      processIncomingMessage(childMsg(FRAME_B, FRAME_A), TAB_ID);
+      processIncomingMessage(childMsg(FRAME_B, FRAME_A));
 
       // Target FrameDocument: created by documentId with full info
       const targetDoc = frameStore.getDocumentById(FRAME_A.documentId);
@@ -203,7 +290,7 @@ describe('Frame model integration', () => {
     });
 
     it('parent→child: source doc created by documentId with native frameId', () => {
-      processIncomingMessage(parentMsg(FRAME_A, FRAME_B), TAB_ID);
+      processIncomingMessage(parentMsg(FRAME_A, FRAME_B));
 
       // Source FrameDocument created by documentId
       const sourceDoc = frameStore.getDocumentById(FRAME_A.documentId);
@@ -217,8 +304,8 @@ describe('Frame model integration', () => {
     });
 
     it('multiple messages from same child reuse source FrameDocument', () => {
-      processIncomingMessage(childMsg(FRAME_B, FRAME_A, { type: 'event-1' }), TAB_ID);
-      processIncomingMessage(childMsg(FRAME_B, FRAME_A, { type: 'event-2' }), TAB_ID);
+      processIncomingMessage(childMsg(FRAME_B, FRAME_A, { type: 'event-1' }));
+      processIncomingMessage(childMsg(FRAME_B, FRAME_A, { type: 'event-2' }));
 
       expect(store.messages[0].sourceDocument).toBe(store.messages[1].sourceDocument);
       expect(store.messages[0].sourceDocument)
@@ -226,8 +313,8 @@ describe('Frame model integration', () => {
     });
 
     it('messages from different children create separate FrameDocuments', () => {
-      processIncomingMessage(childMsg(FRAME_B, FRAME_A), TAB_ID);
-      processIncomingMessage(childMsg(FRAME_C, FRAME_A), TAB_ID);
+      processIncomingMessage(childMsg(FRAME_B, FRAME_A));
+      processIncomingMessage(childMsg(FRAME_C, FRAME_A));
 
       const docB = store.messages[0].sourceDocument;
       const docC = store.messages[1].sourceDocument;
@@ -244,14 +331,14 @@ describe('Frame model integration', () => {
   describe('registration enabled', () => {
     it('child message then registration: source.frameId resolves reactively', () => {
       // Child message arrives first — source only known by windowId
-      processIncomingMessage(childMsg(FRAME_B, FRAME_A), TAB_ID);
+      processIncomingMessage(childMsg(FRAME_B, FRAME_A));
       const msg = store.messages[0];
 
       expect(msg.sourceFrame).toBeUndefined();
       expect(msg.source.frameId).toBeUndefined();
 
       // Registration arrives — links windowId to Frame
-      processIncomingMessage(registrationMsg(FRAME_B, FRAME_A), TAB_ID);
+      processIncomingMessage(registrationMsg(FRAME_B, FRAME_A));
 
       // The SAME message's computed properties now resolve
       expect(msg.sourceFrame).toBeDefined();
@@ -265,10 +352,10 @@ describe('Frame model integration', () => {
 
     it('registration then child message: source.frameId resolves immediately', () => {
       // Registration arrives first
-      processIncomingMessage(registrationMsg(FRAME_B, FRAME_A), TAB_ID);
+      processIncomingMessage(registrationMsg(FRAME_B, FRAME_A));
 
       // Child message arrives — source should already be linked
-      processIncomingMessage(childMsg(FRAME_B, FRAME_A), TAB_ID);
+      processIncomingMessage(childMsg(FRAME_B, FRAME_A));
       const msg = store.messages[1];
 
       expect(msg.sourceFrame).toBeDefined();
@@ -292,14 +379,14 @@ describe('Frame model integration', () => {
     describe('frame is both source and target before registration', () => {
       it('merges two FrameDocuments when registration arrives', () => {
         // Step 1: B→A — creates source FrameDocument for B by windowId
-        processIncomingMessage(childMsg(FRAME_B, FRAME_A), TAB_ID);
+        processIncomingMessage(childMsg(FRAME_B, FRAME_A));
 
         const docBByWindow = frameStore.getDocumentByWindowId(FRAME_B.windowId);
         expect(docBByWindow).toBeDefined();
         expect(docBByWindow!.documentId).toBeUndefined();
 
         // Step 2: C→B — creates target FrameDocument for B by documentId
-        processIncomingMessage(childMsg(FRAME_C, FRAME_B), TAB_ID);
+        processIncomingMessage(childMsg(FRAME_C, FRAME_B));
 
         const docBByDocId = frameStore.getDocumentById(FRAME_B.documentId);
         expect(docBByDocId).toBeDefined();
@@ -309,7 +396,7 @@ describe('Frame model integration', () => {
         expect(docBByWindow).not.toBe(docBByDocId);
 
         // Step 3: Registration for B — merges them
-        processIncomingMessage(registrationMsg(FRAME_B, FRAME_A), TAB_ID);
+        processIncomingMessage(registrationMsg(FRAME_B, FRAME_A));
 
         // Both lookups now return the same merged document
         const mergedByWindow = frameStore.getDocumentByWindowId(FRAME_B.windowId);
@@ -332,9 +419,9 @@ describe('Frame model integration', () => {
       });
 
       it('does not corrupt parent frame document', () => {
-        processIncomingMessage(childMsg(FRAME_B, FRAME_A), TAB_ID);
-        processIncomingMessage(childMsg(FRAME_C, FRAME_B), TAB_ID);
-        processIncomingMessage(registrationMsg(FRAME_B, FRAME_A), TAB_ID);
+        processIncomingMessage(childMsg(FRAME_B, FRAME_A));
+        processIncomingMessage(childMsg(FRAME_C, FRAME_B));
+        processIncomingMessage(registrationMsg(FRAME_B, FRAME_A));
 
         // A's FrameDocument: url, origin, frame link all unchanged
         const docA = frameStore.getDocumentById(FRAME_A.documentId);
@@ -350,7 +437,7 @@ describe('Frame model integration', () => {
     });
 
     it('registration sets owner element on Frame', () => {
-      processIncomingMessage(registrationMsg(FRAME_B, FRAME_A), TAB_ID);
+      processIncomingMessage(registrationMsg(FRAME_B, FRAME_A));
 
       const frameB = frameStore.getFrame(TAB_ID, FRAME_B.frameId);
       expect(frameB).toBeDefined();
@@ -358,6 +445,114 @@ describe('Frame model integration', () => {
       expect(frameB!.currentOwnerElement!.domPath).toBe(FRAME_B.iframeDomPath);
       expect(frameB!.currentOwnerElement!.src).toBe(FRAME_B.iframeSrc);
       expect(frameB!.currentOwnerElement!.id).toBe(FRAME_B.iframeId);
+    });
+  });
+
+  // ===================================================================
+  // Cross-tab targets — when a message is routed to a panel in a
+  // different tab than the one that captured it, the target frame
+  // belongs to the capturing tab, not the panel's inspected tab.
+  // ===================================================================
+  describe('cross-tab target', () => {
+    it('target frame is created with the target tabId, not the panel tabId', () => {
+      processIncomingMessage(crossTabOpenedToOpenerMsg());
+
+      // Target frame should be in the opener's tab, not the current tab
+      const targetFrame = frameStore.getFrame(OPENER_TAB_ID, OPENER_FRAME.frameId);
+      expect(targetFrame).toBeDefined();
+      expect(targetFrame!.tabId).toBe(OPENER_TAB_ID);
+
+      // Should NOT exist under the current tab
+      const wrongFrame = frameStore.getFrame(TAB_ID, OPENER_FRAME.frameId);
+      expect(wrongFrame === undefined || wrongFrame !== targetFrame).toBe(true);
+
+      // Message's targetFrame should point to the cross-tab frame
+      const msg = store.messages[0];
+      expect(msg.targetFrame).toBe(targetFrame);
+      expect(msg.targetFrame!.tabId).toBe(OPENER_TAB_ID);
+    });
+
+    it('frame filter matches cross-tab target by tab and frame', () => {
+      processIncomingMessage(crossTabOpenedToOpenerMsg());
+
+      // Filter with explicit tab should match the target
+      store.setFilter(`frame:tab[${OPENER_TAB_ID}].frame[${OPENER_FRAME.frameId}]`);
+      expect(store.filteredMessages).toHaveLength(1);
+
+      // Filter with just frame[0] (implies current tab) should NOT match
+      // since the target is in a different tab
+      store.setFilter(`frame:frame[${OPENER_FRAME.frameId}]`);
+      expect(store.filteredMessages).toHaveLength(0);
+    });
+  });
+
+  // ===================================================================
+  // Opener messages — when the opener sends a message to the opened
+  // window, source has tabId and frameId but no documentId. The panel
+  // should still resolve sourceFrame so tab/frame info is displayed.
+  // ===================================================================
+  describe('opener source', () => {
+    it('opener→opened: sourceFrame resolves from source.tabId and source.frameId', () => {
+      processIncomingMessage(openerToOpenedMsg());
+
+      const msg = store.messages[0];
+
+      // Source FrameDocument should exist (created by windowId)
+      expect(msg.sourceDocument).toBeDefined();
+      expect(msg.sourceDocument!.origin).toBe(OPENER_FRAME.origin);
+
+      // Source Frame should be created and linked
+      expect(msg.sourceFrame).toBeDefined();
+      expect(msg.sourceFrame!.tabId).toBe(OPENER_TAB_ID);
+      expect(msg.sourceFrame!.frameId).toBe(OPENER_FRAME.frameId);
+
+      // source.frameId should also resolve
+      expect(msg.source.frameId).toBe(OPENER_FRAME.frameId);
+    });
+  });
+
+  // ===================================================================
+  // buildFrameTree — opener frame should not be dropped when its
+  // frameId collides with a regular frame's frameId
+  // ===================================================================
+  describe('buildFrameTree with opener', () => {
+    it('includes opener frame even when its frameId matches a regular frame', () => {
+      // This simulates the hierarchy data returned by getFrameHierarchy for a popup tab:
+      // - The opener (from a different tab) has frameId=0
+      // - The popup's own top frame also has frameId=0
+      store.setFrameHierarchy([
+        { frameId: 0, tabId: OPENER_TAB_ID, url: OPENER_FRAME.url, parentFrameId: -1, title: OPENER_FRAME.title, origin: OPENER_FRAME.origin, iframes: [], isOpener: true },
+        { frameId: 0, tabId: TAB_ID, url: FRAME_A.url, parentFrameId: -1, title: FRAME_A.title, origin: FRAME_A.origin, iframes: [] },
+      ]);
+
+      const tree = store.buildFrameTree();
+      expect(tree).toHaveLength(2);
+
+      const openerNode = tree.find(f => f.isOpener);
+      expect(openerNode).toBeDefined();
+      expect(openerNode!.origin).toBe(OPENER_FRAME.origin);
+
+      const regularNode = tree.find(f => !f.isOpener);
+      expect(regularNode).toBeDefined();
+      expect(regularNode!.origin).toBe(FRAME_A.origin);
+    });
+
+    it('can select the regular frame without also selecting opener', () => {
+      store.setFrameHierarchy([
+        { frameId: 0, tabId: OPENER_TAB_ID, url: OPENER_FRAME.url, parentFrameId: -1, title: OPENER_FRAME.title, origin: OPENER_FRAME.origin, iframes: [], isOpener: true },
+        { frameId: 0, tabId: TAB_ID, url: FRAME_A.url, parentFrameId: -1, title: FRAME_A.title, origin: FRAME_A.origin, iframes: [] },
+      ]);
+
+      const tree = store.buildFrameTree();
+      const regularNode = tree.find(f => !f.isOpener)!;
+
+      // Simulate clicking the regular frame[0] in the hierarchy table
+      store.selectFrame(store.frameKey(regularNode));
+
+      // The selected frame should be the regular frame, not the opener
+      expect(store.selectedFrame).toBeDefined();
+      expect(store.selectedFrame!.isOpener).toBeFalsy();
+      expect(store.selectedFrame!.origin).toBe(FRAME_A.origin);
     });
   });
 });

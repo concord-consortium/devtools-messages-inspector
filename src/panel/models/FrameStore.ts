@@ -62,42 +62,57 @@ export class FrameStore {
   }
 
   // Called when hierarchy data arrives from webNavigation.getAllFrames()
-  processHierarchy(tabId: number, frames: Array<{
+  processHierarchy(frames: Array<{
     frameId: number;
+    tabId: number;
     documentId?: string;
+    windowId?: string;
     url: string;
     parentFrameId: number;
     title: string;
     origin: string;
-    iframes: { src: string; id: string; domPath: string }[];
+    iframes: { src: string; id: string; domPath: string; windowId?: string }[];
   }>): Frame[] {
     // Create/update frames and documents
     for (const frameData of frames) {
-      const frame = this.getOrCreateFrame(tabId, frameData.frameId, frameData.parentFrameId);
+      const frame = this.getOrCreateFrame(frameData.tabId, frameData.frameId, frameData.parentFrameId);
       frame.parentFrameId = frameData.parentFrameId;
 
+      let doc: FrameDocument | undefined;
       if (frameData.documentId) {
-        const doc = this.getOrCreateDocumentById(frameData.documentId);
+        doc = this.getOrCreateDocumentById(frameData.documentId);
+      } else if (frameData.windowId) {
+        doc = this.getOrCreateDocumentByWindowId(frameData.windowId);
+      }
+
+      if (doc) {
         doc.url = frameData.url;
         doc.origin = frameData.origin;
         doc.title = frameData.title;
         doc.frame = frame;
-        frame.currentDocument = doc;
+      } else if (frameData.url || frameData.origin || frameData.title) {
+        // Create a new document if we have some info but no id to correlate with existing ones
+        doc = new FrameDocument({
+          url: frameData.url || undefined,
+          origin: frameData.origin || undefined,
+          title: frameData.title || undefined,
+        });
       }
+      frame.currentDocument = doc;
     }
 
     // Build parent-child relationships
     const roots: Frame[] = [];
     for (const frameData of frames) {
-      const frame = this.getFrame(tabId, frameData.frameId)!;
+      const frame = this.getFrame(frameData.tabId, frameData.frameId)!;
       frame.children = [];
     }
     for (const frameData of frames) {
-      const frame = this.getFrame(tabId, frameData.frameId)!;
+      const frame = this.getFrame(frameData.tabId, frameData.frameId)!;
       if (frameData.parentFrameId === -1) {
         roots.push(frame);
       } else {
-        const parent = this.getFrame(tabId, frameData.parentFrameId);
+        const parent = this.getFrame(frameData.tabId, frameData.parentFrameId);
         if (parent) {
           parent.children.push(frame);
         } else {
