@@ -340,14 +340,22 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
           tabId: tabId
         };
       } else if (sourceType === 'opener') {
-        // Opener is in a related tab
+        // Opener is in a related tab — look up its documentId via webNavigation
         const opener = openedTabs.get(tabId);
         console.debug('[Frames] opener lookup:', { msgId, tabId, result: opener ?? 'not found' });
         if (opener) {
+          let openerDocumentId: string | undefined;
+          try {
+            const openerFrame = await chrome.webNavigation.getFrame({ tabId: opener.tabId, frameId: opener.frameId });
+            openerDocumentId = openerFrame?.documentId;
+          } catch {
+            // Opener frame may no longer exist
+          }
           enrichedPayload.source = {
             ...enrichedPayload.source,
             tabId: opener.tabId,
-            frameId: opener.frameId
+            frameId: opener.frameId,
+            documentId: openerDocumentId
           }
         }
       }

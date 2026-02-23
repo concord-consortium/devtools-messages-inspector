@@ -180,6 +180,45 @@ function crossTabOpenedToOpenerMsg(
 }
 
 /**
+ * Opener sends postMessage to opened window (popup).
+ *
+ * Captured by the popup's content script. Background enriches source with the
+ * opener's tabId and frameId from the openedTabs mapping. No documentId is
+ * available for the source (cross-tab, no webNavigation lookup for opener).
+ * This message is routed to the popup's panel (TAB_ID = popup tab).
+ */
+function openerToOpenedMsg(
+  data: Record<string, unknown> = { type: 'init-from-opener' },
+): IMessage {
+  return {
+    id: `msg-${++msgId}`,
+    timestamp: Date.now() + msgId,
+    target: {
+      url: FRAME_A.url,
+      origin: FRAME_A.origin,
+      documentTitle: FRAME_A.title,
+      frameId: FRAME_A.frameId,
+      tabId: TAB_ID,
+      documentId: FRAME_A.documentId,
+    },
+    source: {
+      type: 'opener',
+      origin: OPENER_FRAME.origin,
+      windowId: 'win-opener',
+      iframeSrc: null,
+      iframeId: null,
+      iframeDomPath: null,
+      tabId: OPENER_TAB_ID,
+      frameId: OPENER_FRAME.frameId,
+    },
+    data,
+    dataPreview: JSON.stringify(data).substring(0, 100),
+    dataSize: JSON.stringify(data).length,
+    messageType: (data as { type?: string }).type ?? null,
+  };
+}
+
+/**
  * Child sends registration postMessage to parent.
  *
  * This is a regular child→parent message whose data payload carries the child's
@@ -444,6 +483,31 @@ describe('Frame model integration', () => {
       // since the target is in a different tab
       store.setFilter(`frame:frame[${OPENER_FRAME.frameId}]`);
       expect(store.filteredMessages).toHaveLength(0);
+    });
+  });
+
+  // ===================================================================
+  // Opener messages — when the opener sends a message to the opened
+  // window, source has tabId and frameId but no documentId. The panel
+  // should still resolve sourceFrame so tab/frame info is displayed.
+  // ===================================================================
+  describe('opener source', () => {
+    it('opener→opened: sourceFrame resolves from source.tabId and source.frameId', () => {
+      processIncomingMessage(openerToOpenedMsg());
+
+      const msg = store.messages[0];
+
+      // Source FrameDocument should exist (created by windowId)
+      expect(msg.sourceDocument).toBeDefined();
+      expect(msg.sourceDocument!.origin).toBe(OPENER_FRAME.origin);
+
+      // Source Frame should be created and linked
+      expect(msg.sourceFrame).toBeDefined();
+      expect(msg.sourceFrame!.tabId).toBe(OPENER_TAB_ID);
+      expect(msg.sourceFrame!.frameId).toBe(OPENER_FRAME.frameId);
+
+      // source.frameId should also resolve
+      expect(msg.source.frameId).toBe(OPENER_FRAME.frameId);
     });
   });
 

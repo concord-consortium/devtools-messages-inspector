@@ -54,16 +54,27 @@ export function processIncomingMessage(msg: IMessage): void {
   }
 
   // --- Source ---
+  let sourceDoc: InstanceType<typeof FrameDocument> | undefined;
   if (msg.source.documentId) {
-    const sourceDoc = frameStore.getOrCreateDocumentById(msg.source.documentId);
+    sourceDoc = frameStore.getOrCreateDocumentById(msg.source.documentId);
     sourceDoc.origin = msg.source.origin;
     if (msg.source.windowId) {
       sourceDoc.windowId = msg.source.windowId;
       frameStore.documentsByWindowId.set(msg.source.windowId, sourceDoc);
     }
   } else if (msg.source.windowId) {
-    const sourceDoc = frameStore.getOrCreateDocumentByWindowId(msg.source.windowId);
+    sourceDoc = frameStore.getOrCreateDocumentByWindowId(msg.source.windowId);
     sourceDoc.origin = msg.source.origin;
+  }
+
+  // Link source FrameDocument to a Frame when tabId and frameId are available
+  // (e.g., opener/opened messages enriched by background with cross-tab info)
+  if (sourceDoc && !sourceDoc.frame && msg.source.tabId != null && msg.source.frameId != null) {
+    const sourceFrame = frameStore.getOrCreateFrame(msg.source.tabId, msg.source.frameId);
+    sourceDoc.frame = sourceFrame;
+    if (!sourceFrame.currentDocument) {
+      sourceFrame.currentDocument = sourceDoc;
+    }
   }
 
   // --- Source owner element (child messages) ---

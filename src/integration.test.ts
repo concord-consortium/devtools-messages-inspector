@@ -230,6 +230,35 @@ describe('content → background → panel integration', () => {
     expect(openerMsgs[0].payload.source.type).toBe('opener');
   });
 
+  it('enriches opener source with documentId from webNavigation', async () => {
+    const topFrame = env.createTab({ tabId: TAB_ID, url: 'https://opener.example.com/', title: 'Opener' });
+    env.connectPanel(TAB_ID);
+    await flushPromises();
+
+    const POPUP_TAB_ID = 2;
+    const popupFrame = env.openPopup(topFrame, { tabId: POPUP_TAB_ID, url: 'https://popup.example.com/', title: 'Popup' });
+    const { messages: popupMessages } = env.connectPanel(POPUP_TAB_ID);
+    await flushPromises();
+
+    // Opener sends a message that popup receives
+    popupFrame.window!.dispatchMessage(
+      { type: 'init-from-opener' },
+      'https://opener.example.com',
+      topFrame.window!
+    );
+    await flushPromises();
+
+    const msgPayloads = popupMessages.filter(m => m.type === 'message' && m.payload.data?.type === 'init-from-opener');
+    expect(msgPayloads).toHaveLength(1);
+
+    const payload = msgPayloads[0].payload;
+    expect(payload.source.type).toBe('opener');
+    expect(payload.source.tabId).toBe(TAB_ID);
+    expect(payload.source.frameId).toBe(0);
+    // documentId should be enriched via webNavigation.getFrame lookup
+    expect(payload.source.documentId).toBe('doc-f0');
+  });
+
   it('routes opened→opener messages to the opened tab panel', async () => {
     const topFrame = env.createTab({ tabId: TAB_ID, url: 'https://opener.example.com/', title: 'Opener' });
     const { messages: openerMessages } = env.connectPanel(TAB_ID);
