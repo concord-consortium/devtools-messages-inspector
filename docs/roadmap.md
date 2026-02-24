@@ -20,7 +20,6 @@
   - sortable columns (how do we deal with hierarchy view)
 
 - truncate long values in the context pane with some way to see the full value.
-- add support for message channels (not sure what is needed here yet)
 - figure out what I can do to prevent other people from releasing copies that steal users information.
 - clean up the left side
 - show opened windows in the hierarchy
@@ -40,3 +39,4 @@
 - add load information for each frame
 - add invasive option which overrides postMessage in the calling window. This should allow the extension to capture lost messages, and look at the timing
 - see what we can do about web worker messages
+- add support for message channels see the [message channel plan](plans/2026-02-23-message-channel-design.md)
