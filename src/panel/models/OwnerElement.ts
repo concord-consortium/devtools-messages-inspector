@@ -1,5 +1,7 @@
 // OwnerElement - Immutable snapshot of an iframe element's configuration in the parent DOM
 
+import { IframeElementInfo } from '../../types';
+
 export class OwnerElement {
   readonly domPath: string;
   readonly src: string | undefined;
@@ -18,8 +20,8 @@ export class OwnerElement {
            this.id === other.id;
   }
 
-  static fromRaw(domPath: string | null | undefined, src: string | null | undefined, id: string | null | undefined): OwnerElement | undefined {
-    if (!domPath) return undefined;
-    return new OwnerElement(domPath, src || undefined, id || undefined);
+  static fromRaw(info: IframeElementInfo | null | undefined): OwnerElement | undefined {
+    if (!info) return undefined;
+    return new OwnerElement(info.domPath, info.src || undefined, info.id || undefined);
   }
 }

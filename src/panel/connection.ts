@@ -80,11 +80,7 @@ export function processIncomingMessage(msg: IMessage): void {
   // --- Source owner element (child messages) ---
   let sourceOwnerElement: OwnerElement | undefined = undefined;
   if (msg.source.type === 'child') {
-    sourceOwnerElement = OwnerElement.fromRaw(
-      msg.source.iframeDomPath,
-      msg.source.iframeSrc,
-      msg.source.iframeId
-    );
+    sourceOwnerElement = OwnerElement.fromRaw(msg.source.iframe);
 
     // Update Frame's currentOwnerElement if it has changed (e.g., due to navigation)
     if (sourceOwnerElement && msg.source.windowId) {

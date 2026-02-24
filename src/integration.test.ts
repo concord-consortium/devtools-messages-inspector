@@ -54,8 +54,8 @@ describe('content → background → panel integration', () => {
     expect(payload.data).toEqual({ type: 'hello-from-child', value: 42 });
     expect(payload.source.type).toBe('child');
     expect(payload.source.origin).toBe('https://child.example.com');
-    expect(payload.source.iframeSrc).toBe('https://child.example.com/');
-    expect(payload.source.iframeId).toBe('child-iframe');
+    expect(payload.source.iframe?.src).toBe('https://child.example.com/');
+    expect(payload.source.iframe?.id).toBe('child-iframe');
     expect(payload.target.origin).toBe('https://parent.example.com');
     expect(payload.target.frameId).toBe(0);
     expect(payload.target.documentId).toBe('doc-f0');

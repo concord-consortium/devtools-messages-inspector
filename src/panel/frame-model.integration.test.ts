@@ -35,9 +35,11 @@ const FRAME_B = {
   origin: 'https://child-b.example.com',
   title: 'Child B',
   windowId: 'win-B',
-  iframeDomPath: 'body > iframe:nth-of-type(1)',
-  iframeSrc: 'https://child-b.example.com/iframe',
-  iframeId: 'iframe-b',
+  iframe: {
+    domPath: 'body > iframe:nth-of-type(1)',
+    src: 'https://child-b.example.com/iframe',
+    id: 'iframe-b',
+  },
 };
 
 const FRAME_C = {
@@ -47,9 +49,11 @@ const FRAME_C = {
   origin: 'https://child-c.example.com',
   title: 'Child C',
   windowId: 'win-C',
-  iframeDomPath: 'body > iframe:nth-of-type(1)',
-  iframeSrc: 'https://child-c.example.com/nested',
-  iframeId: 'iframe-c',
+  iframe: {
+    domPath: 'body > iframe:nth-of-type(1)',
+    src: 'https://child-c.example.com/nested',
+    id: 'iframe-c',
+  },
 };
 
 const OPENER_FRAME = {
@@ -92,9 +96,7 @@ function childMsg(
       type: 'child',
       origin: source.origin,
       windowId: source.windowId,
-      iframeSrc: source.iframeSrc,
-      iframeId: source.iframeId,
-      iframeDomPath: source.iframeDomPath,
+      iframe: source.iframe,
     },
     data,
   };
@@ -126,9 +128,7 @@ function parentMsg(
       type: 'parent',
       origin: source.origin,
       windowId: null,
-      iframeSrc: null,
-      iframeId: null,
-      iframeDomPath: null,
+      iframe: null,
       frameId: source.frameId,
       documentId: source.documentId,
     },
@@ -161,9 +161,7 @@ function crossTabOpenedToOpenerMsg(
       type: 'opened',
       origin: FRAME_A.origin,
       windowId: 'win-opened',
-      iframeSrc: null,
-      iframeId: null,
-      iframeDomPath: null,
+      iframe: null,
       tabId: TAB_ID,
     },
     data,
@@ -196,9 +194,7 @@ function openerToOpenedMsg(
       type: 'opener',
       origin: OPENER_FRAME.origin,
       windowId: 'win-opener',
-      iframeSrc: null,
-      iframeId: null,
-      iframeDomPath: null,
+      iframe: null,
       tabId: OPENER_TAB_ID,
       frameId: OPENER_FRAME.frameId,
     },
@@ -272,9 +268,9 @@ describe('Frame model integration', () => {
 
       // Owner element snapshot captured from iframe info
       expect(msg.sourceOwnerElement).toBeDefined();
-      expect(msg.sourceOwnerElement!.domPath).toBe(FRAME_B.iframeDomPath);
-      expect(msg.sourceOwnerElement!.src).toBe(FRAME_B.iframeSrc);
-      expect(msg.sourceOwnerElement!.id).toBe(FRAME_B.iframeId);
+      expect(msg.sourceOwnerElement!.domPath).toBe(FRAME_B.iframe.domPath);
+      expect(msg.sourceOwnerElement!.src).toBe(FRAME_B.iframe.src);
+      expect(msg.sourceOwnerElement!.id).toBe(FRAME_B.iframe.id);
     });
 
     it('parent→child: source doc created by documentId with native frameId', () => {
@@ -430,9 +426,9 @@ describe('Frame model integration', () => {
       const frameB = frameStore.getFrame(TAB_ID, FRAME_B.frameId);
       expect(frameB).toBeDefined();
       expect(frameB!.currentOwnerElement).toBeDefined();
-      expect(frameB!.currentOwnerElement!.domPath).toBe(FRAME_B.iframeDomPath);
-      expect(frameB!.currentOwnerElement!.src).toBe(FRAME_B.iframeSrc);
-      expect(frameB!.currentOwnerElement!.id).toBe(FRAME_B.iframeId);
+      expect(frameB!.currentOwnerElement!.domPath).toBe(FRAME_B.iframe.domPath);
+      expect(frameB!.currentOwnerElement!.src).toBe(FRAME_B.iframe.src);
+      expect(frameB!.currentOwnerElement!.id).toBe(FRAME_B.iframe.id);
     });
   });
 

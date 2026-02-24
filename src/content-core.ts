@@ -2,7 +2,7 @@
 // In production, content.ts calls initContentScript(window, chrome).
 // In tests, call with mock window and chrome objects to simulate multiple content scripts.
 
-import { BackgroundToContentMessage, RawCapturedMessage, FrameInfoResponse, OpenerInfo, PostMessageCapturedMessage } from './types';
+import { BackgroundToContentMessage, IframeElementInfo, RawCapturedMessage, FrameInfoResponse, OpenerInfo, PostMessageCapturedMessage } from './types';
 
 declare global {
   interface Window {
@@ -128,13 +128,13 @@ export function initContentScript(win: ContentWindow, chrome: ContentChrome): vo
     return entry;
   }
 
-  interface SourceInfo {
-    type: string;
-    origin: string;
-    windowId: string | null;
-    iframeSrc: string | null;
-    iframeId: string | null;
-    iframeDomPath: string | null;
+  // Extract DOM properties from an iframe element
+  function getIframeElementInfo(iframe: HTMLIFrameElement): IframeElementInfo {
+    return {
+      src: iframe.src || '',
+      id: iframe.id || '',
+      domPath: getDomPath(iframe)
+    };
   }
 
   // Collect target frame info (the frame receiving the message)
@@ -147,34 +147,30 @@ export function initContentScript(win: ContentWindow, chrome: ContentChrome): vo
   }
 
   // Collect source info from a message event
-  function getSourceInfo(event: MessageEvent): SourceInfo {
+  function getSourceInfo(event: MessageEvent): RawCapturedMessage['source'] {
     const eventSource = event.source;
     const sourceWindow = eventSource ? getOrCreateSourceWindow(eventSource) : null;
     const sourceType = sourceWindow ? sourceWindow.type : 'unknown';
 
-    const source: SourceInfo = {
-      type: sourceType,
-      origin: event.origin,
-      windowId: sourceWindow ? sourceWindow.windowId : null,
-      iframeSrc: null,
-      iframeId: null,
-      iframeDomPath: null
-    };
+    let iframe: IframeElementInfo | null = null;
 
     // For child frames, find the iframe element and include its properties
     if (sourceType === 'child') {
       const iframes = win.document.querySelectorAll('iframe') as NodeListOf<HTMLIFrameElement>;
-      for (const iframe of iframes) {
-        if (iframe.contentWindow === event.source) {
-          source.iframeSrc = iframe.src || null;
-          source.iframeId = iframe.id || null;
-          source.iframeDomPath = getDomPath(iframe);
+      for (const el of iframes) {
+        if (el.contentWindow === event.source) {
+          iframe = getIframeElementInfo(el);
           break;
         }
       }
     }
 
-    return source;
+    return {
+      type: sourceType,
+      origin: event.origin,
+      windowId: sourceWindow ? sourceWindow.windowId : null,
+      iframe
+    };
   }
 
   // Listen for incoming postMessage events
@@ -236,9 +232,7 @@ export function initContentScript(win: ContentWindow, chrome: ContentChrome): vo
 
     if (message.type === 'get-frame-info') {
       const iframes = Array.from(win.document.querySelectorAll('iframe') as NodeListOf<HTMLIFrameElement>).map(iframe => ({
-        src: iframe.src || '',
-        id: iframe.id || '',
-        domPath: getDomPath(iframe),
+        ...getIframeElementInfo(iframe),
         windowId: iframe.contentWindow ? getOrCreateSourceWindow(iframe.contentWindow).windowId : undefined
       }));
 

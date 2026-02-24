@@ -1,5 +1,12 @@
 // Shared types for Frames Inspector
 
+// DOM properties of an iframe element
+export interface IframeElementInfo {
+  src: string;
+  id: string;
+  domPath: string;
+}
+
 // Message as captured by content script (before background enriches it)
 export interface RawCapturedMessage {
   id: string;
@@ -13,9 +20,7 @@ export interface RawCapturedMessage {
     type: string;
     origin: string;
     windowId: string | null;
-    iframeSrc: string | null;
-    iframeId: string | null;
-    iframeDomPath: string | null;
+    iframe: IframeElementInfo | null;
   };
   data: unknown;
 }
@@ -37,9 +42,7 @@ export interface IMessage {
     type: string;
     origin: string;
     windowId: string | null;
-    iframeSrc: string | null;
-    iframeId: string | null;
-    iframeDomPath: string | null;
+    iframe: IframeElementInfo | null;
     frameId?: number;  // Computed for child messages
     tabId?: number;
     documentId?: string;  // For parent messages, from webNavigation lookup
@@ -60,7 +63,7 @@ export interface FrameInfo {
   parentFrameId: number;
   title: string;
   origin: string;
-  iframes: { src: string; id: string; domPath: string; windowId?: string }[];
+  iframes: (IframeElementInfo & { windowId?: string })[];
   windowId?: string;
   isOpener?: boolean;
   children?: FrameInfo[];
@@ -86,7 +89,7 @@ export interface GetFrameInfoMessage {
 export interface FrameInfoResponse {
   title: string;
   origin: string;
-  iframes: { src: string; id: string; domPath: string; windowId?: string }[];
+  iframes: (IframeElementInfo & { windowId?: string })[];
   opener?: OpenerInfo | null;
 }
 
