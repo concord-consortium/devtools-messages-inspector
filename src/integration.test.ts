@@ -52,7 +52,6 @@ describe('content → background → panel integration', () => {
 
     const payload = msgPayloads[0].payload;
     expect(payload.data).toEqual({ type: 'hello-from-child', value: 42 });
-    expect(payload.messageType).toBe('hello-from-child');
     expect(payload.source.type).toBe('child');
     expect(payload.source.origin).toBe('https://child.example.com');
     expect(payload.source.iframeSrc).toBe('https://child.example.com/');

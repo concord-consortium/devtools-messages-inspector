@@ -97,9 +97,6 @@ function childMsg(
       iframeDomPath: source.iframeDomPath,
     },
     data,
-    dataPreview: JSON.stringify(data).substring(0, 100),
-    dataSize: JSON.stringify(data).length,
-    messageType: (data as { type?: string }).type ?? null,
   };
 }
 
@@ -136,9 +133,6 @@ function parentMsg(
       documentId: source.documentId,
     },
     data,
-    dataPreview: JSON.stringify(data).substring(0, 100),
-    dataSize: JSON.stringify(data).length,
-    messageType: (data as { type?: string }).type ?? null,
   };
 }
 
@@ -173,9 +167,6 @@ function crossTabOpenedToOpenerMsg(
       tabId: TAB_ID,
     },
     data,
-    dataPreview: JSON.stringify(data).substring(0, 100),
-    dataSize: JSON.stringify(data).length,
-    messageType: (data as { type?: string }).type ?? null,
   };
 }
 
@@ -212,9 +203,6 @@ function openerToOpenedMsg(
       frameId: OPENER_FRAME.frameId,
     },
     data,
-    dataPreview: JSON.stringify(data).substring(0, 100),
-    dataSize: JSON.stringify(data).length,
-    messageType: (data as { type?: string }).type ?? null,
   };
 }
 

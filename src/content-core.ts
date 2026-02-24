@@ -128,34 +128,6 @@ export function initContentScript(win: ContentWindow, chrome: ContentChrome): vo
     return entry;
   }
 
-  // Create data preview (truncated string representation)
-  function createDataPreview(data: unknown, maxLength = 100): string {
-    try {
-      const str = JSON.stringify(data);
-      if (str.length <= maxLength) return str;
-      return str.substring(0, maxLength) + '...';
-    } catch {
-      return String(data).substring(0, maxLength);
-    }
-  }
-
-  // Calculate approximate size in bytes
-  function calculateSize(data: unknown): number {
-    try {
-      return new Blob([JSON.stringify(data)]).size;
-    } catch {
-      return 0;
-    }
-  }
-
-  // Extract message type from data (looks for .type property)
-  function extractMessageType(data: unknown): string | null {
-    if (data && typeof data === 'object' && 'type' in data && typeof (data as { type: unknown }).type === 'string') {
-      return (data as { type: string }).type;
-    }
-    return null;
-  }
-
   interface SourceInfo {
     type: string;
     origin: string;
@@ -217,10 +189,7 @@ export function initContentScript(win: ContentWindow, chrome: ContentChrome): vo
       timestamp: Date.now(),
       target: getTargetInfo(),
       source: getSourceInfo(event),
-      data: event.data,
-      dataPreview: createDataPreview(event.data),
-      dataSize: calculateSize(event.data),
-      messageType: extractMessageType(event.data)
+      data: event.data
     };
 
     const message: PostMessageCapturedMessage = {

@@ -18,9 +18,6 @@ export interface RawCapturedMessage {
     iframeDomPath: string | null;
   };
   data: unknown;
-  dataPreview: string;
-  dataSize: number;
-  messageType: string | null;
 }
 
 // Message interface - can be implemented by Message class or used as plain object
@@ -49,9 +46,6 @@ export interface IMessage {
     frameInfoError?: string;
   };
   data: unknown;
-  dataPreview: string;
-  dataSize: number;
-  messageType: string | null;
   buffered?: boolean;
 }
 

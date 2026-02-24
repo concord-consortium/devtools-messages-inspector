@@ -297,12 +297,14 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
 
     (async () => {
       const msgId = message.payload.id;
+      const rawData = message.payload.data as any;
+      const messageType = typeof rawData?.type === 'string' ? rawData.type : null;
       console.debug('[Frames] message received:', {
         msgId, tabId, frameId,
         sourceType: message.payload.source.type,
         sourceWindowId: message.payload.source.windowId,
         sourceOrigin: message.payload.source.origin,
-        messageType: message.payload.messageType,
+        messageType,
         documentId: sender.documentId
       });
 
@@ -390,8 +392,7 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
       }
 
       // Extract opened window registration data for cross-tab routing
-      const rawData = message.payload.data as any;
-      if (rawData?.type === '__frames_inspector_register__'
+      if (messageType === '__frames_inspector_register__'
           && rawData?.targetType === 'opener'
           && message.payload.source.windowId) {
         const key = `${tabId}:${message.payload.source.windowId}`;

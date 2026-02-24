@@ -13,9 +13,6 @@ class Message implements IMessage {
   timestamp: number;
   target: IMessage['target'];
   data: unknown;
-  dataPreview: string;
-  dataSize: number;
-  messageType: string | null;
   buffered?: boolean;
 
   // Store source separately to override frameId with computed value
@@ -37,9 +34,6 @@ class Message implements IMessage {
     this.timestamp = msg.timestamp;
     this.target = msg.target;
     this.data = msg.data;
-    this.dataPreview = msg.dataPreview;
-    this.dataSize = msg.dataSize;
-    this.messageType = msg.messageType;
     this.buffered = msg.buffered;
     this._source = msg.source;
 
@@ -127,6 +121,33 @@ class Message implements IMessage {
   // Computed: source Frame
   get sourceFrame(): Frame | undefined {
     return this.sourceDocument?.frame;
+  }
+
+  // Derived from data — computed once and cached by MobX since data never changes
+  get dataPreview(): string {
+    try {
+      const str = JSON.stringify(this.data);
+      if (str.length <= 100) return str;
+      return str.substring(0, 100) + '...';
+    } catch {
+      return String(this.data).substring(0, 100);
+    }
+  }
+
+  get dataSize(): number {
+    try {
+      return new Blob([JSON.stringify(this.data)]).size;
+    } catch {
+      return 0;
+    }
+  }
+
+  get messageType(): string | null {
+    const data = this.data;
+    if (data && typeof data === 'object' && 'type' in data && typeof (data as { type: unknown }).type === 'string') {
+      return (data as { type: string }).type;
+    }
+    return null;
   }
 }
 
