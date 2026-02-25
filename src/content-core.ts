@@ -2,12 +2,7 @@
 // In production, content.ts calls initContentScript(window, chrome).
 // In tests, call with mock window and chrome objects to simulate multiple content scripts.
 
-import { BackgroundToContentMessage, IframeElementInfo, RawCapturedMessage, FrameInfoResponse, OpenerInfo, PostMessageCapturedMessage } from './types';
-
-// Duplicated here (not imported) because content.js is injected via executeScript
-// and can't use ES module imports at runtime. Importing the const from types.ts
-// would create a runtime import of types.js, which breaks in content script context.
-const REGISTRATION_MESSAGE_TYPE = '__frames_inspector_register__';
+import { REGISTRATION_MESSAGE_TYPE, BackgroundToContentMessage, IframeElementInfo, RawCapturedMessage, FrameInfoResponse, OpenerInfo, PostMessageCapturedMessage } from './types';
 
 declare global {
   interface Window {

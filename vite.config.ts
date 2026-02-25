@@ -30,8 +30,29 @@ function copyStaticFiles() {
   };
 }
 
+// Bundle content.ts into a standalone file with all imports inlined.
+// content.js is injected via chrome.scripting.executeScript as a classic script,
+// where import/export statements are syntax errors. This plugin re-bundles it
+// via esbuild after the main Rollup build, producing a single self-contained file.
+function bundleContentScript() {
+  return {
+    name: 'bundle-content-script',
+    async writeBundle() {
+      const { build } = await import('esbuild');
+      await build({
+        entryPoints: [resolve(__dirname, 'src/content.ts')],
+        bundle: true,
+        outfile: resolve(__dirname, 'dist/content.js'),
+        format: 'esm',
+        target: 'es2020',
+        minify: false,
+      });
+    }
+  };
+}
+
 export default defineConfig(({ mode }) => ({
-  plugins: [react(), copyStaticFiles()],
+  plugins: [react(), copyStaticFiles(), bundleContentScript()],
 
   build: {
     outDir: 'dist',
