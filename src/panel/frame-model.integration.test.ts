@@ -34,7 +34,7 @@ const FRAME_B = {
   url: 'https://child-b.example.com/iframe',
   origin: 'https://child-b.example.com',
   title: 'Child B',
-  windowId: 'win-B',
+  sourceId: 'win-B',
   iframe: {
     domPath: 'body > iframe:nth-of-type(1)',
     src: 'https://child-b.example.com/iframe',
@@ -48,7 +48,7 @@ const FRAME_C = {
   url: 'https://child-c.example.com/nested',
   origin: 'https://child-c.example.com',
   title: 'Child C',
-  windowId: 'win-C',
+  sourceId: 'win-C',
   iframe: {
     domPath: 'body > iframe:nth-of-type(1)',
     src: 'https://child-c.example.com/nested',
@@ -74,7 +74,7 @@ let msgId = 0;
  *
  * Captured by the parent's content script. Background enriches target with
  * sender.documentId and sender.frameId (both are the parent's). Source only
- * has the windowId assigned by the parent's content script and iframe element info.
+ * has the sourceId assigned by the parent's content script and iframe element info.
  */
 function childMsg(
   source: typeof FRAME_B,
@@ -95,7 +95,7 @@ function childMsg(
     source: {
       type: 'child',
       origin: source.origin,
-      windowId: source.windowId,
+      sourceId: source.sourceId,
       iframe: source.iframe,
     },
     data,
@@ -127,7 +127,7 @@ function parentMsg(
     source: {
       type: 'parent',
       origin: source.origin,
-      windowId: null,
+      sourceId: null,
       iframe: null,
       frameId: source.frameId,
       documentId: source.documentId,
@@ -160,7 +160,7 @@ function crossTabOpenedToOpenerMsg(
     source: {
       type: 'opened',
       origin: FRAME_A.origin,
-      windowId: 'win-opened',
+      sourceId: 'win-opened',
       iframe: null,
       tabId: TAB_ID,
     },
@@ -193,7 +193,7 @@ function openerToOpenedMsg(
     source: {
       type: 'opener',
       origin: OPENER_FRAME.origin,
-      windowId: 'win-opener',
+      sourceId: 'win-opener',
       iframe: null,
       tabId: OPENER_TAB_ID,
       frameId: OPENER_FRAME.frameId,
@@ -234,10 +234,10 @@ describe('Frame model integration', () => {
 
   // ===================================================================
   // Registration disabled — no registration messages arrive, so child
-  // sources are only known by windowId and cannot resolve to a Frame.
+  // sources are only known by sourceId and cannot resolve to a Frame.
   // ===================================================================
   describe('registration disabled', () => {
-    it('child→parent: creates target doc+frame, source doc by windowId only', () => {
+    it('child→parent: creates target doc+frame, source doc by sourceId only', () => {
       processIncomingMessage(childMsg(FRAME_B, FRAME_A));
 
       // Target FrameDocument: created by documentId with full info
@@ -253,8 +253,8 @@ describe('Frame model integration', () => {
       expect(targetDoc!.frame).toBe(targetFrame);
       expect(targetFrame!.currentDocument).toBe(targetDoc);
 
-      // Source FrameDocument: created by windowId, no documentId or frame link
-      const sourceDoc = frameStore.getDocumentByWindowId(FRAME_B.windowId);
+      // Source FrameDocument: created by sourceId, no documentId or frame link
+      const sourceDoc = frameStore.getDocumentBySourceId(FRAME_B.sourceId);
       expect(sourceDoc).toBeDefined();
       expect(sourceDoc!.origin).toBe(FRAME_B.origin);
       expect(sourceDoc!.documentId).toBeUndefined();
@@ -293,7 +293,7 @@ describe('Frame model integration', () => {
 
       expect(store.messages[0].sourceDocument).toBe(store.messages[1].sourceDocument);
       expect(store.messages[0].sourceDocument)
-        .toBe(frameStore.getDocumentByWindowId(FRAME_B.windowId));
+        .toBe(frameStore.getDocumentBySourceId(FRAME_B.sourceId));
     });
 
     it('messages from different children create separate FrameDocuments', () => {
@@ -309,19 +309,19 @@ describe('Frame model integration', () => {
   });
 
   // ===================================================================
-  // Registration enabled — registration messages link a child's windowId
+  // Registration enabled — registration messages link a child's sourceId
   // to its (tabId, frameId), enabling source frame resolution.
   // ===================================================================
   describe('registration enabled', () => {
     it('child message then registration: source.frameId resolves reactively', () => {
-      // Child message arrives first — source only known by windowId
+      // Child message arrives first — source only known by sourceId
       processIncomingMessage(childMsg(FRAME_B, FRAME_A));
       const msg = store.messages[0];
 
       expect(msg.sourceFrame).toBeUndefined();
       expect(msg.source.frameId).toBeUndefined();
 
-      // Registration arrives — links windowId to Frame
+      // Registration arrives — links sourceId to Frame
       processIncomingMessage(registrationMsg(FRAME_B, FRAME_A));
 
       // The SAME message's computed properties now resolve
@@ -352,20 +352,20 @@ describe('Frame model integration', () => {
     });
 
     // -----------------------------------------------------------------
-    // Complex: a frame appears as both source (by windowId) and target
+    // Complex: a frame appears as both source (by sourceId) and target
     // (by documentId) before registration merges the two FrameDocuments.
     //
     // Timeline:
-    //   1. B→A message: B is source → FrameDocument created by windowId
+    //   1. B→A message: B is source → FrameDocument created by sourceId
     //   2. C→B message: B is target → FrameDocument created by documentId
     //   3. Registration for B → should merge the two into one
     // -----------------------------------------------------------------
     describe('frame is both source and target before registration', () => {
       it('merges two FrameDocuments when registration arrives', () => {
-        // Step 1: B→A — creates source FrameDocument for B by windowId
+        // Step 1: B→A — creates source FrameDocument for B by sourceId
         processIncomingMessage(childMsg(FRAME_B, FRAME_A));
 
-        const docBByWindow = frameStore.getDocumentByWindowId(FRAME_B.windowId);
+        const docBByWindow = frameStore.getDocumentBySourceId(FRAME_B.sourceId);
         expect(docBByWindow).toBeDefined();
         expect(docBByWindow!.documentId).toBeUndefined();
 
@@ -383,14 +383,14 @@ describe('Frame model integration', () => {
         processIncomingMessage(registrationMsg(FRAME_B, FRAME_A));
 
         // Both lookups now return the same merged document
-        const mergedByWindow = frameStore.getDocumentByWindowId(FRAME_B.windowId);
+        const mergedByWindow = frameStore.getDocumentBySourceId(FRAME_B.sourceId);
         const mergedByDocId = frameStore.getDocumentById(FRAME_B.documentId);
         expect(mergedByWindow).toBe(mergedByDocId);
 
         // Merged document has all properties
         const merged = mergedByDocId!;
         expect(merged.documentId).toBe(FRAME_B.documentId);
-        expect(merged.windowId).toBe(FRAME_B.windowId);
+        expect(merged.sourceId).toBe(FRAME_B.sourceId);
         expect(merged.url).toBe(FRAME_B.url);
         expect(merged.origin).toBe(FRAME_B.origin);
 
@@ -481,7 +481,7 @@ describe('Frame model integration', () => {
 
       const msg = store.messages[0];
 
-      // Source FrameDocument should exist (created by windowId)
+      // Source FrameDocument should exist (created by sourceId)
       expect(msg.sourceDocument).toBeDefined();
       expect(msg.sourceDocument!.origin).toBe(OPENER_FRAME.origin);
 

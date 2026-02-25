@@ -69,8 +69,8 @@ const ContextTab = observer(({ message }: { message: Message }) => {
         {store.settings.showExtraMessageInfo && (
           <>
             <Field id="buffered">{message.buffered ? 'Yes' : 'No'}</Field>
-            {message.sourceWindowId && (
-              <Field id="windowId">{message.sourceWindowId}</Field>
+            {message.sourceSourceId && (
+              <Field id="sourceId">{message.sourceSourceId}</Field>
             )}
           </>
         )}

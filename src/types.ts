@@ -19,7 +19,7 @@ export interface RawCapturedMessage {
   source: {
     type: string;
     origin: string;
-    windowId: string | null;
+    sourceId: string | null;
     iframe: IframeElementInfo | null;
   };
   data: unknown;
@@ -41,7 +41,7 @@ export interface IMessage {
   source: {
     type: string;
     origin: string;
-    windowId: string | null;
+    sourceId: string | null;
     iframe: IframeElementInfo | null;
     frameId?: number;  // Computed for child messages
     tabId?: number;
@@ -63,15 +63,15 @@ export interface FrameInfo {
   parentFrameId: number;
   title: string;
   origin: string;
-  iframes: (IframeElementInfo & { windowId?: string })[];
-  windowId?: string;
+  iframes: (IframeElementInfo & { sourceId?: string })[];
+  sourceId?: string;
   isOpener?: boolean;
   children?: FrameInfo[];
 }
 
 export interface OpenerInfo {
   origin: string | null;
-  windowId?: string;
+  sourceId?: string;
 }
 
 // Messages sent from background to content script
@@ -89,7 +89,7 @@ export interface GetFrameInfoMessage {
 export interface FrameInfoResponse {
   title: string;
   origin: string;
-  iframes: (IframeElementInfo & { windowId?: string })[];
+  iframes: (IframeElementInfo & { sourceId?: string })[];
   opener?: OpenerInfo | null;
 }
 

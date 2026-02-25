@@ -9,13 +9,13 @@ export class FrameStore {
   frames = observable.map<string, Frame>();
   documents = observable.map<string, FrameDocument>();
   // Secondary index for source correlation
-  documentsByWindowId = observable.map<string, FrameDocument>();
+  documentsBySourceId = observable.map<string, FrameDocument>();
 
   constructor() {
     makeAutoObservable(this, {
       frames: false,
       documents: false,
-      documentsByWindowId: false,
+      documentsBySourceId: false,
     });
   }
 
@@ -24,9 +24,9 @@ export class FrameStore {
     return this.documents.get(documentId);
   }
 
-  getDocumentByWindowId(windowId: string | undefined | null): FrameDocument | undefined {
-    if (!windowId) return undefined;
-    return this.documentsByWindowId.get(windowId);
+  getDocumentBySourceId(sourceId: string | undefined | null): FrameDocument | undefined {
+    if (!sourceId) return undefined;
+    return this.documentsBySourceId.get(sourceId);
   }
 
   getFrame(tabId: number, frameId: number): Frame | undefined {
@@ -52,11 +52,11 @@ export class FrameStore {
     return doc;
   }
 
-  getOrCreateDocumentByWindowId(windowId: string): FrameDocument {
-    let doc = this.documentsByWindowId.get(windowId);
+  getOrCreateDocumentBySourceId(sourceId: string): FrameDocument {
+    let doc = this.documentsBySourceId.get(sourceId);
     if (!doc) {
-      doc = new FrameDocument({ windowId });
-      this.documentsByWindowId.set(windowId, doc);
+      doc = new FrameDocument({ sourceId });
+      this.documentsBySourceId.set(sourceId, doc);
     }
     return doc;
   }
@@ -66,12 +66,12 @@ export class FrameStore {
     frameId: number;
     tabId: number;
     documentId?: string;
-    windowId?: string;
+    sourceId?: string;
     url: string;
     parentFrameId: number;
     title: string;
     origin: string;
-    iframes: { src: string; id: string; domPath: string; windowId?: string }[];
+    iframes: { src: string; id: string; domPath: string; sourceId?: string }[];
   }>): Frame[] {
     // Create/update frames and documents
     for (const frameData of frames) {
@@ -81,8 +81,8 @@ export class FrameStore {
       let doc: FrameDocument | undefined;
       if (frameData.documentId) {
         doc = this.getOrCreateDocumentById(frameData.documentId);
-      } else if (frameData.windowId) {
-        doc = this.getOrCreateDocumentByWindowId(frameData.windowId);
+      } else if (frameData.sourceId) {
+        doc = this.getOrCreateDocumentBySourceId(frameData.sourceId);
       }
 
       if (doc) {
@@ -127,7 +127,7 @@ export class FrameStore {
   clear(): void {
     this.frames.clear();
     this.documents.clear();
-    this.documentsByWindowId.clear();
+    this.documentsBySourceId.clear();
   }
 }
 

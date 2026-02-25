@@ -20,7 +20,7 @@ class Message implements IMessage {
 
   // Raw identifiers for FrameStore lookups
   readonly targetDocumentId: string | undefined;
-  readonly sourceWindowId: string | null;
+  readonly sourceSourceId: string | null;
   readonly sourceDocumentId: string | undefined;
   readonly sourceType: string;
 
@@ -39,7 +39,7 @@ class Message implements IMessage {
 
     // Raw identifiers
     this.targetDocumentId = msg.target.documentId;
-    this.sourceWindowId = msg.source.windowId;
+    this.sourceSourceId = msg.source.sourceId;
     this.sourceDocumentId = msg.source.documentId;
     this.sourceType = msg.source.type;
 
@@ -52,7 +52,7 @@ class Message implements IMessage {
       data: observable.ref,
       _source: observable.ref,
       targetDocumentId: false,
-      sourceWindowId: false,
+      sourceSourceId: false,
       sourceDocumentId: false,
       sourceType: false,
       sourceOwnerElement: false,
@@ -107,8 +107,8 @@ class Message implements IMessage {
       const doc = frameStore.getDocumentById(this.sourceDocumentId);
       if (doc) return doc;
     }
-    if (this.sourceWindowId) {
-      return frameStore.getDocumentByWindowId(this.sourceWindowId);
+    if (this.sourceSourceId) {
+      return frameStore.getDocumentBySourceId(this.sourceSourceId);
     }
     return undefined;
   }

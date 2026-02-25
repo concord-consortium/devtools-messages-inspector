@@ -8,7 +8,7 @@ export class FrameDocument {
   url: string | undefined;
   origin: string | undefined;
   title: string | undefined;
-  windowId: string | undefined;
+  sourceId: string | undefined;
   frame: Frame | undefined;
 
   constructor(init: {
@@ -16,13 +16,13 @@ export class FrameDocument {
     url?: string;
     origin?: string;
     title?: string;
-    windowId?: string;
+    sourceId?: string;
   }) {
     this.documentId = init.documentId;
     this.url = init.url;
     this.origin = init.origin;
     this.title = init.title;
-    this.windowId = init.windowId;
+    this.sourceId = init.sourceId;
 
     makeAutoObservable(this);
   }

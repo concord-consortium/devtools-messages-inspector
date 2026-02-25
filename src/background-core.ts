@@ -71,7 +71,7 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
     openerFrames.get(key)!.add(openedTabId);
   }
 
-  // Maps "${capturingTabId}:${windowId}" to the opened window's tab info
+  // Maps "${capturingTabId}:${sourceId}" to the opened window's tab info
   const openedWindowToTab = new Map<string, { tabId: number; frameId: number }>();
 
   // Inject content script into a specific tab and frame
@@ -240,7 +240,7 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
           parentFrameId: -1,
           title: '',
           origin: (openerInfo as OpenerInfo).origin || '',
-          windowId: (openerInfo as OpenerInfo).windowId,
+          sourceId: (openerInfo as OpenerInfo).sourceId,
           iframes: [],
           isOpener: true
         };
@@ -302,7 +302,7 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
       console.debug('[Frames] message received:', {
         msgId, tabId, frameId,
         sourceType: message.payload.source.type,
-        sourceWindowId: message.payload.source.windowId,
+        sourceId: message.payload.source.sourceId,
         sourceOrigin: message.payload.source.origin,
         messageType,
         documentId: sender.documentId
@@ -320,11 +320,11 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
 
       // Detect opened-window source type from registration data
       // (content script can't determine this — background tracks it via openedWindowToTab)
-      if (message.payload.source.windowId) {
-        const windowKey = `${tabId}:${message.payload.source.windowId}`;
-        const openedWindow = openedWindowToTab.get(windowKey);
+      if (message.payload.source.sourceId) {
+        const sourceKey = `${tabId}:${message.payload.source.sourceId}`;
+        const openedWindow = openedWindowToTab.get(sourceKey);
         if (openedWindow) {
-          console.debug('[Frames] source matched opened window:', { msgId, windowKey, openedWindow });
+          console.debug('[Frames] source matched opened window:', { msgId, sourceKey, openedWindow });
           enrichedPayload.source = {
             ...enrichedPayload.source,
             type: 'opened',
@@ -394,8 +394,8 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
       // Extract opened window registration data for cross-tab routing
       if (messageType === '__frames_inspector_register__'
           && rawData?.targetType === 'opener'
-          && message.payload.source.windowId) {
-        const key = `${tabId}:${message.payload.source.windowId}`;
+          && message.payload.source.sourceId) {
+        const key = `${tabId}:${message.payload.source.sourceId}`;
         console.debug('[Frames] opener registration:', { msgId, key, registeredTab: rawData.tabId, registeredFrame: rawData.frameId });
         openedWindowToTab.set(key, { tabId: rawData.tabId, frameId: rawData.frameId });
 
@@ -412,7 +412,7 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
         tabId: enrichedPayload.source.tabId,
         frameId: enrichedPayload.source.frameId,
         documentId: enrichedPayload.source.documentId,
-        windowId: enrichedPayload.source.windowId
+        sourceId: enrichedPayload.source.sourceId
       });
 
       const panel = panelConnections.get(tabId);

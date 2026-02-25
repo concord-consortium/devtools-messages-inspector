@@ -58,12 +58,12 @@ export function processIncomingMessage(msg: IMessage): void {
   if (msg.source.documentId) {
     sourceDoc = frameStore.getOrCreateDocumentById(msg.source.documentId);
     sourceDoc.origin = msg.source.origin;
-    if (msg.source.windowId) {
-      sourceDoc.windowId = msg.source.windowId;
-      frameStore.documentsByWindowId.set(msg.source.windowId, sourceDoc);
+    if (msg.source.sourceId) {
+      sourceDoc.sourceId = msg.source.sourceId;
+      frameStore.documentsBySourceId.set(msg.source.sourceId, sourceDoc);
     }
-  } else if (msg.source.windowId) {
-    sourceDoc = frameStore.getOrCreateDocumentByWindowId(msg.source.windowId);
+  } else if (msg.source.sourceId) {
+    sourceDoc = frameStore.getOrCreateDocumentBySourceId(msg.source.sourceId);
     sourceDoc.origin = msg.source.origin;
   }
 
@@ -83,8 +83,8 @@ export function processIncomingMessage(msg: IMessage): void {
     sourceOwnerElement = OwnerElement.fromRaw(msg.source.iframe);
 
     // Update Frame's currentOwnerElement if it has changed (e.g., due to navigation)
-    if (sourceOwnerElement && msg.source.windowId) {
-      const sourceDoc = frameStore.getDocumentByWindowId(msg.source.windowId);
+    if (sourceOwnerElement && msg.source.sourceId) {
+      const sourceDoc = frameStore.getDocumentBySourceId(msg.source.sourceId);
       if (sourceDoc?.frame) {
         if (!sourceOwnerElement.equals(sourceDoc.frame.currentOwnerElement)) {
           sourceDoc.frame.currentOwnerElement = sourceOwnerElement;
@@ -105,7 +105,7 @@ export function processIncomingMessage(msg: IMessage): void {
   const message = new Message(msg, targetOwnerElement, sourceOwnerElement);
 
   // --- Handle registration ---
-  if (message.isRegistrationMessage && message.sourceWindowId) {
+  if (message.isRegistrationMessage && message.sourceSourceId) {
     processRegistration(message);
   }
 
@@ -114,27 +114,27 @@ export function processIncomingMessage(msg: IMessage): void {
 
 function processRegistration(message: Message): void {
   const regData = message.registrationData!;
-  const windowId = message.sourceWindowId!;
+  const sourceId = message.sourceSourceId!;
 
-  const docByWindow = frameStore.getDocumentByWindowId(windowId);
+  const docByWindow = frameStore.getDocumentBySourceId(sourceId);
   const docByDocId = frameStore.getDocumentById(regData.documentId);
 
   if (docByWindow && docByDocId && docByWindow !== docByDocId) {
-    docByDocId.windowId = windowId;
+    docByDocId.sourceId = sourceId;
     if (docByWindow.origin && !docByDocId.origin) {
       docByDocId.origin = docByWindow.origin;
     }
-    frameStore.documentsByWindowId.set(windowId, docByDocId);
+    frameStore.documentsBySourceId.set(sourceId, docByDocId);
   } else if (docByWindow && !docByDocId) {
     docByWindow.documentId = regData.documentId;
     frameStore.documents.set(regData.documentId, docByWindow);
   } else if (!docByWindow && docByDocId) {
-    docByDocId.windowId = windowId;
-    frameStore.documentsByWindowId.set(windowId, docByDocId);
+    docByDocId.sourceId = sourceId;
+    frameStore.documentsBySourceId.set(sourceId, docByDocId);
   } else if (!docByWindow && !docByDocId) {
-    const doc = new FrameDocument({ documentId: regData.documentId, windowId });
+    const doc = new FrameDocument({ documentId: regData.documentId, sourceId });
     frameStore.documents.set(regData.documentId, doc);
-    frameStore.documentsByWindowId.set(windowId, doc);
+    frameStore.documentsBySourceId.set(sourceId, doc);
   }
 
   const frame = frameStore.getOrCreateFrame(regData.tabId, regData.frameId);

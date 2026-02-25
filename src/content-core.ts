@@ -44,7 +44,7 @@ export function initContentScript(win: ContentWindow, chrome: ContentChrome): vo
   if (win.__postmessage_devtools_content__) return;
   win.__postmessage_devtools_content__ = true;
 
-  const sourceWindows = new WeakMap<object, { windowId: string; type: string }>();
+  const sourceEntries = new WeakMap<object, { sourceId: string; type: string }>();
 
   interface RegistrationMessage {
     type: '__frames_inspector_register__';
@@ -118,12 +118,12 @@ export function initContentScript(win: ContentWindow, chrome: ContentChrome): vo
     return 'unknown';
   }
 
-  // Get or create a stable entry for a source window
-  function getOrCreateSourceWindow(sourceWindow: object): { windowId: string; type: string } {
-    let entry = sourceWindows.get(sourceWindow);
+  // Get or create a stable entry for a message source
+  function resolveSourceEntry(sourceWindow: object): { sourceId: string; type: string } {
+    let entry = sourceEntries.get(sourceWindow);
     if (!entry) {
-      entry = { windowId: generateId(), type: computeSourceType(sourceWindow) };
-      sourceWindows.set(sourceWindow, entry);
+      entry = { sourceId: generateId(), type: computeSourceType(sourceWindow) };
+      sourceEntries.set(sourceWindow, entry);
     }
     return entry;
   }
@@ -149,8 +149,8 @@ export function initContentScript(win: ContentWindow, chrome: ContentChrome): vo
   // Collect source info from a message event
   function getSourceInfo(event: MessageEvent): RawCapturedMessage['source'] {
     const eventSource = event.source;
-    const sourceWindow = eventSource ? getOrCreateSourceWindow(eventSource) : null;
-    const sourceType = sourceWindow ? sourceWindow.type : 'unknown';
+    const sourceEntry = eventSource ? resolveSourceEntry(eventSource) : null;
+    const sourceType = sourceEntry ? sourceEntry.type : 'unknown';
 
     let iframe: IframeElementInfo | null = null;
 
@@ -168,7 +168,7 @@ export function initContentScript(win: ContentWindow, chrome: ContentChrome): vo
     return {
       type: sourceType,
       origin: event.origin,
-      windowId: sourceWindow ? sourceWindow.windowId : null,
+      sourceId: sourceEntry ? sourceEntry.sourceId : null,
       iframe
     };
   }
@@ -201,7 +201,7 @@ export function initContentScript(win: ContentWindow, chrome: ContentChrome): vo
 
     const info: OpenerInfo = {
       origin: null,
-      windowId: getOrCreateSourceWindow(win.opener).windowId
+      sourceId: resolveSourceEntry(win.opener).sourceId
     };
 
     // window.origin is accessible cross-origin (unlike location.origin)
@@ -233,7 +233,7 @@ export function initContentScript(win: ContentWindow, chrome: ContentChrome): vo
     if (message.type === 'get-frame-info') {
       const iframes = Array.from(win.document.querySelectorAll('iframe') as NodeListOf<HTMLIFrameElement>).map(iframe => ({
         ...getIframeElementInfo(iframe),
-        windowId: iframe.contentWindow ? getOrCreateSourceWindow(iframe.contentWindow).windowId : undefined
+        sourceId: iframe.contentWindow ? resolveSourceEntry(iframe.contentWindow).sourceId : undefined
       }));
 
       const response: FrameInfoResponse = {

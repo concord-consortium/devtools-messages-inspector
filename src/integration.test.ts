@@ -109,7 +109,7 @@ describe('content → background → panel integration', () => {
     expect(msgPayloads[1].payload.source.type).toBe('parent');
   });
 
-  it('assigns stable windowIds to repeated messages from the same source', async () => {
+  it('assigns stable sourceIds to repeated messages from the same source', async () => {
     const { parentWin, childWin } = setupTwoFrames();
     const { messages } = env.connectPanel(TAB_ID);
     await flushPromises();
@@ -119,10 +119,10 @@ describe('content → background → panel integration', () => {
 
     const payloads = messages.filter(m => m.type === 'message').map(m => m.payload);
     expect(payloads).toHaveLength(2);
-    // Same source window should get the same windowId
-    expect(payloads[0].source.windowId).toBe(payloads[1].source.windowId);
+    // Same source window should get the same sourceId
+    expect(payloads[0].source.sourceId).toBe(payloads[1].source.sourceId);
     // And it should be a non-empty string
-    expect(payloads[0].source.windowId).toBeTruthy();
+    expect(payloads[0].source.sourceId).toBeTruthy();
   });
 
   it('clears panel messages on main frame navigation', async () => {
