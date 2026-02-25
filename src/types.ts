@@ -1,5 +1,7 @@
 // Shared types for Frames Inspector
 
+export const REGISTRATION_MESSAGE_TYPE = '__frames_inspector_register__';
+
 // DOM properties of an iframe element
 export interface IframeElementInfo {
   src: string;
@@ -75,11 +77,10 @@ export interface OpenerInfo {
 }
 
 // Messages sent from background to content script
-export interface FrameIdentityMessage {
-  type: 'frame-identity';
-  frameId: number;
-  tabId: number;
-  documentId: string;
+export interface SendMessageMessage {
+  type: 'send-message';
+  target: 'parent' | 'opener';
+  message: unknown;
 }
 
 export interface GetFrameInfoMessage {
@@ -93,7 +94,7 @@ export interface FrameInfoResponse {
   opener?: OpenerInfo | null;
 }
 
-export type BackgroundToContentMessage = FrameIdentityMessage | GetFrameInfoMessage;
+export type BackgroundToContentMessage = SendMessageMessage | GetFrameInfoMessage;
 
 // Messages sent from content script to background
 export interface PostMessageCapturedMessage {

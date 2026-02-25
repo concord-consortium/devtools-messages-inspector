@@ -1,6 +1,7 @@
 // Message class - Observable message with computed properties
 
 import { makeAutoObservable, observable } from 'mobx';
+import { REGISTRATION_MESSAGE_TYPE } from '../types';
 import { frameStore } from './models';
 import type { Frame } from './models/Frame';
 import type { FrameDocument } from './models/FrameDocument';
@@ -62,7 +63,7 @@ class Message implements IMessage {
 
   // Check if this is a registration message (cached getter)
   get isRegistrationMessage(): boolean {
-    return (this.data as { type?: string })?.type === '__frames_inspector_register__';
+    return (this.data as { type?: string })?.type === REGISTRATION_MESSAGE_TYPE;
   }
 
   // Get registration data (cached getter, only valid if isRegistrationMessage is true)

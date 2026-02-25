@@ -2,7 +2,7 @@
 // In production, background.ts calls initBackgroundScript(chrome).
 // In tests, call with a mock BackgroundChrome to avoid needing globalThis.chrome.
 
-import { IMessage, ContentToBackgroundMessage, FrameIdentityMessage, FrameInfo, FrameInfoResponse, GetFrameInfoMessage, OpenerInfo } from './types';
+import { IMessage, ContentToBackgroundMessage, SendMessageMessage, FrameInfo, FrameInfoResponse, GetFrameInfoMessage, OpenerInfo, REGISTRATION_MESSAGE_TYPE } from './types';
 
 /** Minimal chrome API surface needed by the background script */
 export interface BackgroundPort {
@@ -100,13 +100,13 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
 
       if (frameId !== null) {
         injectedFrames.get(tabId)!.add(frameId);
-        sendFrameIdentity(tabId, frameId);
+        sendRegistrationMessages(tabId, frameId);
       } else {
         const frames = await chrome.webNavigation.getAllFrames({ tabId });
         if (frames) {
           for (const frame of frames) {
             injectedFrames.get(tabId)!.add(frame.frameId);
-            sendFrameIdentity(tabId, frame.frameId);
+            sendRegistrationMessages(tabId, frame.frameId);
           }
         }
       }
@@ -115,7 +115,7 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
     }
   }
 
-  async function sendFrameIdentity(tabId: number, frameId: number): Promise<void> {
+  async function sendRegistrationMessages(tabId: number, frameId: number): Promise<void> {
     try {
       const result = await chrome.storage.local.get(['enableFrameRegistration']);
       const enabled = result.enableFrameRegistration !== false;
@@ -130,16 +130,35 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
         }
         if (documentId == null) return;
 
-        const message: FrameIdentityMessage = {
-          type: 'frame-identity',
-          frameId: frameId,
-          tabId: tabId,
-          documentId: documentId
+        const registrationBase = {
+          type: REGISTRATION_MESSAGE_TYPE,
+          frameId,
+          tabId,
+          documentId,
         };
-        await chrome.tabs.sendMessage(tabId, message, { frameId: frameId });
+
+        setTimeout(async () => {
+          try {
+            const parentMsg: SendMessageMessage = {
+              type: 'send-message',
+              target: 'parent',
+              message: { ...registrationBase, targetType: 'parent' },
+            };
+            await chrome.tabs.sendMessage(tabId, parentMsg, { frameId });
+
+            const openerMsg: SendMessageMessage = {
+              type: 'send-message',
+              target: 'opener',
+              message: { ...registrationBase, targetType: 'opener' },
+            };
+            await chrome.tabs.sendMessage(tabId, openerMsg, { frameId });
+          } catch (e) {
+            console.debug('[Frames] sendRegistrationMessages failed for', { tabId, frameId }, e);
+          }
+        }, 500);
       }
-    } catch {
-      // Content script may not be ready yet, ignore
+    } catch (e) {
+      console.warn('[Frames] sendRegistrationMessages failed for', { tabId, frameId }, e);
     }
   }
 
@@ -392,7 +411,7 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
       }
 
       // Extract opened window registration data for cross-tab routing
-      if (messageType === '__frames_inspector_register__'
+      if (messageType === REGISTRATION_MESSAGE_TYPE
           && rawData?.targetType === 'opener'
           && message.payload.source.sourceId) {
         const key = `${tabId}:${message.payload.source.sourceId}`;

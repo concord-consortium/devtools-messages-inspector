@@ -4,6 +4,11 @@
 
 import { BackgroundToContentMessage, IframeElementInfo, RawCapturedMessage, FrameInfoResponse, OpenerInfo, PostMessageCapturedMessage } from './types';
 
+// Duplicated here (not imported) because content.js is injected via executeScript
+// and can't use ES module imports at runtime. Importing the const from types.ts
+// would create a runtime import of types.js, which breaks in content script context.
+const REGISTRATION_MESSAGE_TYPE = '__frames_inspector_register__';
+
 declare global {
   interface Window {
     __postmessage_devtools_content__?: boolean;
@@ -45,32 +50,6 @@ export function initContentScript(win: ContentWindow, chrome: ContentChrome): vo
   win.__postmessage_devtools_content__ = true;
 
   const sourceEntries = new WeakMap<object, { sourceId: string; type: string }>();
-
-  interface RegistrationMessage {
-    type: '__frames_inspector_register__';
-    frameId: number;
-    tabId: number;
-    documentId: string;
-  }
-
-  // Send registration messages to parent and opener
-  function sendRegistrationMessages(registrationMessage: RegistrationMessage): void {
-    // Send to parent if we're in an iframe
-    if (win.parent !== win) {
-      win.parent.postMessage({
-        ...registrationMessage,
-        targetType: 'parent'
-      }, '*');
-    }
-
-    // Send to opener if we were opened by another window
-    if (win.opener) {
-      win.opener.postMessage({
-        ...registrationMessage,
-        targetType: 'opener'
-      }, '*');
-    }
-  }
 
   // Generate a CSS selector path for an element
   function getDomPath(element: Element | null): string {
@@ -176,7 +155,7 @@ export function initContentScript(win: ContentWindow, chrome: ContentChrome): vo
   // Listen for incoming postMessage events
   win.addEventListener('message', (event: MessageEvent) => {
     // Stop propagation of registration messages to prevent app from seeing them
-    if (event.data?.type === '__frames_inspector_register__') {
+    if (event.data?.type === REGISTRATION_MESSAGE_TYPE) {
       event.stopImmediatePropagation();
     }
 
@@ -220,14 +199,13 @@ export function initContentScript(win: ContentWindow, chrome: ContentChrome): vo
     _sender: chrome.runtime.MessageSender,
     sendResponse: (response: FrameInfoResponse) => void
   ) => {
-    if (message.type === 'frame-identity') {
-      // Wait 500ms before sending registration to ensure parent is ready
-      setTimeout(() => sendRegistrationMessages({
-        type: '__frames_inspector_register__',
-        frameId: message.frameId,
-        tabId: message.tabId,
-        documentId: message.documentId
-      }), 500);
+    if (message.type === 'send-message') {
+      const { target, message: payload } = message;
+      if (target === 'parent' && win.parent !== win) {
+        win.parent.postMessage(payload, '*');
+      } else if (target === 'opener' && win.opener) {
+        win.opener.postMessage(payload, '*');
+      }
     }
 
     if (message.type === 'get-frame-info') {
