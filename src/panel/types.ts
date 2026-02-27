@@ -34,5 +34,7 @@ export const ALL_COLUMNS: ColumnDef[] = [
   { id: 'source.ownerElement.domPath', defaultVisible: false, width: 200 },
   { id: 'messageType', defaultVisible: true, width: 80 },
   { id: 'dataPreview', defaultVisible: true, width: 200 },
-  { id: 'dataSize', defaultVisible: false, width: 60 }
+  { id: 'dataSize', defaultVisible: false, width: 60 },
+  { id: 'partnerFrame', defaultVisible: false, width: 90 },
+  { id: 'partnerType', defaultVisible: false, width: 80 },
 ];

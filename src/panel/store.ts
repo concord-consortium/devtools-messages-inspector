@@ -11,6 +11,7 @@ import {
 import { FrameInfo } from '../types';
 import { Message } from './Message';
 import { Frame, frameStore } from './models';
+import type { FocusPosition } from './components/shared/DirectionIcon';
 
 class PanelStore {
   // Tab ID for the inspected window
@@ -36,6 +37,9 @@ class PanelStore {
   // Hierarchy
   frameHierarchy: FrameInfo[] = [];
   selectedFrameKey: string | null = null;
+
+  // Focused frame
+  focusedFrameId: number | null = null;
 
   // Settings
   settings: Settings = {
@@ -132,6 +136,11 @@ class PanelStore {
       case 'messageType': return msg.messageType || '';
       case 'dataPreview': return msg.dataPreview;
       case 'dataSize': return this.formatSize(msg.dataSize);
+      case 'partnerFrame': {
+        const partnerFrame = this.getPartnerFrame(msg);
+        return partnerFrame ? `frame[${partnerFrame.frameId}]` : '';
+      }
+      case 'partnerType': return this.getPartnerType(msg) || '';
       default: return '';
     }
   }
@@ -162,6 +171,58 @@ class PanelStore {
       case 'opener': return '→';
       case 'opened': return '←';
       default: return '?';
+    }
+  }
+
+  // Focused frame methods
+  setFocusedFrame(frameId: number | null): void {
+    this.focusedFrameId = frameId;
+    chrome.storage.local.set({ focusedFrameId: frameId });
+  }
+
+  getFocusPosition(msg: Message): FocusPosition {
+    if (this.focusedFrameId == null) return 'none';
+
+    const sourceFrame = msg.sourceFrame;
+    const targetFrame = msg.targetFrame;
+
+    const isSource = sourceFrame?.frameId === this.focusedFrameId
+      && sourceFrame?.tabId === this.tabId;
+    const isTarget = targetFrame?.frameId === this.focusedFrameId
+      && targetFrame?.tabId === this.tabId;
+
+    if (isSource && isTarget) return 'both';
+    if (isSource) return 'source';
+    if (isTarget) return 'target';
+    return 'none';
+  }
+
+  getPartnerFrame(msg: Message): Frame | undefined {
+    const pos = this.getFocusPosition(msg);
+    if (pos === 'source') return msg.targetFrame;
+    if (pos === 'target') return msg.sourceFrame;
+    return undefined;
+  }
+
+  getPartnerType(msg: Message): string | null {
+    const pos = this.getFocusPosition(msg);
+    if (pos === 'none' || pos === 'both') return null;
+    // sourceType describes source's relation to the target.
+    // When focus is source, partner is target → invert to get target's relation to source.
+    // When focus is target, partner is source → sourceType already describes it.
+    if (pos === 'source') return this.invertSourceType(msg.sourceType);
+    return msg.sourceType;
+  }
+
+  private invertSourceType(sourceType: string): string {
+    switch (sourceType) {
+      case 'parent': return 'child';
+      case 'child': return 'parent';
+      case 'top': return 'child';
+      case 'opener': return 'opened';
+      case 'opened': return 'opener';
+      case 'self': return 'self';
+      default: return sourceType;
     }
   }
 
@@ -312,7 +373,7 @@ class PanelStore {
   async loadPersistedState(): Promise<void> {
     return new Promise((resolve) => {
       chrome.storage.local.get(
-        ['visibleColumns', 'columnWidths', 'settings', 'currentView'],
+        ['visibleColumns', 'columnWidths', 'settings', 'currentView', 'focusedFrameId'],
         (result) => {
           if (result.visibleColumns) {
             this.visibleColumns = { ...this.visibleColumns, ...result.visibleColumns };
@@ -325,6 +386,9 @@ class PanelStore {
           }
           if (result.currentView) {
             this.currentView = result.currentView;
+          }
+          if (result.focusedFrameId != null) {
+            this.focusedFrameId = result.focusedFrameId;
           }
           resolve();
         }

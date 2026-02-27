@@ -4,9 +4,9 @@ import { observer } from 'mobx-react-lite';
 import type { Frame } from '../../models/Frame';
 import type { FrameDocument } from '../../models/FrameDocument';
 import type { OwnerElement } from '../../models/OwnerElement';
-import { store } from '../../store';
 import { FIELD_INFO } from '../../field-info';
 import { FieldLabel } from './FieldInfoPopup';
+import { DirectionIcon } from './DirectionIcon';
 
 const Field = ({ id, children }: { id: string; children: React.ReactNode }) => {
   const fieldInfo = FIELD_INFO[id];
@@ -40,7 +40,7 @@ export const FrameDetail = observer(({ frame, document: docOverride, ownerElemen
   return (
     <>
       {sourceType && (
-        <Field id="sourceType">{store.getDirectionIcon(sourceType)} {sourceType}</Field>
+        <Field id="sourceType"><DirectionIcon sourceType={sourceType} focusPosition="none" /> {sourceType}</Field>
       )}
       {frame && (
         <Field id="tabId">tab[{frame.tabId}]</Field>

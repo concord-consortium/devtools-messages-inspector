@@ -5,6 +5,7 @@ import { store } from '../../store';
 import { ALL_COLUMNS } from '../../types';
 import { getColumnLabel } from '../../field-info';
 import { Message } from '../../Message';
+import { DirectionIcon, UninvolvedIcon } from '../shared/DirectionIcon';
 
 // Column header with resize handle
 const ColumnHeader = observer(({ columnId }: { columnId: string }) => {
@@ -184,14 +185,31 @@ const MessageRow = observer(({ message }: { message: Message }) => {
       {ALL_COLUMNS.map(col => {
         if (!store.visibleColumns[col.id]) return null;
 
+        if (col.id === 'direction') {
+          const focusPosition = store.getFocusPosition(message);
+          const isUninvolved = store.focusedFrameId != null && focusPosition === 'none';
+          return (
+            <td
+              key={col.id}
+              data-column={col.id}
+              className={isUninvolved ? 'dir-uninvolved' : `dir-${message.sourceType}`}
+              onContextMenu={(e) => showCellMenu(e, message, col.id)}
+            >
+              {isUninvolved ? (
+                <UninvolvedIcon />
+              ) : (
+                <DirectionIcon sourceType={message.sourceType} focusPosition={focusPosition} />
+              )}
+            </td>
+          );
+        }
+
         const value = store.getCellValue(message, col.id);
-        const dirClass = col.id === 'direction' ? `dir-${message.sourceType}` : '';
 
         return (
           <td
             key={col.id}
             data-column={col.id}
-            className={dirClass}
             onContextMenu={(e) => showCellMenu(e, message, col.id)}
           >
             {value}

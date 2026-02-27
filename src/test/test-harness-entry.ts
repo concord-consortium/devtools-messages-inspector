@@ -67,7 +67,7 @@ const childWin = childFrame.window!;
 
 async function init() {
   const { store } = await import('../panel/store');
-  const { connect } = await import('../panel/connection');
+  const { connect, requestFrameHierarchy } = await import('../panel/connection');
   const { App } = await import('../panel/components/App');
   const { createRoot } = await import('react-dom/client');
 
@@ -93,6 +93,7 @@ async function init() {
 
   (window as any).harness = {
     env,
+    store,
     parentWin,
     childWin,
     topFrame,
@@ -109,6 +110,9 @@ async function init() {
     sendParentToChild(data: any) {
       parentWin.frames[0].postMessage(data, '*');
     },
+
+    // Request frame hierarchy refresh from background
+    requestFrameHierarchy,
   };
 
   console.log(

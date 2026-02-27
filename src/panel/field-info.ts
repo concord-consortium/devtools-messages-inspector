@@ -113,6 +113,18 @@ export const FIELD_INFO: Record<string, FieldInfoEntry> = {
     description: 'Error that occurred when trying to get frame information.',
     technical: 'Usually indicates the content script could not access frame APIs.',
     filter: null
+  },
+  partnerFrame: {
+    label: 'Partner Frame',
+    description: 'The frame ID of the communication partner from the focused frame\'s perspective.',
+    technical: 'When Focused Frame is selected, shows the other frame in the message exchange. Empty if focus frame is not involved.',
+    filter: null
+  },
+  partnerType: {
+    label: 'Partner Type',
+    description: 'The relationship type of the partner frame from the focused frame\'s perspective.',
+    technical: 'Shows the relationship (parent, child, opener, opened, etc.) from the focused frame\'s viewpoint. Automatically inverted when focus is the message target.',
+    filter: null
   }
 };
 
