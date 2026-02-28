@@ -104,9 +104,13 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
       } else {
         const frames = await chrome.webNavigation.getAllFrames({ tabId });
         if (frames) {
+          const alreadyInjected = injectedFrames.get(tabId)!;
           for (const frame of frames) {
-            injectedFrames.get(tabId)!.add(frame.frameId);
-            sendRegistrationMessages(tabId, frame.frameId);
+            const isNew = !alreadyInjected.has(frame.frameId);
+            alreadyInjected.add(frame.frameId);
+            if (isNew) {
+              sendRegistrationMessages(tabId, frame.frameId);
+            }
           }
         }
       }
@@ -337,6 +341,22 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
         }
       };
 
+      // Record opened window registration data before enrichment so the
+      // registration message itself can be enriched with source type 'opened'
+      if (messageType === REGISTRATION_MESSAGE_TYPE
+          && rawData?.targetType === 'opener'
+          && message.payload.source.sourceId) {
+        const key = `${tabId}:${message.payload.source.sourceId}`;
+        console.debug('[Frames] opener registration:', { msgId, key, registeredTab: rawData.tabId, registeredFrame: rawData.frameId });
+        openedWindowToTab.set(key, { tabId: rawData.tabId, frameId: rawData.frameId });
+
+        // Also establish opener relationship from registration, as a fallback
+        // for cases where onCreatedNavigationTarget didn't set it up (e.g.,
+        // popup opened before the panel was connected).
+        // frameId here is the opener's frame (where the message was received).
+        recordOpenerRelationship(tabId, frameId, rawData.tabId as number);
+      }
+
       // Detect opened-window source type from registration data
       // (content script can't determine this — background tracks it via openedWindowToTab)
       if (message.payload.source.sourceId) {
@@ -408,21 +428,6 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
         } catch (e) {
           enrichedPayload.target.frameInfoError = (e instanceof Error ? e.message : 'Failed to get frame info');
         }
-      }
-
-      // Extract opened window registration data for cross-tab routing
-      if (messageType === REGISTRATION_MESSAGE_TYPE
-          && rawData?.targetType === 'opener'
-          && message.payload.source.sourceId) {
-        const key = `${tabId}:${message.payload.source.sourceId}`;
-        console.debug('[Frames] opener registration:', { msgId, key, registeredTab: rawData.tabId, registeredFrame: rawData.frameId });
-        openedWindowToTab.set(key, { tabId: rawData.tabId, frameId: rawData.frameId });
-
-        // Also establish opener relationship from registration, as a fallback
-        // for cases where onCreatedNavigationTarget didn't set it up (e.g.,
-        // popup opened before the panel was connected).
-        // frameId here is the opener's frame (where the message was received).
-        recordOpenerRelationship(tabId, frameId, rawData.tabId as number);
       }
 
       console.debug('[Frames] enriched source:', {
