@@ -233,6 +233,10 @@ body {
   color: #9334e6;  /* Purple - from opener */
 }
 
+.dir-opened {
+  color: #d01884;  /* Magenta/Pink - from opened */
+}
+
 .dir-unknown {
   color: #5f6368;  /* Gray - unknown */
 }
