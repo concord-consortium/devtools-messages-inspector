@@ -151,8 +151,13 @@ export class ChromeExtensionEnv {
               responded = true;
               resolve(r);
             };
-            event.fire(msg, {}, sendResponse);
-            if (!responded) resolve(undefined);
+            const returnValues = event.fire(msg, {}, sendResponse);
+            // Model Chrome's return true behavior: if any listener returned true,
+            // keep the channel open and wait for sendResponse to be called.
+            // If no listener returned true and sendResponse wasn't called,
+            // resolve immediately (matching Chrome's default behavior).
+            const keepOpen = returnValues.some((v: any) => v === true);
+            if (!responded && !keepOpen) resolve(undefined);
           });
         },
         onRemoved: env.bgOnTabRemoved,

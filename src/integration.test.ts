@@ -7,7 +7,7 @@
 //   Parent (frameId=0) — https://parent.example.com
 //   └── Child (frameId=1) — https://child.example.com
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ChromeExtensionEnv, flushPromises } from './test/chrome-extension-env';
 import { initContentScript } from './content-core';
 import { initBackgroundScript } from './background-core';
@@ -394,5 +394,60 @@ describe('content → background → panel integration', () => {
     expect(msgPayloads).toHaveLength(1);
     expect(msgPayloads[0].payload.data).toEqual({ type: 'early-msg' });
     expect(msgPayloads[0].payload.buffered).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Automatic frame registration tests
+// These use fake timers to control the 500ms registration delay and test the
+// full end-to-end flow including background-initiated registration messages.
+// ---------------------------------------------------------------------------
+
+describe('automatic frame registration', () => {
+  let env: ChromeExtensionEnv;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    env = new ChromeExtensionEnv(initContentScript);
+    // Leave enableFrameRegistration at default (enabled)
+    initBackgroundScript(env.createBackgroundChrome());
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('popup→opener message has source type "opened" and is routed to popup panel', async () => {
+    const OPENER_TAB_ID = 1;
+    const POPUP_TAB_ID = 2;
+
+    const topFrame = env.createTab({ tabId: OPENER_TAB_ID, url: 'https://opener.example.com/', title: 'Opener' });
+    const { messages: openerMessages } = env.connectPanel(OPENER_TAB_ID);
+    await vi.advanceTimersByTimeAsync(0);
+
+    const popupFrame = env.openPopup(topFrame, { tabId: POPUP_TAB_ID, url: 'https://popup.example.com/', title: 'Popup' });
+    const { messages: popupMessages } = env.connectPanel(POPUP_TAB_ID);
+
+    // Advance past the 500ms registration timeout and let all nested timers
+    // (postMessage delivery, promise chains) complete
+    await vi.advanceTimersByTimeAsync(1000);
+
+    // Popup sends a message to opener (via the cross-origin proxy)
+    const openerProxy = popupFrame.window!.opener!;
+    (openerProxy as any).postMessage({ type: 'ping' }, '*');
+    await vi.advanceTimersByTimeAsync(100);
+
+    // Opener panel should show the message with source type 'opened'
+    const openerPings = openerMessages.filter(m =>
+      m.type === 'message' && m.payload.data?.type === 'ping'
+    );
+    expect(openerPings).toHaveLength(1);
+    expect(openerPings[0].payload.source.type).toBe('opened');
+
+    // Cross-tab routing: popup panel should also see the message
+    const popupPings = popupMessages.filter(m =>
+      m.type === 'message' && m.payload.data?.type === 'ping'
+    );
+    expect(popupPings).toHaveLength(1);
   });
 });

@@ -201,6 +201,7 @@ export function initContentScript(win: ContentWindow, chrome: ContentChrome): vo
       } else if (target === 'opener' && win.opener) {
         win.opener.postMessage(payload, '*');
       }
+      return; // No async response needed — don't return true
     }
 
     if (message.type === 'get-frame-info') {
