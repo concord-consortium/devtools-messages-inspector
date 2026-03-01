@@ -1,5 +1,4 @@
 # Remaining for Version 1
-- add license
 - export and import options (useful for debugging and AI help)
 - add links between hierarchy and messages view: 
   - focus the current frame
