@@ -1,5 +1,4 @@
 # Remaining for Version 1
-- add 'focusedFrame' (or something like that) to messages view. this would be a pull down menu that lets you choose a frame (kind of like in the console tab). If this is selected only messages going to and from this frame are shown. And there are icons indicating if a message is going into this frame or out of it. We'll have to think about these icons so they are different than the ones currently used for the sourceType
 - rename repo and panel tab name to devtools-messages-inspector, and the top level items in the panel to "Log", "Sources", and "Settings".
 - add links between hierarchy and messages view: 
   - focus the current frame
