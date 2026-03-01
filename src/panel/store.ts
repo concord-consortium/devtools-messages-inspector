@@ -177,7 +177,6 @@ class PanelStore {
   // Focused frame methods
   setFocusedFrame(frame: { tabId: number; frameId: number } | null): void {
     this.focusedFrame = frame;
-    chrome.storage.local.set({ focusedFrame: frame });
   }
 
   getFocusPosition(msg: Message): FocusPosition {
@@ -373,7 +372,7 @@ class PanelStore {
   async loadPersistedState(): Promise<void> {
     return new Promise((resolve) => {
       chrome.storage.local.get(
-        ['visibleColumns', 'columnWidths', 'settings', 'currentView', 'focusedFrame'],
+        ['visibleColumns', 'columnWidths', 'settings', 'currentView'],
         (result) => {
           if (result.visibleColumns) {
             this.visibleColumns = { ...this.visibleColumns, ...result.visibleColumns };
@@ -386,9 +385,6 @@ class PanelStore {
           }
           if (result.currentView) {
             this.currentView = result.currentView;
-          }
-          if (result.focusedFrame != null) {
-            this.focusedFrame = result.focusedFrame;
           }
           resolve();
         }

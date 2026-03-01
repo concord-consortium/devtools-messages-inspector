@@ -5,6 +5,8 @@ import { store } from './store';
 import { connect } from './connection';
 import { App } from './components/App';
 
+console.debug('[Frames] panel loaded');
+
 // Initialize panel
 async function init(): Promise<void> {
   // Load persisted state from chrome.storage
