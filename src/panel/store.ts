@@ -38,8 +38,8 @@ class PanelStore {
   frameHierarchy: FrameInfo[] = [];
   selectedFrameKey: string | null = null;
 
-  // Focused frame
-  focusedFrameId: number | null = null;
+  // Focused frame (tabId + frameId to distinguish frames across tabs)
+  focusedFrame: { tabId: number; frameId: number } | null = null;
 
   // Settings
   settings: Settings = {
@@ -175,21 +175,21 @@ class PanelStore {
   }
 
   // Focused frame methods
-  setFocusedFrame(frameId: number | null): void {
-    this.focusedFrameId = frameId;
-    chrome.storage.local.set({ focusedFrameId: frameId });
+  setFocusedFrame(frame: { tabId: number; frameId: number } | null): void {
+    this.focusedFrame = frame;
+    chrome.storage.local.set({ focusedFrame: frame });
   }
 
   getFocusPosition(msg: Message): FocusPosition {
-    if (this.focusedFrameId == null) return 'none';
+    if (this.focusedFrame == null) return 'none';
 
     const sourceFrame = msg.sourceFrame;
     const targetFrame = msg.targetFrame;
 
-    const isSource = sourceFrame?.frameId === this.focusedFrameId
-      && sourceFrame?.tabId === this.tabId;
-    const isTarget = targetFrame?.frameId === this.focusedFrameId
-      && targetFrame?.tabId === this.tabId;
+    const isSource = sourceFrame?.frameId === this.focusedFrame.frameId
+      && sourceFrame?.tabId === this.focusedFrame.tabId;
+    const isTarget = targetFrame?.frameId === this.focusedFrame.frameId
+      && targetFrame?.tabId === this.focusedFrame.tabId;
 
     if (isSource && isTarget) return 'both';
     if (isSource) return 'source';
@@ -373,7 +373,7 @@ class PanelStore {
   async loadPersistedState(): Promise<void> {
     return new Promise((resolve) => {
       chrome.storage.local.get(
-        ['visibleColumns', 'columnWidths', 'settings', 'currentView', 'focusedFrameId'],
+        ['visibleColumns', 'columnWidths', 'settings', 'currentView', 'focusedFrame'],
         (result) => {
           if (result.visibleColumns) {
             this.visibleColumns = { ...this.visibleColumns, ...result.visibleColumns };
@@ -387,8 +387,8 @@ class PanelStore {
           if (result.currentView) {
             this.currentView = result.currentView;
           }
-          if (result.focusedFrameId != null) {
-            this.focusedFrameId = result.focusedFrameId;
+          if (result.focusedFrame != null) {
+            this.focusedFrame = result.focusedFrame;
           }
           resolve();
         }

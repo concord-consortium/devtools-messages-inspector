@@ -130,9 +130,11 @@ function IconContent({ sourceType, focusPosition }: DirectionIconProps) {
     case 'opened:target':
       return <InboundHorizontal direction="left" />;
 
-      case 'self:both':
+    case 'self:source':
+    case 'self:target':
+    case 'self:both':
     case 'self:none':
-      return <CircularArrow focusPosition={'both'} />;
+      return <CircularArrow focusPosition={focusPosition} />;
 
     default:
       return <UnknownIcon />;

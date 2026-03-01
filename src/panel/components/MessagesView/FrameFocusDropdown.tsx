@@ -37,24 +37,37 @@ export const FrameFocusDropdown = observer(() => {
 
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const value = e.target.value;
-    store.setFocusedFrame(value === '' ? null : Number(value));
+    if (value === '') {
+      store.setFocusedFrame(null);
+    } else {
+      const [tabId, frameId] = value.split(':').map(Number);
+      store.setFocusedFrame({ tabId, frameId });
+    }
   };
+
+  const selectedKey = store.focusedFrame
+    ? `${store.focusedFrame.tabId}:${store.focusedFrame.frameId}`
+    : '';
 
   return (
     <div className="frame-focus-selector">
       <label>
         Focus
         <select
-          value={store.focusedFrameId ?? ''}
+          value={selectedKey}
           onChange={handleChange}
         >
           <option value="">None</option>
           {options.map(({ frame, depth }) => {
             const indent = '\u00A0\u00A0'.repeat(depth);
-            const frameId = typeof frame.frameId === 'number' ? frame.frameId : frame.frameId;
-            const label = `${indent}frame[${frameId}] - ${frame.origin}`;
+            const key = store.frameKey(frame);
+            const isOtherTab = frame.tabId != null && frame.tabId !== store.tabId;
+            const frameLabel = isOtherTab
+              ? `tab[${frame.tabId}].frame[${frame.frameId}]`
+              : `frame[${frame.frameId}]`;
+            const label = `${indent}${frameLabel} - ${frame.origin}`;
             return (
-              <option key={store.frameKey(frame)} value={String(frameId)}>
+              <option key={key} value={key}>
                 {label}
               </option>
             );

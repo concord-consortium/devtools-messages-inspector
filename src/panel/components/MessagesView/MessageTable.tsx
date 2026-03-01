@@ -187,7 +187,7 @@ const MessageRow = observer(({ message }: { message: Message }) => {
 
         if (col.id === 'direction') {
           const focusPosition = store.getFocusPosition(message);
-          const isUninvolved = store.focusedFrameId != null && focusPosition === 'none';
+          const isUninvolved = store.focusedFrame != null && focusPosition === 'none';
           return (
             <td
               key={col.id}

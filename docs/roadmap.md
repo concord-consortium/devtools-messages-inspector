@@ -17,6 +17,7 @@
 - figure out how to make the hierarchy table more advanced:
   - resizable columns
   - sortable columns (how do we deal with hierarchy view)
+- add opened tabs to the hierarchy
 
 - truncate long values in the context pane with some way to see the full value.
 - figure out what I can do to prevent other people from releasing copies that steal users information.
