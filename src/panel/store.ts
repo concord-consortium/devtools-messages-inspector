@@ -27,7 +27,7 @@ class PanelStore {
   preserveLog = false;
 
   // UI state
-  currentView: ViewType = 'messages';
+  currentView: ViewType = 'log';
   activeDetailTab: DetailTabType = 'data';
 
   // Column configuration

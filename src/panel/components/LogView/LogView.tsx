@@ -1,4 +1,4 @@
-// Messages view component
+// Log view component
 
 import { observer } from 'mobx-react-lite';
 import { useEffect, useRef, useState } from 'react';
@@ -62,11 +62,11 @@ const ResizeHandle = () => {
   );
 };
 
-export const MessagesView = observer(() => {
-  const isActive = store.currentView === 'messages';
+export const LogView = observer(() => {
+  const isActive = store.currentView === 'log';
 
   return (
-    <div className={`view messages-view ${isActive ? 'active' : ''}`}>
+    <div className={`view log-view ${isActive ? 'active' : ''}`}>
       <TopBar />
       <FilterBar />
       <div className="main-content">

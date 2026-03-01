@@ -15,7 +15,7 @@ export interface Settings {
   showRegistrationMessages: boolean;
 }
 
-export type ViewType = 'messages' | 'hierarchy' | 'settings';
+export type ViewType = 'log' | 'sources' | 'settings';
 export type DetailTabType = 'data' | 'context';
 export type SortDirection = 'asc' | 'desc';
 export type FocusPosition = 'source' | 'target' | 'both' | 'none';
