@@ -141,11 +141,30 @@ function IconContent({ sourceType, focusPosition }: DirectionIconProps) {
   }
 }
 
+// Map sourceType to [source label, target label]
+const SOURCE_TARGET_LABELS: Record<string, [string, string]> = {
+  parent: ['parent', 'child'],
+  top: ['parent', 'child'],
+  child: ['child', 'parent'],
+  self: ['self', 'self'],
+  opener: ['opener', 'opened'],
+  opened: ['opened', 'opener'],
+};
+
+function getTitle(sourceType: string, focusPosition: FocusPosition): string {
+  const labels = SOURCE_TARGET_LABELS[sourceType];
+  if (!labels) return sourceType;
+  let [source, target] = labels;
+  if (focusPosition === 'source' || focusPosition === 'both') source = 'focused';
+  if (focusPosition === 'target' || focusPosition === 'both') target = 'focused';
+  return `${source} to ${target}`;
+}
+
 export function DirectionIcon({ sourceType, focusPosition }: DirectionIconProps) {
   return (
     <span className="direction-icon">
-      <IconSvg title={sourceType}>
-        <IconContent sourceType={sourceType} focusPosition={focusPosition} />  
+      <IconSvg title={getTitle(sourceType, focusPosition)}>
+        <IconContent sourceType={sourceType} focusPosition={focusPosition} />
       </IconSvg>
     </span>
   );
