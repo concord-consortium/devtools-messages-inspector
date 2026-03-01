@@ -1,4 +1,5 @@
 # Remaining for Version 1
+- add license
 - export and import options (useful for debugging and AI help)
 - add links between hierarchy and messages view: 
   - focus the current frame
@@ -18,9 +19,11 @@
   - sortable columns (how do we deal with hierarchy view)
 - add opened tabs to the hierarchy
 - rename repo and panel tab name to devtools-messages-inspector, and the top level items in the panel to "Log", "Sources", and "Settings".
+- fix table column resize handles they are hard to select
+- update details pane in messages view, probably details should be default and first and content second
+- the pane on right right that comes out doesn't behave correctly on resize
 
 - truncate long values in the context pane with some way to see the full value.
-- figure out what I can do to prevent other people from releasing copies that steal users information.
 - clean up the left side
 - show opened windows in the hierarchy
 - unknown openers (no openedTabs mapping) don't get a Frame in FrameStore because Frame requires numeric tabId/frameId. To support them, Frame would need to work without tab/frame IDs.
