@@ -3,6 +3,7 @@
 import { observer } from 'mobx-react-lite';
 import { store } from '../../store';
 import { sendPreserveLog } from '../../connection';
+import { FrameFocusDropdown } from './FrameFocusDropdown';
 
 export const TopBar = observer(() => {
   const handleRecordClick = () => {
@@ -44,6 +45,8 @@ export const TopBar = observer(() => {
         />
         Preserve log
       </label>
+      <div className="separator"></div>
+      <FrameFocusDropdown />
     </div>
   );
 });

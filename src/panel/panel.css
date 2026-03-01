@@ -233,8 +233,53 @@ body {
   color: #9334e6;  /* Purple - from opener */
 }
 
+.dir-opened {
+  color: #d01884;  /* Magenta/Pink - from opened */
+}
+
 .dir-unknown {
   color: #5f6368;  /* Gray - unknown */
+}
+
+.dir-uninvolved {
+  color: #80868b;  /* Neutral gray for uninvolved messages */
+}
+
+/* Focused Frame Dropdown */
+.frame-focus-selector {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.frame-focus-selector label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.frame-focus-selector select {
+  font-size: 12px;
+  padding: 2px 4px;
+  border: 1px solid #cacdd1;
+  border-radius: 2px;
+  background: white;
+  max-width: 300px;
+}
+
+/* Direction Icon SVG */
+.direction-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+}
+
+.direction-icon svg {
+  width: 16px;
+  height: 16px;
 }
 
 /* Resize handle */

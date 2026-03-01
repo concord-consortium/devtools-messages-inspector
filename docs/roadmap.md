@@ -1,6 +1,5 @@
 # Remaining for Version 1
-- add 'focusedFrame' (or something like that) to messages view. this would be a pull down menu that lets you choose a frame (kind of like in the console tab). If this is selected only messages going to and from this frame are shown. And there are icons indicating if a message is going into this frame or out of it. We'll have to think about these icons so they are different than the ones currently used for the sourceType
-- rename repo and panel tab name to devtools-messages-inspector, and the top level items in the panel to "Log", "Sources", and "Settings".
+- export and import options (useful for debugging and AI help)
 - add links between hierarchy and messages view: 
   - focus the current frame
   - filter messages by some property of a frame
@@ -17,6 +16,8 @@
 - figure out how to make the hierarchy table more advanced:
   - resizable columns
   - sortable columns (how do we deal with hierarchy view)
+- add opened tabs to the hierarchy
+- rename repo and panel tab name to devtools-messages-inspector, and the top level items in the panel to "Log", "Sources", and "Settings".
 
 - truncate long values in the context pane with some way to see the full value.
 - figure out what I can do to prevent other people from releasing copies that steal users information.
@@ -27,6 +28,7 @@
 
 - update documentation on matching up iframes with frameIds, the issue linked in the doc is nuanced. It sounds like it will not be fixed for a while, but perhaps a new issue that provides the documentId would be something better.
 - improve UI to better match the rest of the dev tools styling
+- show a banner when the extension is reloaded/updated while the panel is open, telling the user to reopen DevTools
 
 
 # Test Harness Separation

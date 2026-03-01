@@ -159,3 +159,226 @@ test.describe('dynamic frames', () => {
     await expect(rows.first().locator('td[data-column="messageType"]')).toHaveText('from-dynamic');
   });
 });
+
+// Helper: select a focused frame via the dropdown
+async function selectFocusedFrame(page: Page, value: string) {
+  const dropdown = page.locator('.frame-focus-selector select');
+  await dropdown.selectOption(value);
+}
+
+test.describe('focused frame', () => {
+  test('dropdown defaults to None', async ({ page }) => {
+    const dropdown = page.locator('.frame-focus-selector select');
+    await expect(dropdown).toHaveValue('');
+  });
+
+  test('dropdown lists all frames from hierarchy', async ({ page }) => {
+    // Send a message to trigger frame hierarchy population
+    await sendAndWait(page, 'window.harness.sendChildToParent({ type: "trigger" })');
+
+    const dropdown = page.locator('.frame-focus-selector select');
+    const options = dropdown.locator('option');
+    // "None" + frame[0] + frame[1]
+    await expect(options).toHaveCount(3);
+  });
+
+  test('dropdown shows dynamically added frames', async ({ page }) => {
+    await sendAndWait(page, 'window.harness.sendChildToParent({ type: "trigger" })');
+
+    // Add a third frame
+    await page.evaluate(`
+      window.harness.topFrame.addIframe({ url: 'https://third.example.com/', iframeId: 'third' });
+    `);
+    await page.evaluate('window.harness.flushPromises()');
+
+    // Request hierarchy refresh after adding new frame
+    await page.evaluate('window.harness.requestFrameHierarchy()');
+
+    await page.evaluate('window.harness.flushPromises()');
+
+    const options = page.locator('.frame-focus-selector select option');
+    // "None" + frame[0] + frame[1] + frame[2]
+    await expect(options).toHaveCount(4);
+  });
+
+  test('direction icons have no focus indicator when no frame focused', async ({ page }) => {
+    await sendAndWait(page, 'window.harness.sendChildToParent({ type: "test" })');
+
+    const dirCell = page.locator('#message-table tbody tr').first().locator('td[data-column="direction"]');
+    const indicator = dirCell.locator('.focus-indicator');
+    await expect(indicator).toHaveCount(0);
+  });
+
+  test('parent-to-child shows source focus indicator when parent focused', async ({ page }) => {
+    await sendAndWait(page, 'window.harness.sendChildToParent({ type: "trigger" })');
+    await selectFocusedFrame(page, '1:0');
+    await sendAndWait(page, 'window.harness.sendParentToChild({ type: "p2c" })');
+
+    // Find the parent-to-child message row
+    const row = page.locator('#message-table tbody tr', { has: page.locator('td[data-column="messageType"]', { hasText: 'p2c' }) });
+    const dirCell = row.locator('td[data-column="direction"]');
+    await expect(dirCell).toHaveClass(/dir-parent/);
+    const indicator = dirCell.locator('.focus-indicator');
+    await expect(indicator).toHaveCount(1);
+  });
+
+  test('child-to-parent shows target focus indicator when parent focused', async ({ page }) => {
+    await sendAndWait(page, 'window.harness.sendChildToParent({ type: "trigger" })');
+    await selectFocusedFrame(page, '1:0');
+    await sendAndWait(page, 'window.harness.sendChildToParent({ type: "c2p" })');
+
+    const row = page.locator('#message-table tbody tr', { has: page.locator('td[data-column="messageType"]', { hasText: 'c2p' }) });
+    const dirCell = row.locator('td[data-column="direction"]');
+    await expect(dirCell).toHaveClass(/dir-child/);
+    const indicator = dirCell.locator('.focus-indicator');
+    await expect(indicator).toHaveCount(1);
+  });
+
+  test('child-to-parent shows source focus indicator when child focused', async ({ page }) => {
+    await sendAndWait(page, 'window.harness.sendChildToParent({ type: "trigger" })');
+    await selectFocusedFrame(page, '1:1');
+    await sendAndWait(page, 'window.harness.sendChildToParent({ type: "c2p-child" })');
+
+    const row = page.locator('#message-table tbody tr', { has: page.locator('td[data-column="messageType"]', { hasText: 'c2p-child' }) });
+    const dirCell = row.locator('td[data-column="direction"]');
+    const indicator = dirCell.locator('.focus-indicator');
+    await expect(indicator).toHaveCount(1);
+  });
+
+  test('messages not involving focused frame show gray dot', async ({ page }) => {
+    // Add a third frame
+    await page.evaluate(`
+      window.harness.topFrame.addIframe({ url: 'https://third.example.com/', iframeId: 'third' });
+    `);
+    await page.evaluate('window.harness.flushPromises()');
+    await sendAndWait(page, 'window.harness.sendChildToParent({ type: "trigger" })');
+
+    // Request hierarchy refresh so frame[2] appears in dropdown
+    await page.evaluate('window.harness.requestFrameHierarchy()');
+
+    await page.evaluate('window.harness.flushPromises()');
+
+    // Focus on frame[2] (the third frame, not involved in child↔parent messages)
+    await selectFocusedFrame(page, '1:2');
+
+    await sendAndWait(page, 'window.harness.sendChildToParent({ type: "uninvolved-test" })');
+
+    const row = page.locator('#message-table tbody tr', { has: page.locator('td[data-column="messageType"]', { hasText: 'uninvolved-test' }) });
+    const dirCell = row.locator('td[data-column="direction"]');
+    await expect(dirCell).toHaveClass(/dir-uninvolved/);
+    // Should not have a focus indicator, just a gray dot (circle element)
+    const indicator = dirCell.locator('.focus-indicator');
+    await expect(indicator).toHaveCount(0);
+  });
+
+  test('setting focus after messages are captured updates direction icons', async ({ page }) => {
+    // Send messages first (no focus set)
+    await sendAndWait(page, 'window.harness.sendParentToChild({ type: "retro-test" })');
+
+    const row = page.locator('#message-table tbody tr', { has: page.locator('td[data-column="messageType"]', { hasText: 'retro-test' }) });
+    const dirCell = row.locator('td[data-column="direction"]');
+
+    // No focus indicator yet
+    let indicator = dirCell.locator('.focus-indicator');
+    await expect(indicator).toHaveCount(0);
+
+    // Now select focus
+    await selectFocusedFrame(page, '1:0');
+
+    // MobX reactivity should update existing rows
+    indicator = dirCell.locator('.focus-indicator');
+    await expect(indicator).toHaveCount(1);
+  });
+
+  test('detail pane shows (focused) on target heading when target is focused', async ({ page }) => {
+    await sendAndWait(page, 'window.harness.sendChildToParent({ type: "detail-focus" })');
+    // Focus parent (frame 0) which is the target of child-to-parent messages
+    await selectFocusedFrame(page, '1:0');
+
+    // Click the row and switch to context tab
+    await page.locator('#message-table tbody tr').first().click();
+    await page.locator('.tab-btn', { hasText: 'Context' }).click();
+
+    const view = page.locator(messagesView);
+    const headings = view.locator('.section-heading');
+    await expect(headings.nth(0)).toHaveText('Target (focused)');
+    await expect(headings.nth(1)).toHaveText('Source');
+  });
+
+  test('detail pane shows (focused) on source heading when source is focused', async ({ page }) => {
+    await sendAndWait(page, 'window.harness.sendChildToParent({ type: "detail-focus2" })');
+    // Focus child (frame 1) which is the source of child-to-parent messages
+    await selectFocusedFrame(page, '1:1');
+
+    await page.locator('#message-table tbody tr').first().click();
+    await page.locator('.tab-btn', { hasText: 'Context' }).click();
+
+    const view = page.locator(messagesView);
+    const headings = view.locator('.section-heading');
+    await expect(headings.nth(0)).toHaveText('Target');
+    await expect(headings.nth(1)).toHaveText('Source (focused)');
+  });
+
+  test('partner columns show correct values when focused frame is source', async ({ page }) => {
+    // Enable partner columns
+    await page.evaluate(`
+      window.harness.store.setColumnVisible('partnerFrame', true);
+      window.harness.store.setColumnVisible('partnerType', true);
+    `);
+
+    await sendAndWait(page, 'window.harness.sendChildToParent({ type: "trigger" })');
+    await selectFocusedFrame(page, '1:0');
+    // Parent sends to child: sourceType="parent", focus is source
+    // Partner (target) is a child from parent's perspective → inverted: "child"
+    await sendAndWait(page, 'window.harness.sendParentToChild({ type: "partner-test" })');
+
+    const row = page.locator('#message-table tbody tr', { has: page.locator('td[data-column="messageType"]', { hasText: 'partner-test' }) });
+    await expect(row.locator('td[data-column="partnerFrame"]')).toHaveText('frame[1]');
+    await expect(row.locator('td[data-column="partnerType"]')).toHaveText('child');
+  });
+
+  test('partner columns show type as-is when focused frame is target', async ({ page }) => {
+    await page.evaluate(`
+      window.harness.store.setColumnVisible('partnerFrame', true);
+      window.harness.store.setColumnVisible('partnerType', true);
+    `);
+
+    await sendAndWait(page, 'window.harness.sendChildToParent({ type: "trigger" })');
+    // Focus parent (frame 0), which is the target of child-to-parent messages
+    await selectFocusedFrame(page, '1:0');
+    // Child sends to parent: sourceType="child", focus is target
+    // Partner (source) is a child → sourceType as-is: "child"
+    await sendAndWait(page, 'window.harness.sendChildToParent({ type: "partner-inv" })');
+
+    const row = page.locator('#message-table tbody tr', { has: page.locator('td[data-column="messageType"]', { hasText: 'partner-inv' }) });
+    await expect(row.locator('td[data-column="partnerType"]')).toHaveText('child');
+    await expect(row.locator('td[data-column="partnerFrame"]')).toHaveText('frame[1]');
+  });
+
+  test('partner columns are empty for uninvolved messages', async ({ page }) => {
+    await page.evaluate(`
+      window.harness.store.setColumnVisible('partnerFrame', true);
+      window.harness.store.setColumnVisible('partnerType', true);
+    `);
+
+    // Add third frame and focus it
+    await page.evaluate(`
+      window.harness.topFrame.addIframe({ url: 'https://third.example.com/', iframeId: 'third' });
+    `);
+    await page.evaluate('window.harness.flushPromises()');
+    await sendAndWait(page, 'window.harness.sendChildToParent({ type: "trigger" })');
+
+    // Request hierarchy refresh so frame[2] appears in dropdown
+    await page.evaluate('window.harness.requestFrameHierarchy()');
+
+    await page.evaluate('window.harness.flushPromises()');
+
+    await selectFocusedFrame(page, '1:2');
+
+    await sendAndWait(page, 'window.harness.sendChildToParent({ type: "empty-partner" })');
+
+    const row = page.locator('#message-table tbody tr', { has: page.locator('td[data-column="messageType"]', { hasText: 'empty-partner' }) });
+    await expect(row.locator('td[data-column="partnerFrame"]')).toHaveText('');
+    await expect(row.locator('td[data-column="partnerType"]')).toHaveText('');
+  });
+});

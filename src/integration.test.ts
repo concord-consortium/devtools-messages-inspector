@@ -417,6 +417,56 @@ describe('automatic frame registration', () => {
     vi.useRealTimers();
   });
 
+  it('popup→opener registration message itself has source type "opened"', async () => {
+    const OPENER_TAB_ID = 1;
+    const POPUP_TAB_ID = 2;
+
+    const topFrame = env.createTab({ tabId: OPENER_TAB_ID, url: 'https://opener.example.com/', title: 'Opener' });
+    const { messages: openerMessages } = env.connectPanel(OPENER_TAB_ID);
+    await vi.advanceTimersByTimeAsync(0);
+
+    env.openPopup(topFrame, { tabId: POPUP_TAB_ID, url: 'https://popup.example.com/', title: 'Popup' });
+
+    // Advance past registration timeout so the popup's registration message
+    // reaches the opener panel
+    await vi.advanceTimersByTimeAsync(1000);
+
+    // The registration message from the popup should arrive on the opener panel
+    // with sourceType 'opened' (not 'unknown')
+    const registrations = openerMessages.filter(m =>
+      m.type === 'message' && m.payload.data?.type === '__frames_inspector_register__'
+        && m.payload.data?.targetType === 'opener'
+    );
+    expect(registrations).toHaveLength(1);
+    expect(registrations[0].payload.source.type).toBe('opened');
+  });
+
+  it('connecting popup panel does not send duplicate registration to opener', async () => {
+    const OPENER_TAB_ID = 1;
+    const POPUP_TAB_ID = 2;
+
+    const topFrame = env.createTab({ tabId: OPENER_TAB_ID, url: 'https://opener.example.com/', title: 'Opener' });
+    const { messages: openerMessages } = env.connectPanel(OPENER_TAB_ID);
+    await vi.advanceTimersByTimeAsync(0);
+
+    env.openPopup(topFrame, { tabId: POPUP_TAB_ID, url: 'https://popup.example.com/', title: 'Popup' });
+
+    // Let the first registration complete
+    await vi.advanceTimersByTimeAsync(1000);
+
+    // Now connect the popup's panel (simulates user opening DevTools on the popup)
+    env.connectPanel(POPUP_TAB_ID);
+    await vi.advanceTimersByTimeAsync(1000);
+
+    // The opener should only see ONE registration message from the popup,
+    // not two (one from buffering injection, one from panel connection)
+    const openerRegistrations = openerMessages.filter(m =>
+      m.type === 'message' && m.payload.data?.type === '__frames_inspector_register__'
+        && m.payload.data?.targetType === 'opener'
+    );
+    expect(openerRegistrations).toHaveLength(1);
+  });
+
   it('popup→opener message has source type "opened" and is routed to popup panel', async () => {
     const OPENER_TAB_ID = 1;
     const POPUP_TAB_ID = 2;

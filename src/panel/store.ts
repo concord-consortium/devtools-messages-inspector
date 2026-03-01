@@ -6,6 +6,7 @@ import {
   ViewType,
   DetailTabType,
   SortDirection,
+  FocusPosition,
   ALL_COLUMNS
 } from './types';
 import { FrameInfo } from '../types';
@@ -36,6 +37,9 @@ class PanelStore {
   // Hierarchy
   frameHierarchy: FrameInfo[] = [];
   selectedFrameKey: string | null = null;
+
+  // Focused frame (tabId + frameId to distinguish frames across tabs)
+  focusedFrame: { tabId: number; frameId: number } | null = null;
 
   // Settings
   settings: Settings = {
@@ -132,6 +136,15 @@ class PanelStore {
       case 'messageType': return msg.messageType || '';
       case 'dataPreview': return msg.dataPreview;
       case 'dataSize': return this.formatSize(msg.dataSize);
+      case 'partnerFrame': {
+        const partnerFrame = this.getPartnerFrame(msg);
+        if (!partnerFrame) return '';
+        const isOtherTab = partnerFrame.tabId != null && partnerFrame.tabId !== this.tabId;
+        return isOtherTab
+          ? `tab[${partnerFrame.tabId}].frame[${partnerFrame.frameId}]`
+          : `frame[${partnerFrame.frameId}]`;
+      }
+      case 'partnerType': return this.getPartnerType(msg) || '';
       default: return '';
     }
   }
@@ -162,6 +175,57 @@ class PanelStore {
       case 'opener': return '→';
       case 'opened': return '←';
       default: return '?';
+    }
+  }
+
+  // Focused frame methods
+  setFocusedFrame(frame: { tabId: number; frameId: number } | null): void {
+    this.focusedFrame = frame;
+  }
+
+  getFocusPosition(msg: Message): FocusPosition {
+    if (this.focusedFrame == null) return 'none';
+
+    const sourceFrame = msg.sourceFrame;
+    const targetFrame = msg.targetFrame;
+
+    const isSource = sourceFrame?.frameId === this.focusedFrame.frameId
+      && sourceFrame?.tabId === this.focusedFrame.tabId;
+    const isTarget = targetFrame?.frameId === this.focusedFrame.frameId
+      && targetFrame?.tabId === this.focusedFrame.tabId;
+
+    if (isSource && isTarget) return 'both';
+    if (isSource) return 'source';
+    if (isTarget) return 'target';
+    return 'none';
+  }
+
+  getPartnerFrame(msg: Message): Frame | undefined {
+    const pos = this.getFocusPosition(msg);
+    if (pos === 'source') return msg.targetFrame;
+    if (pos === 'target') return msg.sourceFrame;
+    return undefined;
+  }
+
+  getPartnerType(msg: Message): string | null {
+    const pos = this.getFocusPosition(msg);
+    if (pos === 'none' || pos === 'both') return null;
+    // sourceType describes source's relation to the target.
+    // When focus is source, partner is target → invert to get target's relation to source.
+    // When focus is target, partner is source → sourceType already describes it.
+    if (pos === 'source') return this.invertSourceType(msg.sourceType);
+    return msg.sourceType;
+  }
+
+  private invertSourceType(sourceType: string): string {
+    switch (sourceType) {
+      case 'parent': return 'child';
+      case 'child': return 'parent';
+      case 'top': return 'child';
+      case 'opener': return 'opened';
+      case 'opened': return 'opener';
+      case 'self': return 'self';
+      default: return sourceType;
     }
   }
 

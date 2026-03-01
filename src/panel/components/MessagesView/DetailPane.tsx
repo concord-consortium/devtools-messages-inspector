@@ -57,6 +57,8 @@ const SeparatorRow = () => (
 
 // Context tab content
 const ContextTab = observer(({ message }: { message: Message }) => {
+  const focusPosition = store.getFocusPosition(message);
+
   return (
     <table className="context-table">
       <tbody>
@@ -76,7 +78,9 @@ const ContextTab = observer(({ message }: { message: Message }) => {
         )}
 
         <SeparatorRow />
-        <tr><th colSpan={2} className="section-heading">Target</th></tr>
+        <tr><th colSpan={2} className="section-heading">
+          Target{focusPosition === 'target' || focusPosition === 'both' ? ' (focused)' : ''}
+        </th></tr>
         <FrameDetail
           frame={message.targetFrame}
           document={message.targetDocument}
@@ -87,7 +91,9 @@ const ContextTab = observer(({ message }: { message: Message }) => {
         )}
 
         <SeparatorRow />
-        <tr><th colSpan={2} className="section-heading">Source</th></tr>
+        <tr><th colSpan={2} className="section-heading">
+          Source{focusPosition === 'source' || focusPosition === 'both' ? ' (focused)' : ''}
+        </th></tr>
         <FrameDetail
           frame={message.sourceFrame}
           document={message.sourceDocument}
