@@ -211,7 +211,7 @@ test.describe('focused frame', () => {
 
   test('parent-to-child shows source focus indicator when parent focused', async ({ page }) => {
     await sendAndWait(page, 'window.harness.sendChildToParent({ type: "trigger" })');
-    await selectFocusedFrame(page, '0');
+    await selectFocusedFrame(page, '1:0');
     await sendAndWait(page, 'window.harness.sendParentToChild({ type: "p2c" })');
 
     // Find the parent-to-child message row
@@ -224,7 +224,7 @@ test.describe('focused frame', () => {
 
   test('child-to-parent shows target focus indicator when parent focused', async ({ page }) => {
     await sendAndWait(page, 'window.harness.sendChildToParent({ type: "trigger" })');
-    await selectFocusedFrame(page, '0');
+    await selectFocusedFrame(page, '1:0');
     await sendAndWait(page, 'window.harness.sendChildToParent({ type: "c2p" })');
 
     const row = page.locator('#message-table tbody tr', { has: page.locator('td[data-column="messageType"]', { hasText: 'c2p' }) });
@@ -236,7 +236,7 @@ test.describe('focused frame', () => {
 
   test('child-to-parent shows source focus indicator when child focused', async ({ page }) => {
     await sendAndWait(page, 'window.harness.sendChildToParent({ type: "trigger" })');
-    await selectFocusedFrame(page, '1');
+    await selectFocusedFrame(page, '1:1');
     await sendAndWait(page, 'window.harness.sendChildToParent({ type: "c2p-child" })');
 
     const row = page.locator('#message-table tbody tr', { has: page.locator('td[data-column="messageType"]', { hasText: 'c2p-child' }) });
@@ -259,7 +259,7 @@ test.describe('focused frame', () => {
     await page.evaluate('window.harness.flushPromises()');
 
     // Focus on frame[2] (the third frame, not involved in child↔parent messages)
-    await selectFocusedFrame(page, '2');
+    await selectFocusedFrame(page, '1:2');
 
     await sendAndWait(page, 'window.harness.sendChildToParent({ type: "uninvolved-test" })');
 
@@ -283,7 +283,7 @@ test.describe('focused frame', () => {
     await expect(indicator).toHaveCount(0);
 
     // Now select focus
-    await selectFocusedFrame(page, '0');
+    await selectFocusedFrame(page, '1:0');
 
     // MobX reactivity should update existing rows
     indicator = dirCell.locator('.focus-indicator');
@@ -293,7 +293,7 @@ test.describe('focused frame', () => {
   test('detail pane shows (focused) on target heading when target is focused', async ({ page }) => {
     await sendAndWait(page, 'window.harness.sendChildToParent({ type: "detail-focus" })');
     // Focus parent (frame 0) which is the target of child-to-parent messages
-    await selectFocusedFrame(page, '0');
+    await selectFocusedFrame(page, '1:0');
 
     // Click the row and switch to context tab
     await page.locator('#message-table tbody tr').first().click();
@@ -308,7 +308,7 @@ test.describe('focused frame', () => {
   test('detail pane shows (focused) on source heading when source is focused', async ({ page }) => {
     await sendAndWait(page, 'window.harness.sendChildToParent({ type: "detail-focus2" })');
     // Focus child (frame 1) which is the source of child-to-parent messages
-    await selectFocusedFrame(page, '1');
+    await selectFocusedFrame(page, '1:1');
 
     await page.locator('#message-table tbody tr').first().click();
     await page.locator('.tab-btn', { hasText: 'Context' }).click();
@@ -327,7 +327,7 @@ test.describe('focused frame', () => {
     `);
 
     await sendAndWait(page, 'window.harness.sendChildToParent({ type: "trigger" })');
-    await selectFocusedFrame(page, '0');
+    await selectFocusedFrame(page, '1:0');
     // Parent sends to child: sourceType="parent", focus is source
     // Partner (target) is a child from parent's perspective → inverted: "child"
     await sendAndWait(page, 'window.harness.sendParentToChild({ type: "partner-test" })');
@@ -345,7 +345,7 @@ test.describe('focused frame', () => {
 
     await sendAndWait(page, 'window.harness.sendChildToParent({ type: "trigger" })');
     // Focus parent (frame 0), which is the target of child-to-parent messages
-    await selectFocusedFrame(page, '0');
+    await selectFocusedFrame(page, '1:0');
     // Child sends to parent: sourceType="child", focus is target
     // Partner (source) is a child → sourceType as-is: "child"
     await sendAndWait(page, 'window.harness.sendChildToParent({ type: "partner-inv" })');
@@ -373,7 +373,7 @@ test.describe('focused frame', () => {
 
     await page.evaluate('window.harness.flushPromises()');
 
-    await selectFocusedFrame(page, '2');
+    await selectFocusedFrame(page, '1:2');
 
     await sendAndWait(page, 'window.harness.sendChildToParent({ type: "empty-partner" })');
 
