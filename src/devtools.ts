@@ -1,6 +1,6 @@
-// Create the Frames panel in DevTools
+// Create the Messages panel in DevTools
 chrome.devtools.panels.create(
-  'Frames',
+  'Messages',
   '', // No icon for now
   'panel/index.html',
   (_panel) => {

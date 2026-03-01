@@ -1,6 +1,6 @@
-// Shared types for Frames Inspector
+// Shared types for Messages Inspector
 
-export const REGISTRATION_MESSAGE_TYPE = '__frames_inspector_register__';
+export const REGISTRATION_MESSAGE_TYPE = '__messages_inspector_register__';
 
 // DOM properties of an iframe element
 export interface IframeElementInfo {

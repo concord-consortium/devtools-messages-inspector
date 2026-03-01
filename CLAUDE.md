@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Frames Inspector - Chrome DevTools extension (Manifest V3) for inspecting frames and postMessage communication between iframes. Provides a Network-tab-like UI with sortable/filterable table and detail panel.
+Messages Inspector - Chrome DevTools extension (Manifest V3) for inspecting postMessage communication between iframes. Provides a Network-tab-like UI with sortable/filterable table and detail panel.
 
 ## Development
 
@@ -15,7 +15,7 @@ Uses Vite for building TypeScript/React. Load dist/ as unpacked extension in Chr
 npm run build   # Build to dist/
 cd test && python -m http.server 8000
 # Open http://localhost:8000/test-page.html in Chrome
-# DevTools → Frames tab to see captured messages
+# DevTools → Messages tab to see captured messages
 ```
 
 **Reload after changes:** Run `npm run build`, then go to `chrome://extensions/` and click the refresh icon on the extension.
@@ -26,7 +26,7 @@ cd test && python -m http.server 8000
 
 The extension uses programmatic script injection to minimize impact on pages:
 
-- Content script is injected only when the Frames panel is opened for a tab
+- Content script is injected only when the Messages panel is opened for a tab
 - Popups opened from monitored tabs get buffering enabled automatically (captures early messages before panel connects)
 - Once monitoring starts, it persists until page reload (even if DevTools closes)
 

@@ -214,7 +214,7 @@ function registrationMsg(
   target: typeof FRAME_A,
 ): IMessage {
   return childMsg(source, target, {
-    type: '__frames_inspector_register__',
+    type: '__messages_inspector_register__',
     frameId: source.frameId,
     tabId: TAB_ID,
     documentId: source.documentId,

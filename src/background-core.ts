@@ -40,7 +40,7 @@ export interface BackgroundChrome {
 }
 
 export function initBackgroundScript(chrome: BackgroundChrome): void {
-  console.debug('[Frames] background script starting');
+  console.debug('[Messages] background script starting');
 
   // Store panel connections by tab ID
   const panelConnections = new Map<number, BackgroundPort>();
@@ -64,7 +64,7 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
 
   // Record an opener relationship
   function recordOpenerRelationship(openerTabId: number, openerFrameId: number, openedTabId: number): void {
-    console.debug('[Frames] recordOpenerRelationship:', { openerTabId, openerFrameId, openedTabId });
+    console.debug('[Messages] recordOpenerRelationship:', { openerTabId, openerFrameId, openedTabId });
     openedTabs.set(openedTabId, { tabId: openerTabId, frameId: openerFrameId });
     const key = `${openerTabId}:${openerFrameId}`;
     if (!openerFrames.has(key)) openerFrames.set(key, new Set());
@@ -157,12 +157,12 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
             };
             await chrome.tabs.sendMessage(tabId, openerMsg, { frameId });
           } catch (e) {
-            console.debug('[Frames] sendRegistrationMessages failed for', { tabId, frameId }, e);
+            console.debug('[Messages] sendRegistrationMessages failed for', { tabId, frameId }, e);
           }
         }, 500);
       }
     } catch (e) {
-      console.warn('[Frames] sendRegistrationMessages failed for', { tabId, frameId }, e);
+      console.warn('[Messages] sendRegistrationMessages failed for', { tabId, frameId }, e);
     }
   }
 
@@ -172,7 +172,7 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
 
     port.onMessage.addListener((msg: { type: string; tabId?: number; value?: boolean }) => {
       if (msg.type === 'init' && msg.tabId !== undefined) {
-        console.debug('[Frames] panel connected for tab', msg.tabId);
+        console.debug('[Messages] panel connected for tab', msg.tabId);
         panelConnections.set(msg.tabId, port);
         preserveLogPrefs.set(msg.tabId, false);
 
@@ -188,7 +188,7 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
         bufferingEnabledTabs.delete(msg.tabId);
 
         port.onDisconnect.addListener(() => {
-          console.debug('[Frames] panel disconnected for tab', msg.tabId);
+          console.debug('[Messages] panel disconnected for tab', msg.tabId);
           panelConnections.delete(msg.tabId!);
           preserveLogPrefs.delete(msg.tabId!);
         });
@@ -254,7 +254,7 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
 
       const frames = await Promise.all(frameInfoPromises);
 
-      console.debug('[Frames] hierarchy for tab', tabId, ':', frames.length, 'frames, openerInfo:', openerInfo);
+      console.debug('[Messages] hierarchy for tab', tabId, ':', frames.length, 'frames, openerInfo:', openerInfo);
 
       if (openerInfo) {
         const openerFrame: FrameInfo = {
@@ -270,7 +270,7 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
 
         // Enrich opener with info from webNavigation if we know which frame opened us
         const opener = openedTabs.get(tabId);
-        console.debug('[Frames] opener enrichment for tab', tabId, ':', opener ?? 'no openedTabs entry');
+        console.debug('[Messages] opener enrichment for tab', tabId, ':', opener ?? 'no openedTabs entry');
         if (opener) {
           openerFrame.tabId = opener.tabId;
           openerFrame.frameId = opener.frameId;
@@ -322,7 +322,7 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
       const msgId = message.payload.id;
       const rawData = message.payload.data as any;
       const messageType = typeof rawData?.type === 'string' ? rawData.type : null;
-      console.debug('[Frames] message received:', {
+      console.debug('[Messages] message received:', {
         msgId, tabId, frameId,
         sourceType: message.payload.source.type,
         sourceId: message.payload.source.sourceId,
@@ -347,7 +347,7 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
           && rawData?.targetType === 'opener'
           && message.payload.source.sourceId) {
         const key = `${tabId}:${message.payload.source.sourceId}`;
-        console.debug('[Frames] opener registration:', { msgId, key, registeredTab: rawData.tabId, registeredFrame: rawData.frameId });
+        console.debug('[Messages] opener registration:', { msgId, key, registeredTab: rawData.tabId, registeredFrame: rawData.frameId });
         openedWindowToTab.set(key, { tabId: rawData.tabId, frameId: rawData.frameId });
 
         // Also establish opener relationship from registration, as a fallback
@@ -363,7 +363,7 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
         const sourceKey = `${tabId}:${message.payload.source.sourceId}`;
         const openedWindow = openedWindowToTab.get(sourceKey);
         if (openedWindow) {
-          console.debug('[Frames] source matched opened window:', { msgId, sourceKey, openedWindow });
+          console.debug('[Messages] source matched opened window:', { msgId, sourceKey, openedWindow });
           enrichedPayload.source = {
             ...enrichedPayload.source,
             type: 'opened',
@@ -383,7 +383,7 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
       } else if (sourceType === 'opener') {
         // Opener is in a related tab — look up its documentId via webNavigation
         const opener = openedTabs.get(tabId);
-        console.debug('[Frames] opener lookup:', { msgId, tabId, result: opener ?? 'not found' });
+        console.debug('[Messages] opener lookup:', { msgId, tabId, result: opener ?? 'not found' });
         if (opener) {
           let openerDocumentId: string | undefined;
           try {
@@ -430,7 +430,7 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
         }
       }
 
-      console.debug('[Frames] enriched source:', {
+      console.debug('[Messages] enriched source:', {
         msgId,
         type: enrichedPayload.source.type,
         tabId: enrichedPayload.source.tabId,
@@ -459,7 +459,7 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
 
       // Cross-tab routing: forward to the source's tab panel if it's a different tab
       if (enrichedPayload.source.tabId && enrichedPayload.source.tabId !== tabId) {
-        console.debug('[Frames] cross-tab routing:', { msgId, toTab: enrichedPayload.source.tabId });
+        console.debug('[Messages] cross-tab routing:', { msgId, toTab: enrichedPayload.source.tabId });
         const relatedPanel = panelConnections.get(enrichedPayload.source.tabId);
         if (relatedPanel) {
           relatedPanel.postMessage({
@@ -476,7 +476,7 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
     const sourceTabId = details.sourceTabId;
     const sourceFrameId = details.sourceFrameId;
     const newTabId = details.tabId;
-    console.debug('[Frames] onCreatedNavigationTarget:', { sourceTabId, sourceFrameId, newTabId, monitored: panelConnections.has(sourceTabId) || bufferingEnabledTabs.has(sourceTabId) });
+    console.debug('[Messages] onCreatedNavigationTarget:', { sourceTabId, sourceFrameId, newTabId, monitored: panelConnections.has(sourceTabId) || bufferingEnabledTabs.has(sourceTabId) });
     if (panelConnections.has(sourceTabId) || bufferingEnabledTabs.has(sourceTabId)) {
       bufferingEnabledTabs.add(newTabId);
 

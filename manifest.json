@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Frames Inspector",
+  "name": "Messages Inspector",
   "version": "1.0.0",
   "description": "Chrome DevTools extension for inspecting frames and postMessage communication",
   "devtools_page": "devtools.html",

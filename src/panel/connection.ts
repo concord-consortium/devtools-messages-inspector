@@ -1,4 +1,4 @@
-// Background script connection for Frames Inspector panel
+// Background script connection for Messages Inspector panel
 
 import { store } from './store';
 import { Message } from './Message';

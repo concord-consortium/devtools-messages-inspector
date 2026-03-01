@@ -185,7 +185,7 @@ describe('content → background → panel integration', () => {
     // Simulate the popup's content script sending its opener registration
     // (In production this happens via send-message → content script → postMessage)
     openerWin.dispatchMessage(
-      { type: '__frames_inspector_register__', targetType: 'opener', frameId: 0, tabId: POPUP_TAB_ID, documentId: 'doc-f0' },
+      { type: '__messages_inspector_register__', targetType: 'opener', frameId: 0, tabId: POPUP_TAB_ID, documentId: 'doc-f0' },
       'https://popup.example.com',
       popupWin
     );
@@ -198,7 +198,7 @@ describe('content → background → panel integration', () => {
     );
 
     const msgPayloads = messages.filter(m =>
-      m.type === 'message' && m.payload.data?.type !== '__frames_inspector_register__'
+      m.type === 'message' && m.payload.data?.type !== '__messages_inspector_register__'
     );
     expect(msgPayloads).toHaveLength(1);
     expect(msgPayloads[0].payload.source.type).toBe('opened');
@@ -276,7 +276,7 @@ describe('content → background → panel integration', () => {
 
     // Simulate popup's registration arriving at opener (triggers openedWindowToTab mapping)
     openerWin.dispatchMessage(
-      { type: '__frames_inspector_register__', targetType: 'opener', frameId: 0, tabId: POPUP_TAB_ID, documentId: 'doc-f0' },
+      { type: '__messages_inspector_register__', targetType: 'opener', frameId: 0, tabId: POPUP_TAB_ID, documentId: 'doc-f0' },
       'https://popup.example.com',
       popupWin
     );
@@ -315,7 +315,7 @@ describe('content → background → panel integration', () => {
 
     // Registration flows from popup to opener
     openerWin.dispatchMessage(
-      { type: '__frames_inspector_register__', targetType: 'opener', frameId: 0, tabId: POPUP_TAB_ID, documentId: 'doc-f0' },
+      { type: '__messages_inspector_register__', targetType: 'opener', frameId: 0, tabId: POPUP_TAB_ID, documentId: 'doc-f0' },
       'https://popup.example.com',
       popupWin
     );
@@ -434,7 +434,7 @@ describe('automatic frame registration', () => {
     // The registration message from the popup should arrive on the opener panel
     // with sourceType 'opened' (not 'unknown')
     const registrations = openerMessages.filter(m =>
-      m.type === 'message' && m.payload.data?.type === '__frames_inspector_register__'
+      m.type === 'message' && m.payload.data?.type === '__messages_inspector_register__'
         && m.payload.data?.targetType === 'opener'
     );
     expect(registrations).toHaveLength(1);
@@ -461,7 +461,7 @@ describe('automatic frame registration', () => {
     // The opener should only see ONE registration message from the popup,
     // not two (one from buffering injection, one from panel connection)
     const openerRegistrations = openerMessages.filter(m =>
-      m.type === 'message' && m.payload.data?.type === '__frames_inspector_register__'
+      m.type === 'message' && m.payload.data?.type === '__messages_inspector_register__'
         && m.payload.data?.targetType === 'opener'
     );
     expect(openerRegistrations).toHaveLength(1);
