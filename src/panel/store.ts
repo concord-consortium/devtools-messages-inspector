@@ -6,12 +6,12 @@ import {
   ViewType,
   DetailTabType,
   SortDirection,
+  FocusPosition,
   ALL_COLUMNS
 } from './types';
 import { FrameInfo } from '../types';
 import { Message } from './Message';
 import { Frame, frameStore } from './models';
-import type { FocusPosition } from './components/shared/DirectionIcon';
 
 class PanelStore {
   // Tab ID for the inspected window
@@ -138,7 +138,11 @@ class PanelStore {
       case 'dataSize': return this.formatSize(msg.dataSize);
       case 'partnerFrame': {
         const partnerFrame = this.getPartnerFrame(msg);
-        return partnerFrame ? `frame[${partnerFrame.frameId}]` : '';
+        if (!partnerFrame) return '';
+        const isOtherTab = partnerFrame.tabId != null && partnerFrame.tabId !== this.tabId;
+        return isOtherTab
+          ? `tab[${partnerFrame.tabId}].frame[${partnerFrame.frameId}]`
+          : `frame[${partnerFrame.frameId}]`;
       }
       case 'partnerType': return this.getPartnerType(msg) || '';
       default: return '';

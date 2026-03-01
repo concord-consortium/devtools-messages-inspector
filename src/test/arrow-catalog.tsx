@@ -3,7 +3,8 @@
 
 import React, { useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { DirectionIcon, UninvolvedIcon, type FocusPosition } from '../panel/components/shared/DirectionIcon';
+import { DirectionIcon, UninvolvedIcon } from '../panel/components/shared/DirectionIcon';
+import type { FocusPosition } from '../panel/types';
 
 const SOURCE_TYPES = ['parent', 'child', 'opener', 'opened', 'self', 'unknown'] as const;
 const FOCUS_POSITIONS: FocusPosition[] = ['none', 'source', 'target', 'both'];

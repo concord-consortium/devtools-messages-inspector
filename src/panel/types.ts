@@ -18,6 +18,7 @@ export interface Settings {
 export type ViewType = 'messages' | 'hierarchy' | 'settings';
 export type DetailTabType = 'data' | 'context';
 export type SortDirection = 'asc' | 'desc';
+export type FocusPosition = 'source' | 'target' | 'both' | 'none';
 
 // Column definitions
 export const ALL_COLUMNS: ColumnDef[] = [

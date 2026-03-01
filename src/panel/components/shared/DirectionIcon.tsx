@@ -1,15 +1,17 @@
 // SVG direction icon component with optional focus indicator
 
-export type FocusPosition = 'source' | 'target' | 'both' | 'none';
+import type { FocusPosition } from '../../types';
 
 interface DirectionIconProps {
   sourceType: string;
   focusPosition: FocusPosition;
 }
 
-// Focus indicator: small blue rectangle
-const FocusRect = ({ x, y }: { x: number; y: number }) => (
-  <rect x={x} y={y} width={5} height={5} rx={1} fill="#1a73e8" className="focus-indicator" />
+const FOCUS_BLUE = '#1a73e8';
+
+// Small rectangle indicating a frame endpoint
+const FrameRect = ({ x, y, color = FOCUS_BLUE }: { x: number; y: number; color?: string }) => (
+  <rect x={x} y={y} width={5} height={5} rx={1} fill={color} className={color === FOCUS_BLUE ? 'focus-indicator' : undefined} />
 );
 
 // Line + arrowhead, drawn pointing right then rotated around center (8,8), then offset
@@ -30,7 +32,7 @@ function InboundDiagonal({ direction }: { direction: 'down-right' | 'up-left' })
   return (
     <g transform={angle ? `rotate(${angle}, 8, 8)` : undefined}>
       <Arrow angle={DIAG} offsetY={-1.6} offsetX={-1.6}/>
-      <FocusRect x={10} y={10} />
+      <FrameRect x={10} y={10} />
     </g>
   );
 }
@@ -40,7 +42,7 @@ function OutboundDiagonal({ direction }: { direction: 'down-right' | 'up-left' }
   return (
     <g transform={angle ? `rotate(${angle}, 8, 8)` : undefined}>
       <Arrow angle={DIAG} offsetY={2} offsetX={2}/>
-      <FocusRect x={1} y={1} />
+      <FrameRect x={1} y={1} />
     </g>
   );
 }
@@ -50,7 +52,7 @@ function InboundHorizontal({ direction }: { direction: 'left' | 'right' }) {
   return (
     <g transform={angle ? `rotate(${angle}, 8, 8)` : undefined}>
       <Arrow angle={0} offsetX={-2.4} />
-      <FocusRect x={11} y={5.5} />
+      <FrameRect x={11} y={5.5} />
     </g>
   )
 }
@@ -60,7 +62,7 @@ function OutboundHorizontal({ direction }: { direction: 'left' | 'right' }) {
   return (
     <g transform={angle ? `rotate(${angle}, 8, 8)` : undefined}>
       <Arrow angle={0} offsetX={2.4} />
-      <FocusRect x={0} y={5.5} />
+      <FrameRect x={0} y={5.5} />
     </g>
   )
 }
@@ -74,7 +76,7 @@ function CircularArrow({ focusPosition }: { focusPosition: FocusPosition }) {
       <g transform="rotate(17, 3.5, 10)">
         <path d="M 0.5,4.1 L 3.5,9 L 6.5,4.1" fill="none" stroke="currentColor" strokeWidth={1.5} />
       </g> 
-      <FocusRect x={1} y={10} />
+      <FrameRect x={1} y={10} color={focusPosition === 'none' ? 'currentColor' : FOCUS_BLUE} />
     </>
   );
 }
