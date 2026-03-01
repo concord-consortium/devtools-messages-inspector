@@ -1,17 +1,22 @@
 // Visual catalog of all DirectionIcon variants.
 // Renders every sourceType × focusPosition combination plus special icons.
 
-import React from 'react';
+import React, { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { DirectionIcon, UninvolvedIcon, type FocusPosition } from '../panel/components/shared/DirectionIcon';
 
-const SOURCE_TYPES = ['parent', 'top', 'child', 'opener', 'opened', 'self', 'unknown'] as const;
+const SOURCE_TYPES = ['parent', 'child', 'opener', 'opened', 'self', 'unknown'] as const;
 const FOCUS_POSITIONS: FocusPosition[] = ['none', 'source', 'target', 'both'];
 
 function ArrowCatalog() {
+  const [showBorder, setShowBorder] = useState(false);
   return (
     <div style={{ padding: 24, fontFamily: 'system-ui, sans-serif', fontSize: 13 }}>
       <h2 style={{ marginTop: 0 }}>Direction Icon Catalog</h2>
+      <label style={{ display: 'block', marginBottom: 12 }}>
+        <input type="checkbox" checked={showBorder} onChange={e => setShowBorder(e.target.checked)} />
+        {' '}Show bounds
+      </label>
 
       <table style={{ borderCollapse: 'collapse' }}>
         <thead>
@@ -31,7 +36,9 @@ function ArrowCatalog() {
                 <td key={fp} style={tdStyle} className={`dir-${st}`}>
                   {/* "both" only applies to self */}
                   {fp === 'both' && st !== 'self' ? null : (
-                    <DirectionIcon sourceType={st} focusPosition={fp} />
+                    <div style={{ border: showBorder ? '1px solid #000000' : undefined, display: 'inline-block', lineHeight: 0 }}>
+                      <DirectionIcon sourceType={st} focusPosition={fp} />
+                    </div>
                   )}
                 </td>
               ))}

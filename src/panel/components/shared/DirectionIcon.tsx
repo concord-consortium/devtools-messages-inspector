@@ -9,130 +9,150 @@ interface DirectionIconProps {
 
 // Focus indicator: small blue rectangle
 const FocusRect = ({ x, y }: { x: number; y: number }) => (
-  <rect x={x} y={y} width={5} height={5} fill="#1a73e8" className="focus-indicator" />
+  <rect x={x} y={y} width={5} height={5} rx={1} fill="#1a73e8" className="focus-indicator" />
 );
 
 // Line + arrowhead, drawn pointing right then rotated around center (8,8), then offset
 const Arrow = ({ angle, offsetX = 0, offsetY = 0 }: { angle: number; offsetX?: number; offsetY?: number }) => (
   <g transform={offsetX || offsetY ? `translate(${offsetX}, ${offsetY})` : undefined}>
     <g transform={angle ? `rotate(${angle}, 8, 8)` : undefined}>
-      <path d="M 2,8 L 7,8" fill="none" stroke="currentColor" strokeWidth={1.5} />
-      <polygon points="6,4.5 6,11.5 12.5,8" fill="currentColor" />
+      <path d="M 2,8 L 10.5,8" fill="none" stroke="currentColor" strokeWidth={1.5} />
+      <path d="M 7,5 L 12,8 L 7,11" fill="none" stroke="currentColor" strokeWidth={1.5} />
     </g>
   </g>
 );
 
 // Diagonal angle for parent↔child arrows
-const DIAG = 35;
+const DIAG = 45;
 
-// Down-right arrow (parent/top → child)
-function DownRightArrow({ focusPosition }: { focusPosition: FocusPosition }) {
+function InboundDiagonal({ direction }: { direction: 'down-right' | 'up-left' }) {
+  const angle = direction === 'down-right' ?  0 : 180;
   return (
-    <svg viewBox="0 0 16 16" width={16} height={16}>
-      <title>down-right</title>
-      <Arrow angle={DIAG} offsetY={2}/>
-      {focusPosition === 'source' && <FocusRect x={0} y={3.5} />}
-      {focusPosition === 'target' && <FocusRect x={11} y={10.5} />}
-    </svg>
+    <g transform={angle ? `rotate(${angle}, 8, 8)` : undefined}>
+      <Arrow angle={DIAG} offsetY={-1.6} offsetX={-1.6}/>
+      <FocusRect x={10} y={10} />
+    </g>
   );
 }
 
-// Up-left arrow (child → parent)
-function UpLeftArrow({ focusPosition }: { focusPosition: FocusPosition }) {
+function OutboundDiagonal({ direction }: { direction: 'down-right' | 'up-left' }) {
+  const angle = direction === 'down-right' ?  0 : 180;
   return (
-    <svg viewBox="0 0 16 16" width={16} height={16}>
-      <title>up-left</title>
-      <Arrow angle={180 + DIAG} />
-      {focusPosition === 'source' && <FocusRect x={11} y={9.5} />}
-      {focusPosition === 'target' && <FocusRect x={0} y={3.5} />}
-    </svg>
+    <g transform={angle ? `rotate(${angle}, 8, 8)` : undefined}>
+      <Arrow angle={DIAG} offsetY={2} offsetX={2}/>
+      <FocusRect x={1} y={1} />
+    </g>
   );
 }
 
-// Right arrow (opener → opened)
-function RightArrow({ focusPosition }: { focusPosition: FocusPosition }) {
+function InboundHorizontal({ direction }: { direction: 'left' | 'right' }) {
+  const angle = direction === 'right' ? 0 : 180;
   return (
-    <svg viewBox="0 0 16 16" width={16} height={16}>
-      <title>right</title>
-      <Arrow angle={0} />
-      {focusPosition === 'source' && <FocusRect x={0} y={6.5} />}
-      {focusPosition === 'target' && <FocusRect x={11} y={6.5} />}
-    </svg>
-  );
+    <g transform={angle ? `rotate(${angle}, 8, 8)` : undefined}>
+      <Arrow angle={0} offsetX={-2.4} />
+      <FocusRect x={11} y={5.5} />
+    </g>
+  )
 }
 
-// Left arrow (opened → opener)
-function LeftArrow({ focusPosition }: { focusPosition: FocusPosition }) {
+function OutboundHorizontal({ direction }: { direction: 'left' | 'right' }) {
+  const angle = direction === 'right' ? 0 : 180;
   return (
-    <svg viewBox="0 0 16 16" width={16} height={16}>
-      <title>left</title>
-      <Arrow angle={180} />
-      {focusPosition === 'source' && <FocusRect x={11} y={6.5} />}
-      {focusPosition === 'target' && <FocusRect x={0} y={6.5} />}
-    </svg>
-  );
+    <g transform={angle ? `rotate(${angle}, 8, 8)` : undefined}>
+      <Arrow angle={0} offsetX={2.4} />
+      <FocusRect x={0} y={5.5} />
+    </g>
+  )
 }
 
 // Circular arrow (self): ┏▶━┓ ┗━━━┛
 function CircularArrow({ focusPosition }: { focusPosition: FocusPosition }) {
   return (
-    <svg viewBox="0 0 16 16" width={16} height={16}>
-      <title>self</title>
-      <path d="M 8,3 A 5,5 0 1,1 4,8" fill="none" stroke="currentColor" strokeWidth={1.5} />
-      {/* Arrowhead on the left */}
-      <polygon points="2,5.5 5.5,8 2,10.5" fill="currentColor" />
-      {focusPosition === 'both' && <FocusRect x={6.5} y={0.5} />}
-    </svg>
+    <>
+      <path d="M 3.5,12.5 L 8,12.5 A 5,5 0 1,0 4.5,6 L 3.5,8.5" fill="none" stroke="currentColor" strokeWidth={1.5} />
+      {/* Arrowhead on the top */}
+      <g transform="rotate(17, 3.5, 10)">
+        <path d="M 0.5,4.1 L 3.5,9 L 6.5,4.1" fill="none" stroke="currentColor" strokeWidth={1.5} />
+      </g> 
+      <FocusRect x={1} y={10} />
+    </>
   );
 }
 
 // Uninvolved dot: small gray dot when focused frame isn't part of this message
 function UninvolvedDot() {
-  return (
-    <svg viewBox="0 0 16 16" width={16} height={16}>
-      <title>uninvolved</title>
-      <circle cx={8} cy={8} r={2} fill="#80868b" />
-    </svg>
-  );
+  return <circle cx={8} cy={8} r={2} fill="#80868b" />;
 }
 
 // Unknown: question mark
 function UnknownIcon() {
+  return <text x={8} y={12} textAnchor="middle" fill="currentColor" fontSize={12}>?</text>;
+}
+
+function IconSvg({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <svg viewBox="0 0 16 16" width={16} height={16}>
-      <title>unknown</title>
-      <text x={8} y={12} textAnchor="middle" fill="currentColor" fontSize={12}>?</text>
+      <title>{title}</title>
+      {children}
     </svg>
   );
 }
 
-export function DirectionIcon({ sourceType, focusPosition }: DirectionIconProps) {
-  let icon: React.ReactNode;
-  switch (sourceType) {
-    case 'parent':
-    case 'top':
-      icon = <DownRightArrow focusPosition={focusPosition} />;
-      break;
-    case 'child':
-      icon = <UpLeftArrow focusPosition={focusPosition} />;
-      break;
-    case 'opener':
-      icon = <RightArrow focusPosition={focusPosition} />;
-      break;
-    case 'opened':
-      icon = <LeftArrow focusPosition={focusPosition} />;
-      break;
-    case 'self':
-      icon = <CircularArrow focusPosition={focusPosition} />;
-      break;
-    default:
-      icon = <UnknownIcon />;
-      break;
-  }
+function IconContent({ sourceType, focusPosition }: DirectionIconProps) {
+    const canonicalSourceType = sourceType === 'top' ? 'parent' : sourceType; // "top" is an alias for "parent"  
 
-  return <span className="direction-icon">{icon}</span>;
+  switch (`${canonicalSourceType}:${focusPosition}`) {
+    case 'parent:none':
+      return <Arrow angle={DIAG}/>;
+    case 'parent:source':
+      return <OutboundDiagonal direction="down-right" />;
+    case 'parent:target':
+      return <InboundDiagonal direction="down-right" />;
+
+    case 'child:none':
+      return <Arrow angle={180 + DIAG}/>;
+    case 'child:source':
+      return <OutboundDiagonal direction="up-left" />;
+    case 'child:target':
+      return <InboundDiagonal direction="up-left" />;
+    
+    case 'opener:none':
+      return <Arrow angle={0} />;
+    case 'opener:source':
+        return <OutboundHorizontal direction="right" />;
+    case 'opener:target':
+      return <InboundHorizontal direction="right" />;
+    
+    case 'opened:none':
+      return <Arrow angle={180} />;
+    case 'opened:source':
+      return <OutboundHorizontal direction="left" />;
+    case 'opened:target':
+      return <InboundHorizontal direction="left" />;
+
+      case 'self:both':
+    case 'self:none':
+      return <CircularArrow focusPosition={'both'} />;
+
+    default:
+      return <UnknownIcon />;
+  }
+}
+
+export function DirectionIcon({ sourceType, focusPosition }: DirectionIconProps) {
+  return (
+    <span className="direction-icon">
+      <IconSvg title={sourceType}>
+        <IconContent sourceType={sourceType} focusPosition={focusPosition} />  
+      </IconSvg>
+    </span>
+  );
 }
 
 export function UninvolvedIcon() {
-  return <span className="direction-icon"><UninvolvedDot /></span>;
+  return (
+    <span className="direction-icon">
+      <IconSvg title="uninvolved"><UninvolvedDot /></IconSvg>
+    </span>
+  );
 }
