@@ -15,7 +15,7 @@ Add a modern build system to support React, MobX, and TypeScript for the DevTool
 ## Project Structure
 
 ```
-devtools-frames-inspector/
+devtools-messages-inspector/
 ├── src/
 │   ├── panel/                  # React + TypeScript + MobX (bundled)
 │   │   ├── index.tsx          # Entry point
