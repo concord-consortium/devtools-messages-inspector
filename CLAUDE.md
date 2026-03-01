@@ -13,8 +13,8 @@ Uses Vite for building TypeScript/React. Load dist/ as unpacked extension in Chr
 **Build and test:**
 ```bash
 npm run build   # Build to dist/
-cd test && python -m http.server 8000
-# Open http://localhost:8000/test-page.html in Chrome
+npm run dev     # Start Vite dev server
+# Open http://localhost:5173/test/test-page.html in Chrome
 # DevTools → Messages tab to see captured messages
 ```
 

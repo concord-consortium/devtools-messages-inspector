@@ -56,8 +56,8 @@ Multiple terms are AND'd together.
 Open `test/test-page.html` in Chrome (via a local server) to test the extension with sample iframes.
 
 ```bash
-cd test && python -m http.server 8000
-# Then open http://localhost:8000/test-page.html
+npm run dev
+# Then open http://localhost:5173/test/test-page.html
 ```
 
 ## How Monitoring Works
