@@ -12,11 +12,15 @@ Uses Vite for building TypeScript/React. Load dist/ as unpacked extension in Chr
 
 **Build and test:**
 ```bash
-npm run build   # Build to dist/
-npm run dev     # Start Vite dev server
+npm run build          # Build to dist/
+npm run dev            # Start Vite dev server
+npx vitest run         # Unit tests
+npx playwright test    # E2e tests (requires build)
 # Open http://localhost:5173/test/test-page.html in Chrome
 # DevTools → Messages tab to see captured messages
 ```
+
+**Validation:** Run both `npx vitest run` and `npx playwright test` to validate changes before committing.
 
 **Reload after changes:** Run `npm run build`, then go to `chrome://extensions/` and click the refresh icon on the extension.
 
