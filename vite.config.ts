@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitest/config';
+import { defineConfig, type Plugin } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -7,9 +7,21 @@ import { copyFileSync, mkdirSync, existsSync } from 'fs';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // Plugin to copy static files to dist
-function copyStaticFiles() {
+function copyStaticFiles(): Plugin {
+  const staticFiles = [
+    'manifest.json',
+    'devtools.html',
+    'src/panel/panel.html',
+    'src/panel/panel.css',
+  ];
+
   return {
     name: 'copy-static-files',
+    buildStart() {
+      for (const file of staticFiles) {
+        this.addWatchFile(resolve(__dirname, file));
+      }
+    },
     writeBundle() {
       // Ensure dist directories exist
       if (!existsSync('dist')) {

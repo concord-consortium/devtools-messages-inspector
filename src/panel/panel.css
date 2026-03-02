@@ -515,7 +515,7 @@ body {
 
 /* Sidebar */
 .sidebar {
-  width: 100px;
+  width: 60px;
   background: #f3f3f3;
   border-right: 1px solid #cacdd1;
   display: flex;

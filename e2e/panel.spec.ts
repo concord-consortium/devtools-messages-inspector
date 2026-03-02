@@ -1,7 +1,7 @@
 import { test, expect, Page } from '@playwright/test';
 
-// Scope selectors to the messages view to avoid conflicts with hierarchy view
-const messagesView = '.messages-view';
+// Scope selectors to the log view to avoid conflicts with sources view
+const logView = '.log-view';
 
 // Helper: send a message through the harness and wait for it to appear in the table.
 // postMessage uses setTimeout(0) internally, so we need a short real delay
@@ -65,7 +65,7 @@ test.describe('detail panel', () => {
   test('clicking a row opens the detail panel', async ({ page }) => {
     await sendAndWait(page, 'window.harness.sendChildToParent({ type: "detail-test", payload: [1, 2, 3] })');
 
-    const view = page.locator(messagesView);
+    const view = page.locator(logView);
 
     const detailPane = view.locator('.detail-pane');
 
@@ -83,7 +83,7 @@ test.describe('detail panel', () => {
   });
 
   test('close button hides the detail panel', async ({ page }) => {
-    const view = page.locator(messagesView);
+    const view = page.locator(logView);
 
     const detailPane = view.locator('.detail-pane');
 
@@ -299,7 +299,7 @@ test.describe('focused frame', () => {
     await page.locator('#message-table tbody tr').first().click();
     await page.locator('.tab-btn', { hasText: 'Context' }).click();
 
-    const view = page.locator(messagesView);
+    const view = page.locator(logView);
     const headings = view.locator('.section-heading');
     await expect(headings.nth(0)).toHaveText('Target (focused)');
     await expect(headings.nth(1)).toHaveText('Source');
@@ -313,7 +313,7 @@ test.describe('focused frame', () => {
     await page.locator('#message-table tbody tr').first().click();
     await page.locator('.tab-btn', { hasText: 'Context' }).click();
 
-    const view = page.locator(messagesView);
+    const view = page.locator(logView);
     const headings = view.locator('.section-heading');
     await expect(headings.nth(0)).toHaveText('Target');
     await expect(headings.nth(1)).toHaveText('Source (focused)');

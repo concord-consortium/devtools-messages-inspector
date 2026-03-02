@@ -3,6 +3,7 @@
 import { makeAutoObservable } from 'mobx';
 import {
   Settings,
+  VIEW_TYPES,
   ViewType,
   DetailTabType,
   SortDirection,
@@ -27,7 +28,7 @@ class PanelStore {
   preserveLog = false;
 
   // UI state
-  currentView: ViewType = 'messages';
+  currentView: ViewType = 'log';
   activeDetailTab: DetailTabType = 'data';
 
   // Column configuration
@@ -387,7 +388,7 @@ class PanelStore {
           if (result.settings) {
             this.settings = { ...this.settings, ...result.settings };
           }
-          if (result.currentView) {
+          if (result.currentView && VIEW_TYPES.includes(result.currentView)) {
             this.currentView = result.currentView;
           }
           resolve();

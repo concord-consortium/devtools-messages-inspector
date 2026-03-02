@@ -1,4 +1,4 @@
-// Hierarchy view component
+// Sources view component
 
 import { observer } from 'mobx-react-lite';
 import { useEffect, useState } from 'react';
@@ -137,7 +137,7 @@ const ResizeHandle = () => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isResizing) return;
 
-      const container = document.querySelector('#hierarchy-view .main-content') as HTMLElement;
+      const container = document.querySelector('#sources-view .main-content') as HTMLElement;
       if (!container) return;
 
       const containerWidth = container.offsetWidth;
@@ -182,8 +182,8 @@ const ResizeHandle = () => {
   );
 };
 
-// Top bar for hierarchy view
-const HierarchyTopBar = () => {
+// Top bar for sources view
+const SourcesTopBar = () => {
   const handleRefresh = () => {
     requestFrameHierarchy();
   };
@@ -197,9 +197,9 @@ const HierarchyTopBar = () => {
   );
 };
 
-// Main HierarchyView component
-export const HierarchyView = observer(() => {
-  const isActive = store.currentView === 'hierarchy';
+// Main SourcesView component
+export const SourcesView = observer(() => {
+  const isActive = store.currentView === 'sources';
 
   // Request hierarchy when view becomes active
   useEffect(() => {
@@ -209,8 +209,8 @@ export const HierarchyView = observer(() => {
   }, [isActive]);
 
   return (
-    <div id="hierarchy-view" className={`view hierarchy-view ${isActive ? 'active' : ''}`}>
-      <HierarchyTopBar />
+    <div id="sources-view" className={`view sources-view ${isActive ? 'active' : ''}`}>
+      <SourcesTopBar />
       <div className="main-content">
         <FrameTable />
         <ResizeHandle />

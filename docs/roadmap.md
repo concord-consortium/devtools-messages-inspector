@@ -17,7 +17,6 @@
   - resizable columns
   - sortable columns (how do we deal with hierarchy view)
 - add opened tabs to the hierarchy
-- rename repo and panel tab name to devtools-messages-inspector, and the top level items in the panel to "Log", "Sources", and "Settings".
 - fix table column resize handles they are hard to select
 - update details pane in messages view, probably details should be default and first and content second
 - the pane on right right that comes out doesn't behave correctly on resize
