@@ -781,6 +781,15 @@ body {
 .settings-filter-input {
   width: 100%;
   max-width: 500px;
+  padding: 4px 8px;
+  border: 1px solid #cacdd1;
+  border-radius: 2px;
+  font-size: 12px;
+  outline: none;
+}
+
+.settings-filter-input:focus {
+  border-color: #1a73e8;
 }
 
 /* Field info popup */

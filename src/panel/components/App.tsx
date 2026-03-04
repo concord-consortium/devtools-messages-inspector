@@ -90,7 +90,7 @@ const SettingsView = observer(() => (
         <div className="settings-filter-row">
           <input
             type="text"
-            className="filter-input settings-filter-input"
+            className="settings-filter-input"
             placeholder="e.g., -data.source:react-devtools*"
             value={store.settings.globalFilter}
             disabled={!store.settings.globalFilterEnabled}
