@@ -189,6 +189,19 @@ describe('buildCellFilter', () => {
       expect(store.filteredMessages).toHaveLength(1);
       expect(store.filteredMessages[0].id).toBe('msg-1');
     });
+
+    it('escapes values with embedded double-quotes and backslashes', () => {
+      const msg1 = makeMessage({ id: 'msg-1', data: { type: 'a"b\\c' } });
+      const msg2 = makeMessage({ id: 'msg-2', data: { type: 'normal' } });
+      store.addMessage(msg1);
+      store.addMessage(msg2);
+
+      const filter = buildCellFilter(msg1, 'messageType', getCellValue);
+      store.setFilter(filter);
+
+      expect(store.filteredMessages).toHaveLength(1);
+      expect(store.filteredMessages[0].id).toBe('msg-1');
+    });
   });
 
   describe('sourceType column', () => {
