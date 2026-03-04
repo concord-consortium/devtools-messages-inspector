@@ -1,7 +1,7 @@
 // MobX store for Frames Inspector panel
 
 import { makeAutoObservable } from 'mobx';
-import { parse, test as liqeTest } from 'liqe';
+import { parse, test as liqeTest, type LiqeQuery } from 'liqe';
 import {
   Settings,
   VIEW_TYPES,
@@ -70,11 +70,20 @@ class PanelStore {
 
   // Computed: filtered and sorted messages
   get filteredMessages(): Message[] {
+    let ast: LiqeQuery | null = null;
+    if (this.filterText) {
+      try {
+        ast = parse(this.filterText);
+      } catch {
+        // Invalid query — show all messages
+      }
+    }
+
     let result = this.messages.filter(msg => {
       if (msg.isRegistrationMessage && !this.settings.showRegistrationMessages) {
         return false;
       }
-      return this.matchesFilter(msg, this.filterText);
+      return this.matchesFilter(msg, ast);
     });
 
     // Sort
@@ -232,13 +241,9 @@ class PanelStore {
   }
 
   // Check if message matches filter using liqe query engine
-  private matchesFilter(msg: Message, filter: string): boolean {
-    if (!filter) return true;
-    try {
-      return liqeTest(parse(filter), msg);
-    } catch {
-      return true;
-    }
+  private matchesFilter(msg: Message, ast: LiqeQuery | null): boolean {
+    if (!ast) return true;
+    return liqeTest(ast, msg);
   }
 
   // Actions
