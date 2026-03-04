@@ -173,6 +173,30 @@ body {
   border-color: #1a73e8;
 }
 
+/* Global filter chip in filter bar */
+.global-filter-chip {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  margin-right: 4px;
+  border: 1px solid #cacdd1;
+  border-radius: 10px;
+  background: #e8eaed;
+  font-size: 11px;
+  color: #303942;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.global-filter-chip:hover {
+  background: #d2d5d9;
+}
+
+.global-filter-chip.disabled {
+  opacity: 0.5;
+  text-decoration: line-through;
+}
+
 /* Main content */
 .main-content {
   display: flex;
@@ -730,6 +754,42 @@ body {
 .settings-item.nested input:disabled + span,
 .settings-item.nested:has(input:disabled) {
   opacity: 0.5;
+}
+
+.settings-section {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e8eaed;
+}
+
+.settings-section h4 {
+  margin: 0 0 4px 0;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.settings-description {
+  color: #5f6368;
+  font-size: 11px;
+  margin-bottom: 8px;
+}
+
+.settings-filter-row {
+  margin-top: 4px;
+}
+
+.settings-filter-input {
+  width: 100%;
+  max-width: 500px;
+  padding: 4px 8px;
+  border: 1px solid #cacdd1;
+  border-radius: 2px;
+  font-size: 12px;
+  outline: none;
+}
+
+.settings-filter-input:focus {
+  border-color: #1a73e8;
 }
 
 /* Field info popup */

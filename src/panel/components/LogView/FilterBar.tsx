@@ -8,8 +8,20 @@ export const FilterBar = observer(() => {
     store.setFilter(e.target.value);
   };
 
+  const hasGlobalFilter = store.settings.globalFilter.length > 0;
+
   return (
     <div className="filter-bar">
+      {hasGlobalFilter && (
+        <button
+          className={`global-filter-chip ${!store.settings.globalFilterEnabled ? 'disabled' : ''}`}
+          onClick={() => store.updateSettings({ globalFilterEnabled: !store.settings.globalFilterEnabled })}
+          title={store.settings.globalFilterEnabled ? 'Click to disable global filter' : 'Click to enable global filter'}
+          aria-pressed={store.settings.globalFilterEnabled}
+        >
+          Global filter
+        </button>
+      )}
       <input
         type="text"
         className="filter-input"

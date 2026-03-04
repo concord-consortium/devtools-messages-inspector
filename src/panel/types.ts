@@ -13,6 +13,8 @@ export interface Settings {
   showExtraMessageInfo: boolean;
   enableFrameRegistration: boolean;
   showRegistrationMessages: boolean;
+  globalFilter: string;
+  globalFilterEnabled: boolean;
 }
 
 export const VIEW_TYPES = ['log', 'sources', 'settings'] as const;

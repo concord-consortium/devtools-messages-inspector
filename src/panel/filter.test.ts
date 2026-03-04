@@ -95,7 +95,13 @@ describe('liqe filtering via store', () => {
     globalThis.chrome = { storage: { local: { set: () => {}, get: () => {} } } } as unknown as typeof chrome;
     store.messages = [];
     store.filterText = '';
-    store.settings = { showExtraMessageInfo: false, enableFrameRegistration: true, showRegistrationMessages: false };
+    store.settings = {
+      showExtraMessageInfo: false,
+      enableFrameRegistration: true,
+      showRegistrationMessages: false,
+      globalFilter: '',
+      globalFilterEnabled: true,
+    };
     frameStore.clear();
   });
 
@@ -185,5 +191,46 @@ describe('liqe filtering via store', () => {
     store.updateSettings({ showRegistrationMessages: false });
     store.setFilter('');
     expect(store.filteredMessages).toHaveLength(1);
+  });
+
+  describe('global filter', () => {
+    it('filters messages when global filter is enabled', () => {
+      addMessage({ source: 'react-devtools-hook' });
+      addMessage({ source: 'my-app' });
+      store.updateSettings({ globalFilter: '-data.source:react-devtools*', globalFilterEnabled: true });
+      expect(store.filteredMessages).toHaveLength(1);
+      expect((store.filteredMessages[0].data as { source: string }).source).toBe('my-app');
+    });
+
+    it('does not filter when global filter is disabled', () => {
+      addMessage({ source: 'react-devtools-hook' });
+      addMessage({ source: 'my-app' });
+      store.updateSettings({ globalFilter: '-data.source:react-devtools*', globalFilterEnabled: false });
+      expect(store.filteredMessages).toHaveLength(2);
+    });
+
+    it('ANDs global filter with toolbar filter', () => {
+      addMessage({ type: 'click', source: 'my-app' }, 'child');
+      addMessage({ type: 'hover', source: 'my-app' }, 'parent');
+      addMessage({ type: 'click', source: 'react-devtools-hook' }, 'child');
+      store.updateSettings({ globalFilter: '-data.source:react-devtools*', globalFilterEnabled: true });
+      store.setFilter('sourceType:child');
+      // Only the child message from my-app should pass both filters
+      expect(store.filteredMessages).toHaveLength(1);
+      expect((store.filteredMessages[0].data as { type: string }).type).toBe('click');
+    });
+
+    it('ignores invalid global filter expression', () => {
+      addMessage({ type: 'a' });
+      addMessage({ type: 'b' });
+      store.updateSettings({ globalFilter: '((invalid', globalFilterEnabled: true });
+      expect(store.filteredMessages).toHaveLength(2);
+    });
+
+    it('does not filter when global filter is empty string', () => {
+      addMessage({ type: 'a' });
+      store.updateSettings({ globalFilter: '', globalFilterEnabled: true });
+      expect(store.filteredMessages).toHaveLength(1);
+    });
   });
 });

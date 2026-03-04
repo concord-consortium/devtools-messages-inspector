@@ -1,5 +1,4 @@
 # Remaining for Version 1
-- add global filter, useful for hiding react dev tools messages
 - add links between hierarchy and messages view: 
   - focus the current frame
   - filter messages by some property of a frame
@@ -12,7 +11,6 @@
   - Challenge: need to get a reference to the iframe element; could use a selector or store references in injected.js
   - For cross-origin: the iframe element itself is in the parent frame, so this should work even though iframe contents are cross-origin
 - see if we can add an option to a context menu in the elements tab to hierarchy view
-- allow the user to filter on every column in the table
 - figure out how to make the hierarchy table more advanced:
   - resizable columns
   - sortable columns (how do we deal with hierarchy view)
