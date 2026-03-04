@@ -1,6 +1,7 @@
 // MobX store for Frames Inspector panel
 
 import { makeAutoObservable } from 'mobx';
+import { parse, test as liqeTest, type LiqeQuery } from 'liqe';
 import {
   Settings,
   VIEW_TYPES,
@@ -69,11 +70,21 @@ class PanelStore {
 
   // Computed: filtered and sorted messages
   get filteredMessages(): Message[] {
+    let ast: LiqeQuery | null = null;
+    if (this.filterText) {
+      try {
+        ast = parse(this.filterText);
+      } catch {
+        // Invalid query — show all messages
+      }
+    }
+
     let result = this.messages.filter(msg => {
       if (msg.isRegistrationMessage && !this.settings.showRegistrationMessages) {
         return false;
       }
-      return this.matchesFilter(msg, this.filterText);
+      if (!ast) return true;
+      return liqeTest(ast, msg);
     });
 
     // Sort
@@ -228,78 +239,6 @@ class PanelStore {
       case 'self': return 'self';
       default: return sourceType;
     }
-  }
-
-  // Parse frame filter value
-  private parseFrameFilterValue(value: string): { tabId: number | null; frameId: number } | null {
-    const fullMatch = value.match(/^tab\[(\d+)\]\.frame\[(\d+)\]$/);
-    if (fullMatch) {
-      return { tabId: parseInt(fullMatch[1], 10), frameId: parseInt(fullMatch[2], 10) };
-    }
-
-    const frameOnlyMatch = value.match(/^frame\[(\d+)\]$/);
-    if (frameOnlyMatch) {
-      return { tabId: null, frameId: parseInt(frameOnlyMatch[1], 10) };
-    }
-
-    return null;
-  }
-
-  // Check if message matches a single filter term
-  private matchesTerm(msg: Message, term: string): boolean {
-    const colonIdx = term.indexOf(':');
-    if (colonIdx > 0) {
-      const field = term.substring(0, colonIdx);
-      const value = term.substring(colonIdx + 1);
-
-      switch (field) {
-        case 'type':
-          return (msg.messageType || '').toLowerCase() === value;
-        case 'target':
-          return msg.target.origin.toLowerCase().includes(value);
-        case 'sourcetype':
-          return msg.source.type === value;
-        case 'source':
-          return msg.source.origin.toLowerCase().includes(value);
-        case 'frame': {
-          const parsed = this.parseFrameFilterValue(value);
-          if (!parsed) return false;
-
-          const filterTabId = parsed.tabId !== null ? parsed.tabId : this.tabId;
-          const filterFrameId = parsed.frameId;
-
-          const sourceFrame = msg.sourceFrame;
-          if (sourceFrame && sourceFrame.frameId === filterFrameId && sourceFrame.tabId === filterTabId) {
-            return true;
-          }
-
-          const targetFrame = msg.targetFrame;
-          if (targetFrame && targetFrame.frameId === filterFrameId && targetFrame.tabId === filterTabId) {
-            return true;
-          }
-
-          return false;
-        }
-        default:
-          return false;
-      }
-    }
-
-    return msg.dataPreview.toLowerCase().includes(term);
-  }
-
-  // Check if message matches filter
-  private matchesFilter(msg: Message, filter: string): boolean {
-    if (!filter) return true;
-
-    const terms = filter.toLowerCase().split(/\s+/).filter(t => t);
-
-    return terms.every(term => {
-      if (term.startsWith('-') && term.length > 1) {
-        return !this.matchesTerm(msg, term.substring(1));
-      }
-      return this.matchesTerm(msg, term);
-    });
   }
 
   // Actions

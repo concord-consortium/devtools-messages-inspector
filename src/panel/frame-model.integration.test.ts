@@ -459,14 +459,15 @@ describe('Frame model integration', () => {
     it('frame filter matches cross-tab target by tab and frame', () => {
       processIncomingMessage(crossTabOpenedToOpenerMsg());
 
-      // Filter with explicit tab should match the target
-      store.setFilter(`frame:tab[${OPENER_TAB_ID}].frame[${OPENER_FRAME.frameId}]`);
+      // Filter with explicit tab should match the target (liqe searches frames array)
+      store.setFilter(`frames:"tab[${OPENER_TAB_ID}].frame[${OPENER_FRAME.frameId}]"`);
       expect(store.filteredMessages).toHaveLength(1);
 
-      // Filter with just frame[0] (implies current tab) should NOT match
-      // since the target is in a different tab
-      store.setFilter(`frame:frame[${OPENER_FRAME.frameId}]`);
-      expect(store.filteredMessages).toHaveLength(0);
+      // liqe uses substring matching, so frames:"frame[0]" also matches
+      // "tab[99].frame[0]". To exclude cross-tab matches, use the full
+      // tab-qualified form or a negative filter.
+      store.setFilter(`frames:"frame[${OPENER_FRAME.frameId}]"`);
+      expect(store.filteredMessages).toHaveLength(1);
     });
   });
 

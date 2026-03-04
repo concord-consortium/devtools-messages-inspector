@@ -102,7 +102,7 @@ test.describe('filtering', () => {
     await sendAndWait(page, 'window.harness.sendParentToChild({ type: "remove" })');
     await expect(page.locator('#message-table tbody tr')).toHaveCount(2);
 
-    await page.locator('.filter-input').fill('type:keep');
+    await page.locator('.filter-input').fill('data.type:keep');
     await expect(page.locator('#message-table tbody tr')).toHaveCount(1);
     await expect(page.locator('#message-table tbody tr td[data-column="messageType"]')).toHaveText('keep');
   });
@@ -111,7 +111,7 @@ test.describe('filtering', () => {
     await sendAndWait(page, 'window.harness.sendChildToParent({ type: "alpha" })');
     await sendAndWait(page, 'window.harness.sendParentToChild({ type: "beta" })');
 
-    await page.locator('.filter-input').fill('-type:alpha');
+    await page.locator('.filter-input').fill('-data.type:alpha');
     await expect(page.locator('#message-table tbody tr')).toHaveCount(1);
     await expect(page.locator('#message-table tbody tr td[data-column="messageType"]')).toHaveText('beta');
   });
@@ -129,7 +129,7 @@ test.describe('filtering', () => {
     await sendAndWait(page, 'window.harness.sendChildToParent({ type: "one" })');
     await sendAndWait(page, 'window.harness.sendParentToChild({ type: "two" })');
 
-    await page.locator('.filter-input').fill('type:one');
+    await page.locator('.filter-input').fill('data.type:one');
     await expect(page.locator('#message-table tbody tr')).toHaveCount(1);
 
     await page.locator('.filter-input').clear();

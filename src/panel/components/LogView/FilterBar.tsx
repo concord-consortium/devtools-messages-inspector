@@ -13,7 +13,7 @@ export const FilterBar = observer(() => {
       <input
         type="text"
         className="filter-input"
-        placeholder="Filter (e.g., type:resize, -origin:react)"
+        placeholder="Filter (e.g., data.type:click, -data.source:react-devtools*, sourceType:child OR sourceType:parent)"
         value={store.filterText}
         onChange={handleFilterChange}
       />

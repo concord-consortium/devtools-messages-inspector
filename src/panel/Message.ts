@@ -124,6 +124,18 @@ class Message implements IMessage {
     return this.sourceDocument?.frame;
   }
 
+  // Computed: frame identifier strings for liqe filtering.
+  // Only the absolute tab[T].frame[N] form is stored; liqe's substring
+  // matching means frames:frame[N] still matches.
+  get frames(): string[] {
+    const result: string[] = [];
+    const sf = this.sourceFrame;
+    const tf = this.targetFrame;
+    if (sf?.tabId != null) result.push(`tab[${sf.tabId}].frame[${sf.frameId}]`);
+    if (tf?.tabId != null) result.push(`tab[${tf.tabId}].frame[${tf.frameId}]`);
+    return result;
+  }
+
   // Derived from data — computed once and cached by MobX since data never changes
   get dataPreview(): string {
     try {
