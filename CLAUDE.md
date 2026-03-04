@@ -59,14 +59,21 @@ content.js ──runtime.msg──►   background.js ──►   panel.js
 
 ## Filter Syntax
 
-- `type:value` - Filter by `data.type`
-- `target:value` - Filter by target origin
-- `source:value` - Filter by source origin
-- `sourceType:parent` / `sourceType:child` / `sourceType:self` / `sourceType:opener` / `sourceType:opened` / `sourceType:top` - Filter by source type
-- `frame:frame[N]` - Filter by frame ID (matches sourceFrameId or targetFrameId in current tab)
-- `frame:tab[T].frame[N]` - Filter by tab and frame ID (matches sourceTabId/sourceFrameId; targets are always current tab)
-- `-term` - Exclude messages containing term
-- Plain text - Search in data preview
+Uses [liqe](https://github.com/gajus/liqe) (Lucene-like query language). All queries require field prefixes.
+
+- `data.type:value` - Filter by data.type property
+- `data.source:react-devtools*` - Wildcard match on any data property
+- `source.origin:value` - Filter by source origin
+- `target.origin:value` - Filter by target origin
+- `sourceType:child` - Filter by source type (parent, child, self, opener, opened, top)
+- `messageType:value` - Shortcut for data.type
+- `frames:frame[N]` - Filter by frame ID (matches source or target frame)
+- `frames:tab[T].frame[N]` - Filter by tab and frame ID
+- `-field:value` - Exclude messages matching the query
+- `NOT field:value` - Same as above
+- `field:value OR field:value` - Match either condition
+- `field:/regex/i` - Regex match
+- `(expr) AND (expr)` - Grouped boolean expressions
 
 ## Workflow Preferences
 
