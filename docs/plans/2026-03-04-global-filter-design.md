@@ -38,12 +38,12 @@ Add a "Global filter" section below existing settings:
 
 ### Filter bar indicator (`src/panel/components/LogView/FilterBar.tsx`)
 
-When the global filter is enabled and non-empty, show a chip to the left of the filter input:
+When the global filter expression is non-empty, show a chip to the left of the filter input:
 
 - Text: "Global filter"
 - Clicking toggles `globalFilterEnabled`
 - Muted style (gray background, small text)
-- Visual distinction when disabled (e.g., strikethrough or dimmed)
+- Visual distinction when disabled (e.g., strikethrough or dimmed); the chip remains visible when `globalFilterEnabled` is false so users can easily re-enable the global filter.
 
 ### CSS (`src/panel/panel.css`)
 
