@@ -74,6 +74,30 @@ const SettingsView = observer(() => (
         />
         Show registration messages in table
       </label>
+      <div className="settings-section">
+        <h4>Global Filter</h4>
+        <p className="settings-description">
+          Always applied across all panel instances. Uses the same filter syntax as the toolbar.
+        </p>
+        <label className="settings-item">
+          <input
+            type="checkbox"
+            checked={store.settings.globalFilterEnabled}
+            onChange={(e) => store.updateSettings({ globalFilterEnabled: e.target.checked })}
+          />
+          Enable global filter
+        </label>
+        <div className="settings-filter-row">
+          <input
+            type="text"
+            className="filter-input settings-filter-input"
+            placeholder="e.g., -data.source:react-devtools*"
+            value={store.settings.globalFilter}
+            disabled={!store.settings.globalFilterEnabled}
+            onChange={(e) => store.updateSettings({ globalFilter: e.target.value })}
+          />
+        </div>
+      </div>
     </div>
   </div>
 ));
