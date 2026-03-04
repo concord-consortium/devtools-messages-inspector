@@ -5,6 +5,7 @@ import { store } from '../../store';
 import { ALL_COLUMNS } from '../../types';
 import { getColumnLabel } from '../../field-info';
 import { Message } from '../../Message';
+import { buildCellFilter } from '../../buildCellFilter';
 import { DirectionIcon, UninvolvedIcon } from '../shared/DirectionIcon';
 
 // Column header with resize handle
@@ -137,26 +138,7 @@ if (typeof document !== 'undefined') {
       if (!cellMenuContext) return;
 
       const { msg, colId } = cellMenuContext;
-      let filterStr = '';
-
-      switch (colId) {
-        case 'messageType':
-          filterStr = `type:${msg.messageType || ''}`;
-          break;
-        case 'target.document.origin':
-          filterStr = `target:${store.getCellValue(msg, colId)}`;
-          break;
-        case 'source.document.origin':
-          filterStr = `source:${store.getCellValue(msg, colId)}`;
-          break;
-        case 'direction':
-        case 'sourceType':
-          filterStr = `sourceType:${msg.sourceType}`;
-          break;
-        default:
-          filterStr = store.getCellValue(msg, colId);
-      }
-
+      const filterStr = buildCellFilter(msg, colId, (m, c) => store.getCellValue(m, c));
       store.setFilter(filterStr);
     });
   }
