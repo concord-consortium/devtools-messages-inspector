@@ -37,11 +37,9 @@ function makeMessage(overrides: Partial<IMessage> = {}): Message {
 describe('Message.frames', () => {
   beforeEach(() => {
     frameStore.clear();
-    Message.currentTabId = TAB_ID;
   });
 
-  it('returns relative and absolute forms for current-tab frames', () => {
-    // Set up frames in the frameStore so sourceFrame/targetFrame resolve
+  it('returns absolute tab[T].frame[N] form for resolved frames', () => {
     const targetFrame = frameStore.getOrCreateFrame(TAB_ID, 0);
     const targetDoc = frameStore.getOrCreateDocumentById('doc-target');
     targetDoc.frame = targetFrame;
@@ -55,13 +53,13 @@ describe('Message.frames', () => {
     frameStore.documentsBySourceId.set('win-1', sourceDoc);
 
     const msg = makeMessage();
-    expect(msg.frames).toContain('frame[0]');
-    expect(msg.frames).toContain(`tab[${TAB_ID}].frame[0]`);
-    expect(msg.frames).toContain('frame[1]');
-    expect(msg.frames).toContain(`tab[${TAB_ID}].frame[1]`);
+    expect(msg.frames).toEqual([
+      `tab[${TAB_ID}].frame[1]`,
+      `tab[${TAB_ID}].frame[0]`,
+    ]);
   });
 
-  it('omits relative form for frames not in current tab', () => {
+  it('includes cross-tab frames', () => {
     const otherTabId = 99;
     const sourceFrame = frameStore.getOrCreateFrame(otherTabId, 0);
     const sourceDoc = frameStore.getOrCreateDocumentById('doc-source');
@@ -83,7 +81,6 @@ describe('Message.frames', () => {
     });
 
     expect(msg.frames).toContain(`tab[${otherTabId}].frame[0]`);
-    expect(msg.frames).not.toContain('frame[0]');
   });
 
   it('returns empty array when no frames resolve', () => {
@@ -99,7 +96,6 @@ describe('liqe filtering via store', () => {
     store.messages = [];
     store.filterText = '';
     store.settings = { showExtraMessageInfo: false, enableFrameRegistration: true, showRegistrationMessages: false };
-    Message.currentTabId = TAB_ID;
     frameStore.clear();
   });
 

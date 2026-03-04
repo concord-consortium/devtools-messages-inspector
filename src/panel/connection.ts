@@ -10,7 +10,6 @@ let port: chrome.runtime.Port | null = null;
 export function connect(): void {
   const tabId = chrome.devtools.inspectedWindow.tabId;
   store.setTabId(tabId);
-  Message.currentTabId = tabId;
 
   port = chrome.runtime.connect({ name: 'postmessage-panel' });
   port.postMessage({ type: 'init', tabId });

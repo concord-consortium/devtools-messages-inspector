@@ -9,8 +9,6 @@ import type { OwnerElement } from './models/OwnerElement';
 import { IMessage } from '../types';
 
 class Message implements IMessage {
-  static currentTabId = 0;
-
   // Store all IMessage properties directly
   id: string;
   timestamp: number;
@@ -126,20 +124,15 @@ class Message implements IMessage {
     return this.sourceDocument?.frame;
   }
 
-  // Computed: frame identifier strings for liqe filtering
+  // Computed: frame identifier strings for liqe filtering.
+  // Only the absolute tab[T].frame[N] form is stored; liqe's substring
+  // matching means frames:frame[N] still matches.
   get frames(): string[] {
     const result: string[] = [];
-    const currentTabId = Message.currentTabId;
     const sf = this.sourceFrame;
     const tf = this.targetFrame;
-    if (sf) {
-      if (sf.tabId === currentTabId) result.push(`frame[${sf.frameId}]`);
-      if (sf.tabId != null) result.push(`tab[${sf.tabId}].frame[${sf.frameId}]`);
-    }
-    if (tf) {
-      if (tf.tabId === currentTabId) result.push(`frame[${tf.frameId}]`);
-      if (tf.tabId != null) result.push(`tab[${tf.tabId}].frame[${tf.frameId}]`);
-    }
+    if (sf?.tabId != null) result.push(`tab[${sf.tabId}].frame[${sf.frameId}]`);
+    if (tf?.tabId != null) result.push(`tab[${tf.tabId}].frame[${tf.frameId}]`);
     return result;
   }
 
