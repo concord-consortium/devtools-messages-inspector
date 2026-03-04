@@ -17,6 +17,7 @@ export const FilterBar = observer(() => {
           className={`global-filter-chip ${!store.settings.globalFilterEnabled ? 'disabled' : ''}`}
           onClick={() => store.updateSettings({ globalFilterEnabled: !store.settings.globalFilterEnabled })}
           title={store.settings.globalFilterEnabled ? 'Click to disable global filter' : 'Click to enable global filter'}
+          aria-pressed={store.settings.globalFilterEnabled}
         >
           Global filter
         </button>
