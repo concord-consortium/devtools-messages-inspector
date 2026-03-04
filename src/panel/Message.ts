@@ -9,6 +9,8 @@ import type { OwnerElement } from './models/OwnerElement';
 import { IMessage } from '../types';
 
 class Message implements IMessage {
+  static currentTabId = 0;
+
   // Store all IMessage properties directly
   id: string;
   timestamp: number;
@@ -122,6 +124,23 @@ class Message implements IMessage {
   // Computed: source Frame
   get sourceFrame(): Frame | undefined {
     return this.sourceDocument?.frame;
+  }
+
+  // Computed: frame identifier strings for liqe filtering
+  get frames(): string[] {
+    const result: string[] = [];
+    const currentTabId = Message.currentTabId;
+    const sf = this.sourceFrame;
+    const tf = this.targetFrame;
+    if (sf) {
+      if (sf.tabId === currentTabId) result.push(`frame[${sf.frameId}]`);
+      if (sf.tabId != null) result.push(`tab[${sf.tabId}].frame[${sf.frameId}]`);
+    }
+    if (tf) {
+      if (tf.tabId === currentTabId) result.push(`frame[${tf.frameId}]`);
+      if (tf.tabId != null) result.push(`tab[${tf.tabId}].frame[${tf.frameId}]`);
+    }
+    return result;
   }
 
   // Derived from data — computed once and cached by MobX since data never changes
