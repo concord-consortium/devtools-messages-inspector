@@ -3,6 +3,7 @@
 import { observer } from 'mobx-react-lite';
 import { store } from '../../store';
 import { sendPreserveLog } from '../../connection';
+import { downloadMessagesAsJson } from '../../export';
 import { FrameFocusDropdown } from './FrameFocusDropdown';
 
 export const TopBar = observer(() => {
@@ -12,6 +13,10 @@ export const TopBar = observer(() => {
 
   const handleClearClick = () => {
     store.clearMessages();
+  };
+
+  const handleExportClick = () => {
+    downloadMessagesAsJson(store.messages);
   };
 
   const handlePreserveLogChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -47,6 +52,14 @@ export const TopBar = observer(() => {
       </label>
       <div className="separator"></div>
       <FrameFocusDropdown />
+      <div className="separator"></div>
+      <button
+        className="icon-btn"
+        title="Export messages"
+        onClick={handleExportClick}
+      >
+        <span className="export-icon"></span>
+      </button>
     </div>
   );
 });

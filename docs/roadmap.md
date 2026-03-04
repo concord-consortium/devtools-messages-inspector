@@ -1,5 +1,5 @@
 # Remaining for Version 1
-- export and import options (useful for debugging and AI help)
+- add global filter, useful for hiding react dev tools messages
 - add links between hierarchy and messages view: 
   - focus the current frame
   - filter messages by some property of a frame
@@ -35,6 +35,9 @@
 # Test Harness Separation
 - separate out the test harness into its own repository. If we have a pattern in place that validates each part of the harness with a real extension that we can run with playwright, then this should be a maintainable project that others could add new features to. And the automated tests will verify that it is behaving the same as the real world.
 - automatic verification of the test harness: create a new extension that can be run inside of playwright. Then have a test set of webpages, that playwright can drive to generate the same events and behavior as the test-harness. This verification can be run in GitHub actions to make sure new versions of Chrome behave the same way as what we are expecting.
+
+# Version 1.1
+- import button
 
 # Version 2
 - add timing view: a sequence diagram with one row per frame, x axis can be based on time, we'll need scaling.

@@ -1,4 +1,4 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect, Page, Download } from '@playwright/test';
 
 // Scope selectors to the log view to avoid conflicts with sources view
 const logView = '.log-view';
@@ -380,5 +380,63 @@ test.describe('focused frame', () => {
     const row = page.locator('#message-table tbody tr', { has: page.locator('td[data-column="messageType"]', { hasText: 'empty-partner' }) });
     await expect(row.locator('td[data-column="partnerFrame"]')).toHaveText('');
     await expect(row.locator('td[data-column="partnerType"]')).toHaveText('');
+  });
+});
+
+// Helper: read a Playwright Download as parsed JSON
+async function downloadToJson(download: Download): Promise<unknown> {
+  const stream = await download.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) {
+    chunks.push(Buffer.from(chunk));
+  }
+  return JSON.parse(Buffer.concat(chunks).toString('utf-8'));
+}
+
+test.describe('export', () => {
+  test('export button downloads JSON with all captured messages', async ({ page }) => {
+    await sendAndWait(page, 'window.harness.sendChildToParent({ type: "export-a", value: 1 })');
+    await sendAndWait(page, 'window.harness.sendParentToChild({ type: "export-b", value: 2 })');
+
+    // Click export and capture the download
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      page.locator('.icon-btn[title="Export messages"]').click(),
+    ]);
+
+    // Check filename format
+    expect(download.suggestedFilename()).toMatch(/^messages-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.json$/);
+
+    // Parse and verify content
+    const envelope = await downloadToJson(download) as {
+      version: number;
+      exportedAt: string;
+      messageCount: number;
+      messages: Array<{
+        id: string;
+        timestamp: number;
+        data: unknown;
+        source: { type: string; origin: string; sourceId: string | null };
+        target: { origin: string; frameId: number };
+      }>;
+    };
+
+    expect(envelope.version).toBe(1);
+    expect(envelope.exportedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(envelope.messageCount).toBe(2);
+    expect(envelope.messages).toHaveLength(2);
+
+    // Verify message content matches what was sent
+    const types = envelope.messages.map(m => (m.data as { type: string }).type);
+    expect(types).toEqual(['export-a', 'export-b']);
+
+    // Verify internal fields are present
+    for (const msg of envelope.messages) {
+      expect(msg.id).toBeTruthy();
+      expect(msg.timestamp).toBeGreaterThan(0);
+      expect(msg.source.type).toBeTruthy();
+      expect(msg.source.sourceId).toBeDefined();
+      expect(msg.target.origin).toBeTruthy();
+    }
   });
 });
