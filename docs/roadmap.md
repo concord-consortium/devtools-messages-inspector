@@ -28,7 +28,7 @@
 - update documentation on matching up iframes with frameIds, the issue linked in the doc is nuanced. It sounds like it will not be fixed for a while, but perhaps a new issue that provides the documentId would be something better.
 - improve UI to better match the rest of the dev tools styling
 - show a banner when the extension is reloaded/updated while the panel is open, telling the user to reopen DevTools
-
+- update frame id syntax so it is more liqe friendly, perhaps just tX.fY
 
 # Test Harness Separation
 - separate out the test harness into its own repository. If we have a pattern in place that validates each part of the harness with a real extension that we can run with playwright, then this should be a maintainable project that others could add new features to. And the automated tests will verify that it is behaving the same as the real world.
