@@ -47,7 +47,9 @@ class PanelStore {
   settings: Settings = {
     showExtraMessageInfo: false,
     enableFrameRegistration: true,
-    showRegistrationMessages: false
+    showRegistrationMessages: false,
+    globalFilter: '',
+    globalFilterEnabled: true,
   };
 
   constructor() {
@@ -70,12 +72,21 @@ class PanelStore {
 
   // Computed: filtered and sorted messages
   get filteredMessages(): Message[] {
-    let ast: LiqeQuery | null = null;
+    let toolbarAst: LiqeQuery | null = null;
     if (this.filterText) {
       try {
-        ast = parse(this.filterText);
+        toolbarAst = parse(this.filterText);
       } catch {
-        // Invalid query — show all messages
+        // Invalid query — ignore toolbar filter
+      }
+    }
+
+    let globalAst: LiqeQuery | null = null;
+    if (this.settings.globalFilterEnabled && this.settings.globalFilter) {
+      try {
+        globalAst = parse(this.settings.globalFilter);
+      } catch {
+        // Invalid query — ignore global filter
       }
     }
 
@@ -83,8 +94,9 @@ class PanelStore {
       if (msg.isRegistrationMessage && !this.settings.showRegistrationMessages) {
         return false;
       }
-      if (!ast) return true;
-      return liqeTest(ast, msg);
+      if (globalAst && !liqeTest(globalAst, msg)) return false;
+      if (toolbarAst && !liqeTest(toolbarAst, msg)) return false;
+      return true;
     });
 
     // Sort
