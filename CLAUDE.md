@@ -67,8 +67,8 @@ Uses [liqe](https://github.com/gajus/liqe) (Lucene-like query language). All que
 - `target.origin:value` - Filter by target origin
 - `sourceType:child` - Filter by source type (parent, child, self, opener, opened, top)
 - `messageType:value` - Shortcut for data.type
-- `frames:frame[N]` - Filter by frame ID (matches source or target frame)
-- `frames:tab[T].frame[N]` - Filter by tab and frame ID
+- `frames:"frame[N]"` - Filter by frame ID (matches source or target frame; quotes required because of brackets)
+- `frames:"tab[T].frame[N]"` - Filter by tab and frame ID
 - `-field:value` - Exclude messages matching the query
 - `NOT field:value` - Same as above
 - `field:value OR field:value` - Match either condition
