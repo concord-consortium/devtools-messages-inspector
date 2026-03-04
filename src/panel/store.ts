@@ -83,7 +83,8 @@ class PanelStore {
       if (msg.isRegistrationMessage && !this.settings.showRegistrationMessages) {
         return false;
       }
-      return this.matchesFilter(msg, ast);
+      if (!ast) return true;
+      return liqeTest(ast, msg);
     });
 
     // Sort
@@ -238,12 +239,6 @@ class PanelStore {
       case 'self': return 'self';
       default: return sourceType;
     }
-  }
-
-  // Check if message matches filter using liqe query engine
-  private matchesFilter(msg: Message, ast: LiqeQuery | null): boolean {
-    if (!ast) return true;
-    return liqeTest(ast, msg);
   }
 
   // Actions
