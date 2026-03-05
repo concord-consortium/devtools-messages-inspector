@@ -207,6 +207,24 @@ class PanelStore {
     this.focusedFrame = frame;
   }
 
+  // Build a frames filter string for a specific frame
+  buildFrameFilter(tabId: number, frameId: number): string {
+    return `frames:"tab[${tabId}].frame[${frameId}]"`;
+  }
+
+  // Navigate to log view filtered to a specific frame's messages
+  navigateToFrameMessages(tabId: number, frameId: number): void {
+    this.setFocusedFrame({ tabId, frameId });
+    this.setFilter(this.buildFrameFilter(tabId, frameId));
+    this.setCurrentView('log');
+  }
+
+  // Navigate to sources view and select a specific frame
+  viewFrameInSources(tabId: number, frameId: number): void {
+    this.selectFrame(`${tabId}:${frameId}`);
+    this.setCurrentView('sources');
+  }
+
   getFocusPosition(msg: Message): FocusPosition {
     if (this.focusedFrame == null) return 'none';
 

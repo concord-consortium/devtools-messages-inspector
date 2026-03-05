@@ -841,3 +841,50 @@ body {
 .context-table .has-info:hover {
   color: #1a73e8;
 }
+
+/* Frame action buttons */
+.frame-action-buttons {
+  display: inline-flex;
+  gap: 2px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.frame-action-btn {
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: #5f6368;
+}
+
+.frame-action-btn:hover {
+  background: #e0e0e0;
+  color: #202124;
+}
+
+/* Show messages button in Sources detail pane */
+.show-messages-btn {
+  padding: 2px 8px;
+  border: 1px solid #cacdd1;
+  border-radius: 2px;
+  background: #fff;
+  font-size: 11px;
+  cursor: pointer;
+  margin-left: auto;
+  margin-right: 4px;
+}
+
+.show-messages-btn:hover {
+  background: #e8eaed;
+}
+
+.show-messages-btn + .close-detail-btn {
+  margin-left: 0;
+}

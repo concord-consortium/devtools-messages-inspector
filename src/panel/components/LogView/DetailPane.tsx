@@ -8,6 +8,7 @@ import { FIELD_INFO } from '../../field-info';
 import { JsonTree } from '../shared/JsonTree';
 import { FieldLabel } from '../shared/FieldInfoPopup';
 import { FrameDetail } from '../shared/FrameDetail';
+import { FrameActionButtons } from '../shared/FrameActionButtons';
 
 // Data tab content
 const DataTab = observer(({ message }: { message: Message }) => {
@@ -80,6 +81,9 @@ const ContextTab = observer(({ message }: { message: Message }) => {
         <SeparatorRow />
         <tr><th colSpan={2} className="section-heading">
           Target{focusPosition === 'target' || focusPosition === 'both' ? ' (focused)' : ''}
+          {message.targetFrame && (
+            <FrameActionButtons tabId={message.targetFrame.tabId} frameId={message.targetFrame.frameId} />
+          )}
         </th></tr>
         <FrameDetail
           frame={message.targetFrame}
@@ -93,6 +97,9 @@ const ContextTab = observer(({ message }: { message: Message }) => {
         <SeparatorRow />
         <tr><th colSpan={2} className="section-heading">
           Source{focusPosition === 'source' || focusPosition === 'both' ? ' (focused)' : ''}
+          {message.sourceFrame && (
+            <FrameActionButtons tabId={message.sourceFrame.tabId} frameId={message.sourceFrame.frameId} />
+          )}
         </th></tr>
         <FrameDetail
           frame={message.sourceFrame}

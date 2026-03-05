@@ -440,3 +440,96 @@ test.describe('export', () => {
     }
   });
 });
+
+test.describe('cross-pane navigation', () => {
+  test('context pane shows frame action buttons on section headers', async ({ page }) => {
+    await sendAndWait(page, 'window.harness.sendChildToParent({ type: "nav-test" })');
+
+    // Click the row and switch to Context tab
+    await page.locator('#message-table tbody tr').first().click();
+    await page.locator('.tab-btn', { hasText: 'Context' }).click();
+
+    const view = page.locator(logView);
+    const headings = view.locator('.section-heading');
+
+    // Target heading (index 0) should contain frame action buttons
+    await expect(headings.nth(0).locator('.frame-action-buttons')).toHaveCount(1);
+    // Source heading (index 1) should contain frame action buttons
+    await expect(headings.nth(1).locator('.frame-action-buttons')).toHaveCount(1);
+  });
+
+  test('filter button sets filter to frames filter for that frame', async ({ page }) => {
+    await sendAndWait(page, 'window.harness.sendChildToParent({ type: "filter-nav" })');
+
+    // Click the row and switch to Context tab
+    await page.locator('#message-table tbody tr').first().click();
+    await page.locator('.tab-btn', { hasText: 'Context' }).click();
+
+    const view = page.locator(logView);
+    const targetHeading = view.locator('.section-heading').nth(0);
+
+    // Click the filter action button (first .frame-action-btn) on the Target heading
+    // For child-to-parent, target is frame[0] in tab 1
+    await targetHeading.locator('.frame-action-btn').nth(0).click();
+
+    const filterInput = page.locator('.filter-input');
+    await expect(filterInput).toHaveValue('frames:"tab[1].frame[0]"');
+  });
+
+  test('view in sources button switches to sources view with frame selected', async ({ page }) => {
+    await sendAndWait(page, 'window.harness.sendChildToParent({ type: "sources-nav" })');
+
+    // Click the row and switch to Context tab
+    await page.locator('#message-table tbody tr').first().click();
+    await page.locator('.tab-btn', { hasText: 'Context' }).click();
+
+    const view = page.locator(logView);
+    const sourceHeading = view.locator('.section-heading').nth(1);
+
+    // Click the "View in Sources" button (third .frame-action-btn) on Source heading
+    // For child-to-parent, source is frame[1] in tab 1
+    await sourceHeading.locator('.frame-action-btn').nth(2).click();
+    await page.evaluate('window.harness.flushPromises()');
+
+    // Sources view should now be active
+    await expect(page.locator('.sources-view')).toHaveClass(/active/);
+
+    // The correct frame should be selected in the frame table
+    const selectedRow = page.locator('#frame-table tbody tr.selected');
+    await expect(selectedRow).toHaveCount(1);
+    await expect(selectedRow.locator('td').first()).toHaveText('frame[1]');
+  });
+
+  test('show messages button in sources navigates to log with filter', async ({ page }) => {
+    // Send a message to populate frame hierarchy
+    await sendAndWait(page, 'window.harness.sendChildToParent({ type: "show-msg" })');
+
+    // Switch to Sources view
+    await page.locator('.sidebar-item', { hasText: 'Sources' }).click();
+    await page.evaluate('window.harness.flushPromises()');
+
+    // Wait for frame table to have rows
+    await expect(page.locator('#frame-table tbody tr').first()).toBeVisible();
+
+    // Click a frame row to select it (frame[0] is the first row)
+    await page.locator('#frame-table tbody tr').first().click();
+
+    // Verify the row is selected
+    await expect(page.locator('#frame-table tbody tr.selected')).toHaveCount(1);
+
+    // Click "Show messages" button
+    await page.locator('.show-messages-btn').click();
+    await page.evaluate('window.harness.flushPromises()');
+
+    // Should switch to Log view
+    await expect(page.locator('.log-view')).toHaveClass(/active/);
+
+    // Filter should be set for the selected frame
+    const filterInput = page.locator('.filter-input');
+    await expect(filterInput).toHaveValue('frames:"tab[1].frame[0]"');
+
+    // Focused frame should be set
+    const dropdown = page.locator('.frame-focus-selector select');
+    await expect(dropdown).toHaveValue('1:0');
+  });
+});
