@@ -97,6 +97,15 @@ const FrameDetailPane = observer(() => {
     <div className="detail-pane">
       <div className="detail-tabs">
         <span className="detail-title">Frame Details</span>
+        {typeof frameInfo.frameId === 'number' && frameInfo.tabId != null && (
+          <button
+            className="show-messages-btn"
+            title="Show messages involving this frame"
+            onClick={() => store.navigateToFrameMessages(frameInfo.tabId!, frameInfo.frameId as number)}
+          >
+            Show messages
+          </button>
+        )}
         <button className="close-detail-btn" title="Close" onClick={handleClose}>×</button>
       </div>
       <div className="tab-content">

@@ -868,3 +868,19 @@ body {
   background: #e0e0e0;
   color: #202124;
 }
+
+/* Show messages button in Sources detail pane */
+.show-messages-btn {
+  padding: 2px 8px;
+  border: 1px solid #cacdd1;
+  border-radius: 2px;
+  background: #fff;
+  font-size: 11px;
+  cursor: pointer;
+  margin-left: auto;
+  margin-right: 4px;
+}
+
+.show-messages-btn:hover {
+  background: #e8eaed;
+}
