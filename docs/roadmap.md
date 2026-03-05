@@ -1,5 +1,5 @@
 # Remaining for Version 1
-- the fames listed in the focused frame menu do not update, so some frames in the messages do not show in this menu. If I go to sources and back again then I see them.
+- the frames listed in the focused frame menu do not update, so some frames in the messages do not show in this menu. If I go to sources and back again then I see them.
 - add indentation to show hierarchy level in table
 - add lines showing hierarchy in table
 - see if we can add iframe elements to console when clicked on in hierarchy

@@ -884,3 +884,7 @@ body {
 .show-messages-btn:hover {
   background: #e8eaed;
 }
+
+.show-messages-btn + .close-detail-btn {
+  margin-left: 0;
+}
