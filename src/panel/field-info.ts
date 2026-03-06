@@ -72,6 +72,12 @@ export const FIELD_INFO: Record<string, FieldInfoEntry> = {
     technical: 'Obtained from the frame hierarchy via chrome.webNavigation.',
     filter: null
   },
+  'document.documentId': {
+    label: 'Document ID',
+    description: 'Chrome-assigned unique identifier for this document instance in the frame.',
+    technical: 'Assigned by Chrome via webNavigation API. Changes on each navigation.',
+    filter: null
+  },
   'document.url': {
     label: 'Document URL',
     description: 'The full URL of the document loaded in this frame.',

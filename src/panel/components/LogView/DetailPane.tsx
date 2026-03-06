@@ -70,12 +70,7 @@ const ContextTab = observer(({ message }: { message: Message }) => {
         <Field id="messageType">{message.messageType || '(none)'}</Field>
         <Field id="dataSize">{store.formatSize(message.dataSize)}</Field>
         {store.settings.showExtraMessageInfo && (
-          <>
-            <Field id="buffered">{message.buffered ? 'Yes' : 'No'}</Field>
-            {message.sourceSourceId && (
-              <Field id="sourceId">{message.sourceSourceId}</Field>
-            )}
-          </>
+          <Field id="buffered">{message.buffered ? 'Yes' : 'No'}</Field>
         )}
 
         <SeparatorRow />
@@ -89,6 +84,7 @@ const ContextTab = observer(({ message }: { message: Message }) => {
           frame={message.targetFrame}
           document={message.targetDocument}
           ownerElement={message.targetOwnerElement}
+          showAdvanced={store.settings.showExtraMessageInfo}
         />
         {message.target.frameInfoError && (
           <Field id="frameError">{message.target.frameInfoError}</Field>
@@ -106,6 +102,7 @@ const ContextTab = observer(({ message }: { message: Message }) => {
           document={message.sourceDocument}
           ownerElement={message.sourceOwnerElement}
           sourceType={message.sourceType}
+          showAdvanced={store.settings.showExtraMessageInfo}
         />
       </tbody>
     </table>
