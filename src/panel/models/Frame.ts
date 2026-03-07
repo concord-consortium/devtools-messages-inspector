@@ -7,12 +7,12 @@ import { OwnerElement } from './OwnerElement';
 export class Frame {
   readonly tabId: number;
   readonly frameId: number;
-  parentFrameId: number;
+  parentFrameId: number | undefined;
   currentDocument: FrameDocument | undefined;
   currentOwnerElement: OwnerElement | undefined;
   children: Frame[] = [];
 
-  constructor(tabId: number, frameId: number, parentFrameId: number = -1) {
+  constructor(tabId: number, frameId: number, parentFrameId: number | undefined = undefined) {
     this.tabId = tabId;
     this.frameId = frameId;
     this.parentFrameId = parentFrameId;
