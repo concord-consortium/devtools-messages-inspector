@@ -4,12 +4,11 @@ import { observer } from 'mobx-react-lite';
 import { useEffect, useState } from 'react';
 import { store } from '../../store';
 import { requestFrameHierarchy } from '../../connection';
-import { FrameInfo } from '../../types';
 import { FrameDetail } from '../shared/FrameDetail';
-import { frameStore } from '../../models';
+import type { Frame } from '../../models/Frame';
 
 // Frame row component
-const FrameRow = observer(({ frame, depth }: { frame: FrameInfo; depth: number }) => {
+const FrameRow = observer(({ frame, depth }: { frame: Frame; depth: number }) => {
   const key = store.frameKey(frame);
   const isSelected = key === store.selectedFrameKey;
 
@@ -18,6 +17,9 @@ const FrameRow = observer(({ frame, depth }: { frame: FrameInfo; depth: number }
   };
 
   const indentClass = `frame-indent-${Math.min(depth, 4)}`;
+  const url = frame.currentDocument?.url || '';
+  const origin = frame.currentDocument?.origin || '';
+  const title = frame.currentDocument?.title || '';
 
   return (
     <>
@@ -29,13 +31,13 @@ const FrameRow = observer(({ frame, depth }: { frame: FrameInfo; depth: number }
         <td className={indentClass} style={frame.isOpener ? { fontStyle: 'italic' } : undefined}>
           {frame.isOpener ? 'opener' : `frame[${frame.frameId}]`}
         </td>
-        <td>{frame.url}</td>
-        <td>{frame.origin}</td>
-        <td>{frame.title}</td>
-        <td>{frame.parentFrameId === -1 ? '-' : `frame[${frame.parentFrameId}]`}</td>
+        <td>{url}</td>
+        <td>{origin}</td>
+        <td>{title}</td>
+        <td>{frame.parentFrameId === undefined ? '?' : frame.parentFrameId === -1 ? '-' : `frame[${frame.parentFrameId}]`}</td>
       </tr>
       {frame.children?.map(child => (
-        <FrameRow key={String(child.frameId)} frame={child} depth={depth + 1} />
+        <FrameRow key={store.frameKey(child)} frame={child} depth={depth + 1} />
       ))}
     </>
   );
@@ -44,6 +46,7 @@ const FrameRow = observer(({ frame, depth }: { frame: FrameInfo; depth: number }
 // Frame table component
 const FrameTable = observer(() => {
   const frameTree = store.buildFrameTree();
+  const nonHierarchy = store.nonHierarchyFrames;
 
   return (
     <div className="table-pane">
@@ -59,7 +62,15 @@ const FrameTable = observer(() => {
         </thead>
         <tbody>
           {frameTree.map(frame => (
-            <FrameRow key={String(frame.frameId)} frame={frame} depth={0} />
+            <FrameRow key={store.frameKey(frame)} frame={frame} depth={0} />
+          ))}
+          {nonHierarchy.length > 0 && (
+            <tr className="section-separator">
+              <td colSpan={5}>Other known frames</td>
+            </tr>
+          )}
+          {nonHierarchy.map(frame => (
+            <FrameRow key={store.frameKey(frame)} frame={frame} depth={0} />
           ))}
         </tbody>
       </table>
@@ -69,13 +80,13 @@ const FrameTable = observer(() => {
 
 // Frame detail pane
 const FrameDetailPane = observer(() => {
-  const frameInfo = store.selectedFrame;
+  const frame = store.selectedFrame;
 
   const handleClose = () => {
     store.selectFrame(null);
   };
 
-  if (!frameInfo) {
+  if (!frame) {
     return (
       <div className="detail-pane hidden">
         <div className="detail-tabs">
@@ -89,23 +100,17 @@ const FrameDetailPane = observer(() => {
     );
   }
 
-  const frameModel = (typeof frameInfo.frameId === 'number' && frameInfo.tabId != null)
-    ? frameStore.getFrame(frameInfo.tabId, frameInfo.frameId)
-    : undefined;
-
   return (
     <div className="detail-pane">
       <div className="detail-tabs">
         <span className="detail-title">Frame Details</span>
-        {typeof frameInfo.frameId === 'number' && frameInfo.tabId != null && (
-          <button
-            className="show-messages-btn"
-            title="Show messages involving this frame"
-            onClick={() => store.navigateToFrameMessages(frameInfo.tabId!, frameInfo.frameId as number)}
-          >
-            Show messages
-          </button>
-        )}
+        <button
+          className="show-messages-btn"
+          title="Show messages involving this frame"
+          onClick={() => store.navigateToFrameMessages(frame.tabId, frame.frameId)}
+        >
+          Show messages
+        </button>
         <button className="close-detail-btn" title="Close" onClick={handleClose}>×</button>
       </div>
       <div className="tab-content">
@@ -113,18 +118,18 @@ const FrameDetailPane = observer(() => {
           <table className="context-table">
             <tbody>
               <FrameDetail
-                frame={frameModel}
-                sourceType={frameInfo.isOpener ? 'opener' : undefined}
+                frame={frame}
+                sourceType={frame.isOpener ? 'opener' : undefined}
               />
             </tbody>
           </table>
         </div>
         <div className="frame-iframes">
-          <h4>Child iframes ({frameInfo.iframes.length})</h4>
-          {frameInfo.iframes.length === 0 ? (
+          <h4>Child iframes ({frame.iframes.length})</h4>
+          {frame.iframes.length === 0 ? (
             <p className="placeholder">No iframes in this frame</p>
           ) : (
-            frameInfo.iframes.map((iframe, index) => (
+            frame.iframes.map((iframe, index) => (
               <div key={index} className="iframe-item">
                 <div><strong>src:</strong> {iframe.src || '(empty)'}</div>
                 <div><strong>id:</strong> {iframe.id || '(none)'}</div>

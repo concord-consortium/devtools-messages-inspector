@@ -64,7 +64,7 @@ export const FrameDetail = observer(({ frame, document: docOverride, ownerElemen
       {doc?.title && (
         <Field id="document.title">{doc.title}</Field>
       )}
-      {frame && frame.parentFrameId !== -1 && (
+      {frame && frame.parentFrameId !== undefined && frame.parentFrameId !== -1 && (
         <Field id="parentFrameId">{`frame[${frame.parentFrameId}]`}</Field>
       )}
       {owner && (
