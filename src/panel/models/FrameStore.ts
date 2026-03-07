@@ -1,10 +1,10 @@
 // FrameStore - Manages Frame and FrameDocument instances with reactive MobX maps
 
 import { makeAutoObservable, observable } from 'mobx';
-import { Frame } from './Frame';
+import { Frame, FrameLookup } from './Frame';
 import { FrameDocument } from './FrameDocument';
 
-export class FrameStore {
+export class FrameStore implements FrameLookup {
   // Primary indices
   frames = observable.map<string, Frame>();
   documents = observable.map<string, FrameDocument>();
@@ -35,11 +35,21 @@ export class FrameStore {
     return this.frames.get(Frame.key(tabId, frameId));
   }
 
+  getFramesByParent(tabId: number, parentFrameId: number): Frame[] {
+    const result: Frame[] = [];
+    for (const frame of this.frames.values()) {
+      if (frame.tabId === tabId && frame.parentFrameId === parentFrameId) {
+        result.push(frame);
+      }
+    }
+    return result;
+  }
+
   getOrCreateFrame(tabId: number, frameId: number, parentFrameId?: number): Frame {
     const key = Frame.key(tabId, frameId);
     let frame = this.frames.get(key);
     if (!frame) {
-      frame = new Frame(tabId, frameId, parentFrameId);
+      frame = new Frame(tabId, frameId, this, parentFrameId);
       this.frames.set(key, frame);
     }
     return frame;
@@ -128,19 +138,6 @@ export class FrameStore {
         });
       }
       frame.currentDocument = doc;
-    }
-
-    // Rebuild children for ALL frames with known parentFrameId
-    for (const frame of this.frames.values()) {
-      frame.children = [];
-    }
-    for (const frame of this.frames.values()) {
-      if (frame.parentFrameId !== undefined && frame.parentFrameId !== -1) {
-        const parent = this.getFrame(frame.tabId, frame.parentFrameId);
-        if (parent) {
-          parent.children.push(frame);
-        }
-      }
     }
   }
 

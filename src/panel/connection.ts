@@ -124,9 +124,6 @@ function inferParentFrameId(msg: IMessage): void {
     const sourceFrame = frameStore.getOrCreateFrame(sourceTabId, msg.source.frameId);
     if (targetFrame && targetFrame.parentFrameId === undefined) {
       targetFrame.parentFrameId = sourceFrame.frameId;
-      if (!sourceFrame.children.includes(targetFrame)) {
-        sourceFrame.children.push(targetFrame);
-      }
     }
   }
 
@@ -140,9 +137,6 @@ function inferParentFrameId(msg: IMessage): void {
     const targetFrame = frameStore.getFrame(msg.target.tabId, msg.target.frameId);
     if (sourceFrame && targetFrame && sourceFrame.parentFrameId === undefined) {
       sourceFrame.parentFrameId = targetFrame.frameId;
-      if (!targetFrame.children.includes(sourceFrame)) {
-        targetFrame.children.push(sourceFrame);
-      }
     }
   }
 }
@@ -190,9 +184,6 @@ function processRegistration(message: Message): void {
     const targetFrame = frameStore.getFrame(message.target.tabId, message.target.frameId);
     if (targetFrame) {
       frame.parentFrameId = targetFrame.frameId;
-      if (!targetFrame.children.includes(frame)) {
-        targetFrame.children.push(frame);
-      }
     }
   }
 }
