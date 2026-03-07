@@ -660,6 +660,52 @@ describe('Frame model integration', () => {
   });
 
   // ===================================================================
+  // parentFrameId inference from messages
+  // ===================================================================
+  describe('parentFrameId inference from messages', () => {
+    it('child message sets parentFrameId on source frame when registration resolves it', () => {
+      processIncomingMessage(childMsg(FRAME_B, FRAME_A));
+      processIncomingMessage(registrationMsg(FRAME_B, FRAME_A));
+
+      const frameB = frameStore.getFrame(TAB_ID, FRAME_B.frameId)!;
+      expect(frameB.parentFrameId).toBe(FRAME_A.frameId);
+
+      const frameA = frameStore.getFrame(TAB_ID, FRAME_A.frameId)!;
+      expect(frameA.children).toContain(frameB);
+    });
+
+    it('parent message sets parentFrameId on target frame', () => {
+      processIncomingMessage(parentMsg(FRAME_A, FRAME_B));
+
+      const frameB = frameStore.getFrame(TAB_ID, FRAME_B.frameId)!;
+      expect(frameB.parentFrameId).toBe(FRAME_A.frameId);
+
+      const frameA = frameStore.getFrame(TAB_ID, FRAME_A.frameId)!;
+      expect(frameA.children).toContain(frameB);
+    });
+
+    it('does not overwrite parentFrameId already set by hierarchy', () => {
+      store.setFrameHierarchy([
+        { frameId: 0, tabId: TAB_ID, url: FRAME_A.url, parentFrameId: -1, title: FRAME_A.title, origin: FRAME_A.origin, iframes: [] },
+        { frameId: 1, tabId: TAB_ID, url: FRAME_B.url, parentFrameId: 0, title: FRAME_B.title, origin: FRAME_B.origin, iframes: [] },
+      ]);
+
+      const frameB = frameStore.getFrame(TAB_ID, FRAME_B.frameId)!;
+      expect(frameB.parentFrameId).toBe(0);
+
+      processIncomingMessage(parentMsg(FRAME_A, FRAME_B));
+      expect(frameB.parentFrameId).toBe(0);
+    });
+
+    it('child message without registration does not set parentFrameId (source frame unknown)', () => {
+      processIncomingMessage(childMsg(FRAME_B, FRAME_A));
+
+      const frameA = frameStore.getFrame(TAB_ID, FRAME_A.frameId)!;
+      expect(frameA.parentFrameId).toBe(undefined);
+    });
+  });
+
+  // ===================================================================
   // buildFrameTree — opener frame should not be dropped when its
   // frameId collides with a regular frame's frameId
   // ===================================================================

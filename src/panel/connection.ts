@@ -2,7 +2,7 @@
 
 import { store } from './store';
 import { Message } from './Message';
-import { frameStore, FrameDocument, OwnerElement } from './models';
+import { frameStore, Frame, FrameDocument, OwnerElement } from './models';
 import { CapturedMessage, FrameInfo, IMessage } from './types';
 
 let port: chrome.runtime.Port | null = null;
@@ -109,7 +109,42 @@ export function processIncomingMessage(msg: IMessage): void {
     processRegistration(message);
   }
 
+  // --- Infer parent-child relationships ---
+  inferParentFrameId(msg);
+
   store.addMessage(message);
+}
+
+function inferParentFrameId(msg: IMessage): void {
+  if (msg.source.type === 'parent' && msg.source.frameId != null) {
+    // Parent → child: target frame is a child of source frame
+    // Parent is always in the same tab as child; source.tabId may not be set
+    const sourceTabId = msg.source.tabId ?? msg.target.tabId;
+    const targetFrame = frameStore.getFrame(msg.target.tabId, msg.target.frameId);
+    const sourceFrame = frameStore.getOrCreateFrame(sourceTabId, msg.source.frameId);
+    if (targetFrame && targetFrame.parentFrameId === undefined) {
+      targetFrame.parentFrameId = sourceFrame.frameId;
+      if (!sourceFrame.children.includes(targetFrame)) {
+        sourceFrame.children.push(targetFrame);
+      }
+    }
+  }
+
+  if (msg.source.type === 'child') {
+    // Child → parent: source frame is a child of target frame
+    let sourceFrame: Frame | undefined;
+    if (msg.source.tabId != null && msg.source.frameId != null) {
+      sourceFrame = frameStore.getFrame(msg.source.tabId, msg.source.frameId);
+    }
+
+    const targetFrame = frameStore.getFrame(msg.target.tabId, msg.target.frameId);
+    if (sourceFrame && targetFrame && sourceFrame.parentFrameId === undefined) {
+      sourceFrame.parentFrameId = targetFrame.frameId;
+      if (!targetFrame.children.includes(sourceFrame)) {
+        targetFrame.children.push(sourceFrame);
+      }
+    }
+  }
 }
 
 function processRegistration(message: Message): void {
@@ -146,6 +181,17 @@ function processRegistration(message: Message): void {
   if (newOwner) {
     if (!newOwner.equals(frame.currentOwnerElement)) {
       frame.currentOwnerElement = newOwner;
+    }
+  }
+
+  // After registration links sourceId → Frame, infer parent from the registration target
+  if (frame.parentFrameId === undefined) {
+    const targetFrame = frameStore.getFrame(message.target.tabId, message.target.frameId);
+    if (targetFrame) {
+      frame.parentFrameId = targetFrame.frameId;
+      if (!targetFrame.children.includes(frame)) {
+        targetFrame.children.push(frame);
+      }
     }
   }
 }
