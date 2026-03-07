@@ -222,6 +222,42 @@ function registrationMsg(
   });
 }
 
+/**
+ * Opened window sends registration postMessage to opener.
+ *
+ * Captured by the opener's content script. Background enriches source type to
+ * 'opened' and adds tabId/frameId of the opened window. The target is the
+ * opener frame (different tab). Data payload carries the opened frame's
+ * frameId, tabId, and documentId.
+ */
+function crossTabRegistrationMsg(): IMessage {
+  return {
+    id: `msg-${++msgId}`,
+    timestamp: Date.now() + msgId,
+    target: {
+      url: OPENER_FRAME.url,
+      origin: OPENER_FRAME.origin,
+      documentTitle: OPENER_FRAME.title,
+      frameId: OPENER_FRAME.frameId,
+      tabId: OPENER_TAB_ID,
+      documentId: OPENER_FRAME.documentId,
+    },
+    source: {
+      type: 'opened',
+      origin: FRAME_A.origin,
+      sourceId: 'win-opened',
+      iframe: null,
+      tabId: TAB_ID,
+    },
+    data: {
+      type: '__messages_inspector_register__',
+      frameId: FRAME_A.frameId,
+      tabId: TAB_ID,
+      documentId: FRAME_A.documentId,
+    },
+  };
+}
+
 // --- Tests ---
 
 describe('Frame model integration', () => {
@@ -702,6 +738,58 @@ describe('Frame model integration', () => {
 
       const frameA = frameStore.getFrame(TAB_ID, FRAME_A.frameId)!;
       expect(frameA.parentFrameId).toBe(undefined);
+    });
+  });
+
+  // ===================================================================
+  // Cross-tab registration — when an opened window sends a registration
+  // to its opener, processRegistration should NOT set parentFrameId
+  // because the frames are in different tabs.
+  // ===================================================================
+  describe('cross-tab registration does not set parentFrameId', () => {
+    it('opened frame stays in nonHierarchyFrames after cross-tab registration', () => {
+      // Simulate viewing the opener tab's panel
+      store.setTabId(OPENER_TAB_ID);
+
+      // Cross-tab registration arrives: opened window → opener
+      processIncomingMessage(crossTabRegistrationMsg());
+
+      // The opened frame should be created
+      const openedFrame = frameStore.getFrame(TAB_ID, FRAME_A.frameId);
+      expect(openedFrame).toBeDefined();
+
+      // parentFrameId must remain undefined — cross-tab frames don't have
+      // a parent in the same tab
+      expect(openedFrame!.parentFrameId).toBeUndefined();
+
+      // Frame should appear in nonHierarchyFrames (visible in Sources pane)
+      expect(frameStore.nonHierarchyFrames).toContain(openedFrame);
+    });
+
+    it('opened frame survives hierarchy refresh after cross-tab registration', () => {
+      store.setTabId(OPENER_TAB_ID);
+
+      // Cross-tab registration arrives
+      processIncomingMessage(crossTabRegistrationMsg());
+
+      const openedFrame = frameStore.getFrame(TAB_ID, FRAME_A.frameId);
+      expect(openedFrame).toBeDefined();
+
+      // Simulate switching away from Sources and back — triggers hierarchy refresh
+      // Hierarchy only includes opener tab's frames
+      store.setFrameHierarchy([
+        { frameId: 0, tabId: OPENER_TAB_ID, url: OPENER_FRAME.url, parentFrameId: -1,
+          title: OPENER_FRAME.title, origin: OPENER_FRAME.origin, iframes: [] },
+      ]);
+
+      // Opened frame must still be visible — either in hierarchy or nonHierarchy
+      const inHierarchy = frameStore.hierarchyRoots.some(
+        f => f.tabId === TAB_ID && f.frameId === FRAME_A.frameId
+      );
+      const inNonHierarchy = frameStore.nonHierarchyFrames.some(
+        f => f.tabId === TAB_ID && f.frameId === FRAME_A.frameId
+      );
+      expect(inHierarchy || inNonHierarchy).toBe(true);
     });
   });
 

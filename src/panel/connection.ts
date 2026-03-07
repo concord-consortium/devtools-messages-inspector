@@ -185,7 +185,8 @@ function processRegistration(message: Message): void {
   }
 
   // After registration links sourceId → Frame, infer parent from the registration target
-  if (frame.parentFrameId === undefined) {
+  // Only for same-tab registrations — cross-tab frames (opener/opened) don't share a hierarchy
+  if (frame.parentFrameId === undefined && frame.tabId === message.target.tabId) {
     const targetFrame = frameStore.getFrame(message.target.tabId, message.target.frameId);
     if (targetFrame) {
       frame.parentFrameId = targetFrame.frameId;
