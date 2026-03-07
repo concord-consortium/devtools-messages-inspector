@@ -11,6 +11,8 @@ export class Frame {
   currentDocument: FrameDocument | undefined;
   currentOwnerElement: OwnerElement | undefined;
   children: Frame[] = [];
+  iframes: Array<{src: string; id: string; domPath: string; sourceId?: string}> = [];
+  isOpener = false;
 
   constructor(tabId: number, frameId: number, parentFrameId: number | undefined = undefined) {
     this.tabId = tabId;
