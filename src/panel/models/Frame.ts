@@ -16,6 +16,8 @@ export class Frame {
     this.tabId = tabId;
     this.frameId = frameId;
     this.parentFrameId = parentFrameId;
+    this.currentDocument = undefined;
+    this.currentOwnerElement = undefined;
 
     makeAutoObservable(this, {
       tabId: false,

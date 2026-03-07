@@ -10,6 +10,7 @@
 //       └── C (child of B, frameId=2) — https://child-c.example.com
 
 import { describe, it, expect, beforeEach } from 'vitest';
+import { autorun } from 'mobx';
 import { store } from './store';
 import { processIncomingMessage } from './connection';
 import { frameStore } from './models';
@@ -334,6 +335,32 @@ describe('Frame model integration', () => {
       expect(parentDoc!.frame!.frameId).toBe(FRAME_A.frameId);
     });
 
+    it('late registration triggers MobX reaction for sourceFrame', () => {
+      // Child message arrives first
+      processIncomingMessage(childMsg(FRAME_B, FRAME_A));
+      const msg = store.messages[0];
+
+      // Track sourceFrame changes via autorun (simulates observer component)
+      const sourceFrames: (typeof msg.sourceFrame)[] = [];
+      const dispose = autorun(() => {
+        sourceFrames.push(msg.sourceFrame);
+      });
+
+      // autorun fires immediately with current value
+      expect(sourceFrames).toHaveLength(1);
+      expect(sourceFrames[0]).toBeUndefined();
+
+      // Registration arrives — should trigger the autorun again
+      processIncomingMessage(registrationMsg(FRAME_B, FRAME_A));
+
+      expect(sourceFrames).toHaveLength(2);
+      expect(sourceFrames[1]).toBeDefined();
+      expect(sourceFrames[1]!.frameId).toBe(FRAME_B.frameId);
+      expect(sourceFrames[1]!.tabId).toBe(TAB_ID);
+
+      dispose();
+    });
+
     it('registration then child message: source.frameId resolves immediately', () => {
       // Registration arrives first
       processIncomingMessage(registrationMsg(FRAME_B, FRAME_A));
@@ -418,6 +445,64 @@ describe('Frame model integration', () => {
         expect(frameA!.currentDocument).toBe(docA);
         expect(frameA!.currentDocument!.origin).toBe(FRAME_A.origin);
       });
+    });
+
+    it('late registration triggers MobX reaction for Frame.currentDocument', () => {
+      // Pre-create frame B (e.g., from hierarchy data) — no document yet
+      const frameB = frameStore.getOrCreateFrame(TAB_ID, FRAME_B.frameId);
+
+      // Track currentDocument changes via autorun (simulates observer component)
+      const docs: (typeof frameB.currentDocument)[] = [];
+      const dispose = autorun(() => {
+        docs.push(frameB.currentDocument);
+      });
+
+      // autorun fires immediately with current value
+      expect(docs).toHaveLength(1);
+      expect(docs[0]).toBeUndefined();
+
+      // Registration arrives — processRegistration sets frame.currentDocument
+      processIncomingMessage(registrationMsg(FRAME_B, FRAME_A));
+
+      expect(docs).toHaveLength(2);
+      expect(docs[1]).toBeDefined();
+      expect(docs[1]!.documentId).toBe(FRAME_B.documentId);
+
+      dispose();
+    });
+
+    it('updated iframe info triggers MobX reaction for Frame.currentOwnerElement', () => {
+      // Registration creates frame B with an owner element
+      processIncomingMessage(registrationMsg(FRAME_B, FRAME_A));
+      const frameB = frameStore.getFrame(TAB_ID, FRAME_B.frameId)!;
+
+      // Track currentOwnerElement changes via autorun (simulates observer component)
+      const owners: (typeof frameB.currentOwnerElement)[] = [];
+      const dispose = autorun(() => {
+        owners.push(frameB.currentOwnerElement);
+      });
+
+      // autorun fires immediately with owner element from registration
+      expect(owners).toHaveLength(1);
+      expect(owners[0]).toBeDefined();
+      expect(owners[0]!.domPath).toBe(FRAME_B.iframe.domPath);
+
+      // Child message from B with different iframe info — triggers update
+      const FRAME_B_UPDATED_IFRAME = {
+        ...FRAME_B,
+        iframe: {
+          domPath: 'body > div > iframe:nth-of-type(2)',
+          src: 'https://child-b.example.com/iframe-v2',
+          id: 'iframe-b-updated',
+        },
+      };
+      processIncomingMessage(childMsg(FRAME_B_UPDATED_IFRAME, FRAME_A));
+
+      expect(owners).toHaveLength(2);
+      expect(owners[1]).toBeDefined();
+      expect(owners[1]!.domPath).toBe('body > div > iframe:nth-of-type(2)');
+
+      dispose();
     });
 
     it('registration sets owner element on Frame', () => {

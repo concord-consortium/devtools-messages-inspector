@@ -533,3 +533,57 @@ test.describe('cross-pane navigation', () => {
     await expect(dropdown).toHaveValue('1:0');
   });
 });
+
+// Helper: check if a field with the given label exists in the source section of the context table
+function sourceSectionHasField(label: string): boolean {
+  const rows = document.querySelectorAll('.log-view .context-table tr');
+  let inSourceSection = false;
+  for (const row of rows) {
+    const th = row.querySelector('th');
+    if (th?.classList.contains('section-heading') && th.textContent?.includes('Source')) {
+      inSourceSection = true;
+      continue;
+    }
+    if (inSourceSection && th && th.textContent?.trim() === label) {
+      return true;
+    }
+  }
+  return false;
+}
+
+test.describe('late registration reactivity', () => {
+  test('source frame info visible in context pane after registration', async ({ page }) => {
+    await sendAndWait(page, 'window.harness.sendChildToParent({ type: "early-msg" })');
+
+    // Wait for registration to complete (500ms delay + routing)
+    await page.evaluate('new Promise(r => setTimeout(r, 800))');
+    await page.evaluate('window.harness.flushPromises()');
+
+    // Open detail pane and switch to Context tab
+    await page.locator('#message-table tbody tr').first().click();
+    await page.locator('.tab-btn', { hasText: 'Context' }).click();
+
+    // Source section should show Frame info since registration linked sourceId → frame
+    expect(await page.evaluate(sourceSectionHasField, 'Frame')).toBe(true);
+  });
+
+  test('source frame reactively appears when source.frameId column is visible', async ({ page }) => {
+    // Reproduce the user's exact scenario: source.frameId column visible causes
+    // msg.sourceFrame to be evaluated during table render (caching undefined).
+    // After registration links the frame, the context pane should reactively update.
+    await page.evaluate('window.harness.store.setColumnVisible("source.frameId", true)');
+
+    // Send a child→parent message — arrives before the 500ms registration delay
+    await sendAndWait(page, 'window.harness.sendChildToParent({ type: "early-msg" })');
+
+    // Open detail pane and switch to Context tab BEFORE registration
+    await page.locator('#message-table tbody tr').first().click();
+    await page.locator('.tab-btn', { hasText: 'Context' }).click();
+
+    // Source section should NOT yet have a "Frame" row
+    expect(await page.evaluate(sourceSectionHasField, 'Frame')).toBe(false);
+
+    // Wait for registration to arrive (500ms delay + routing) — should reactively update
+    await page.waitForFunction(sourceSectionHasField, 'Frame', { timeout: 3000 });
+  });
+});

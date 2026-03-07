@@ -2,8 +2,13 @@
 
 import { createRoot } from 'react-dom/client';
 import { store } from './store';
+import { frameStore } from './models';
 import { connect } from './connection';
 import { App } from './components/App';
+
+// Expose for debugging in DevTools console
+(window as any).frameStore = frameStore;
+(window as any).store = store;
 
 console.debug('[Frames] panel loaded');
 

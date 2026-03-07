@@ -23,6 +23,7 @@ export class FrameDocument {
     this.origin = init.origin;
     this.title = init.title;
     this.sourceId = init.sourceId;
+    this.frame = undefined;
 
     makeAutoObservable(this);
   }

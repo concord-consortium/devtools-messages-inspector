@@ -6,6 +6,7 @@ import { ChromeExtensionEnv, flushPromises } from './chrome-extension-env';
 import { createPortPair } from './chrome-api';
 import { initBackgroundScript } from '../background-core';
 import { initContentScript } from '../content-core';
+import { autorun } from 'mobx';
 
 const TAB_ID = 1;
 
@@ -67,6 +68,7 @@ const childWin = childFrame.window!;
 
 async function init() {
   const { store } = await import('../panel/store');
+  const { frameStore } = await import('../panel/models');
   const { connect, requestFrameHierarchy } = await import('../panel/connection');
   const { App } = await import('../panel/components/App');
   const { createRoot } = await import('react-dom/client');
@@ -113,6 +115,12 @@ async function init() {
 
     // Request frame hierarchy refresh from background
     requestFrameHierarchy,
+
+    // MobX utilities for testing reactivity
+    autorun,
+
+    // Frame store for diagnostics
+    frameStore,
   };
 
   console.log(

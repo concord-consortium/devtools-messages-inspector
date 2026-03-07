@@ -54,7 +54,8 @@ export function createPortPair(
 
   const port1: MockPort = {
     name,
-    postMessage(msg: any) { port2OnMessage.fire(msg); },
+    // Async delivery matches real chrome.runtime.Port behavior
+    postMessage(msg: any) { queueMicrotask(() => port2OnMessage.fire(msg)); },
     onMessage: port1OnMessage,
     onDisconnect: port1OnDisconnect,
     disconnect() { port2OnDisconnect.fire(); },
@@ -63,7 +64,7 @@ export function createPortPair(
 
   const port2: MockPort = {
     name,
-    postMessage(msg: any) { port1OnMessage.fire(msg); },
+    postMessage(msg: any) { queueMicrotask(() => port1OnMessage.fire(msg)); },
     onMessage: port2OnMessage,
     onDisconnect: port2OnDisconnect,
     disconnect() { port1OnDisconnect.fire(); },

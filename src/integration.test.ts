@@ -46,6 +46,7 @@ describe('content → background → panel integration', () => {
       'https://child.example.com',
       childWin
     );
+    await flushPromises();
 
     const msgPayloads = messages.filter(m => m.type === 'message');
     expect(msgPayloads).toHaveLength(1);
@@ -97,6 +98,7 @@ describe('content → background → panel integration', () => {
 
     // Child→Parent message
     parentWin.dispatchMessage({ type: 'msg-1' }, 'https://child.example.com', childWin);
+    await flushPromises();
     // Parent→Child message
     childWin.dispatchMessage({ type: 'msg-2' }, 'https://parent.example.com', parentWin);
     await flushPromises();
@@ -116,6 +118,7 @@ describe('content → background → panel integration', () => {
 
     parentWin.dispatchMessage({ type: 'first' }, 'https://child.example.com', childWin);
     parentWin.dispatchMessage({ type: 'second' }, 'https://child.example.com', childWin);
+    await flushPromises();
 
     const payloads = messages.filter(m => m.type === 'message').map(m => m.payload);
     expect(payloads).toHaveLength(2);
@@ -131,6 +134,7 @@ describe('content → background → panel integration', () => {
     await flushPromises();
 
     topFrame.navigate('https://parent.example.com/new');
+    await flushPromises();
 
     const clearMsgs = messages.filter(m => m.type === 'clear');
     expect(clearMsgs).toHaveLength(1);
@@ -142,6 +146,7 @@ describe('content → background → panel integration', () => {
     await flushPromises();
 
     childFrame.navigate('https://child.example.com/new');
+    await flushPromises();
 
     const clearMsgs = messages.filter(m => m.type === 'clear');
     expect(clearMsgs).toHaveLength(0);
@@ -153,6 +158,7 @@ describe('content → background → panel integration', () => {
     await flushPromises();
 
     parentWin.dispatchMessage({ type: 'test' }, 'https://child.example.com', childWin);
+    await flushPromises();
 
     const payload = messages.filter(m => m.type === 'message')[0].payload;
     expect(payload.target.tabId).toBe(TAB_ID);
@@ -165,6 +171,7 @@ describe('content → background → panel integration', () => {
 
     // child→parent (same tab)
     parentWin.dispatchMessage({ type: 'test' }, 'https://child.example.com', childWin);
+    await flushPromises();
 
     const payload = messages.filter(m => m.type === 'message')[0].payload;
     expect(payload.source.tabId).toBe(TAB_ID);
@@ -196,6 +203,7 @@ describe('content → background → panel integration', () => {
       'https://popup.example.com',
       popupWin
     );
+    await flushPromises();
 
     const msgPayloads = messages.filter(m =>
       m.type === 'message' && m.payload.data?.type !== '__messages_inspector_register__'
@@ -287,6 +295,7 @@ describe('content → background → panel integration', () => {
       'https://popup.example.com',
       popupWin
     );
+    await flushPromises();
 
     // Should appear in popup's panel too (cross-tab routing)
     const popupMsgs = popupMessages.filter(m => m.type === 'message' && m.payload.data?.type === 'hello-from-popup');
