@@ -51,6 +51,7 @@
     <h3>Dynamic Iframe Testing</h3>
     <button onclick="addDynamicIframe()">Add Dynamic Iframe</button>
     <button onclick="sendToDynamicIframe()">Send to Dynamic Iframe</button>
+    <button onclick="removeDynamicIframe()">Remove Last Dynamic Iframe</button>
     <button onclick="addDelayedIframe()">Add Delayed Iframe (2s)</button>
     <span id="dynamic-iframe-status"></span>
   </div>
@@ -199,6 +200,27 @@
         timestamp: performance.now()
       }, '*');
       status.textContent = 'Sent message to dynamic iframe';
+    }
+
+    function removeDynamicIframe() {
+      const container = document.getElementById('dynamic-iframe-container');
+      const status = document.getElementById('dynamic-iframe-status');
+      if (!container.lastElementChild) {
+        status.textContent = 'No dynamic iframes to remove';
+        return;
+      }
+      // Remove iframe element
+      container.removeChild(container.lastElementChild);
+      // Remove label
+      if (container.lastElementChild && container.lastElementChild.tagName === 'H4') {
+        container.removeChild(container.lastElementChild);
+      }
+      dynamicIframeCount--;
+      // Update dynamicIframe reference to previous one (or null)
+      dynamicIframe = container.querySelector('iframe:last-of-type');
+      status.textContent = dynamicIframe
+        ? 'Removed iframe, now pointing at #' + dynamicIframe.id
+        : 'All dynamic iframes removed';
     }
 
     function addDelayedIframe() {
