@@ -13,7 +13,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { autorun } from 'mobx';
 import { store } from './store';
 import { processIncomingMessage } from './connection';
-import { frameStore } from './models';
+import { frameStore, Frame } from './models';
 import type { IMessage } from '../types';
 
 const TAB_ID = 42;
@@ -220,6 +220,42 @@ function registrationMsg(
     tabId: TAB_ID,
     documentId: source.documentId,
   });
+}
+
+/**
+ * Opened window sends registration postMessage to opener.
+ *
+ * Captured by the opener's content script. Background enriches source type to
+ * 'opened' and adds tabId/frameId of the opened window. The target is the
+ * opener frame (different tab). Data payload carries the opened frame's
+ * frameId, tabId, and documentId.
+ */
+function crossTabRegistrationMsg(): IMessage {
+  return {
+    id: `msg-${++msgId}`,
+    timestamp: Date.now() + msgId,
+    target: {
+      url: OPENER_FRAME.url,
+      origin: OPENER_FRAME.origin,
+      documentTitle: OPENER_FRAME.title,
+      frameId: OPENER_FRAME.frameId,
+      tabId: OPENER_TAB_ID,
+      documentId: OPENER_FRAME.documentId,
+    },
+    source: {
+      type: 'opened',
+      origin: FRAME_A.origin,
+      sourceId: 'win-opened',
+      iframe: null,
+      tabId: TAB_ID,
+    },
+    data: {
+      type: '__messages_inspector_register__',
+      frameId: FRAME_A.frameId,
+      tabId: TAB_ID,
+      documentId: FRAME_A.documentId,
+    },
+  };
 }
 
 // --- Tests ---
@@ -582,14 +618,198 @@ describe('Frame model integration', () => {
   });
 
   // ===================================================================
+  // FrameStore hierarchy computeds
+  // ===================================================================
+  describe('FrameStore hierarchy computeds', () => {
+    it('hierarchyRoots returns frames with parentFrameId === -1', () => {
+      store.setFrameHierarchy([
+        { frameId: 0, tabId: TAB_ID, url: FRAME_A.url, parentFrameId: -1, title: FRAME_A.title, origin: FRAME_A.origin, iframes: [] },
+        { frameId: 1, tabId: TAB_ID, url: FRAME_B.url, parentFrameId: 0, title: FRAME_B.title, origin: FRAME_B.origin, iframes: [] },
+      ]);
+
+      const roots = frameStore.hierarchyRoots;
+      expect(roots).toHaveLength(1);
+      expect(roots[0].frameId).toBe(0);
+      expect(roots[0].children).toHaveLength(1);
+      expect(roots[0].children[0].frameId).toBe(1);
+    });
+
+    it('frame created by message with unknown parent appears in nonHierarchyFrames', () => {
+      frameStore.getOrCreateFrame(TAB_ID, 5);
+
+      expect(frameStore.nonHierarchyFrames).toHaveLength(1);
+      expect(frameStore.nonHierarchyFrames[0].frameId).toBe(5);
+      expect(frameStore.hierarchyRoots).toHaveLength(0);
+    });
+
+    it('orphaned frame whose parent is missing appears in hierarchyRoots', () => {
+      // Frame 3 claims parentFrameId=99, but frame 99 doesn't exist
+      const frame = frameStore.getOrCreateFrame(TAB_ID, 3, 99);
+      expect(frame.parentFrameId).toBe(99);
+
+      // Should appear as a root since its parent is missing
+      expect(frameStore.hierarchyRoots).toHaveLength(1);
+      expect(frameStore.hierarchyRoots[0].frameId).toBe(3);
+      expect(frameStore.nonHierarchyFrames).toHaveLength(0);
+    });
+
+    it('frame moves from nonHierarchyFrames to hierarchy after hierarchy refresh', () => {
+      frameStore.getOrCreateFrame(TAB_ID, 1);
+      expect(frameStore.nonHierarchyFrames).toHaveLength(1);
+
+      store.setFrameHierarchy([
+        { frameId: 0, tabId: TAB_ID, url: FRAME_A.url, parentFrameId: -1, title: FRAME_A.title, origin: FRAME_A.origin, iframes: [] },
+        { frameId: 1, tabId: TAB_ID, url: FRAME_B.url, parentFrameId: 0, title: FRAME_B.title, origin: FRAME_B.origin, iframes: [] },
+      ]);
+
+      expect(frameStore.nonHierarchyFrames).toHaveLength(0);
+      expect(frameStore.hierarchyRoots).toHaveLength(1);
+      expect(frameStore.hierarchyRoots[0].children).toHaveLength(1);
+    });
+
+    it('processHierarchy populates iframes and isOpener on Frame', () => {
+      const iframes = [{ src: 'https://child.example.com', id: 'iframe1', domPath: 'body > iframe' }];
+      store.setFrameHierarchy([
+        { frameId: 0, tabId: TAB_ID, url: FRAME_A.url, parentFrameId: -1, title: FRAME_A.title, origin: FRAME_A.origin, iframes },
+        { frameId: 0, tabId: OPENER_TAB_ID, url: OPENER_FRAME.url, parentFrameId: -1, title: OPENER_FRAME.title, origin: OPENER_FRAME.origin, iframes: [], isOpener: true },
+      ]);
+
+      const frameA = frameStore.getFrame(TAB_ID, 0)!;
+      expect(frameA.iframes).toEqual(iframes);
+      expect(frameA.isOpener).toBe(false);
+
+      const openerFrame = frameStore.getFrame(OPENER_TAB_ID, 0)!;
+      expect(openerFrame.isOpener).toBe(true);
+    });
+
+    it('processHierarchy rebuilds children for all frames including message-discovered ones', () => {
+      const frame1 = frameStore.getOrCreateFrame(TAB_ID, 1);
+      expect(frame1.parentFrameId).toBeUndefined();
+
+      store.setFrameHierarchy([
+        { frameId: 0, tabId: TAB_ID, url: FRAME_A.url, parentFrameId: -1, title: FRAME_A.title, origin: FRAME_A.origin, iframes: [] },
+        { frameId: 1, tabId: TAB_ID, url: FRAME_B.url, parentFrameId: 0, title: FRAME_B.title, origin: FRAME_B.origin, iframes: [] },
+      ]);
+
+      const frame0 = frameStore.getFrame(TAB_ID, 0)!;
+      expect(frame0.children).toContain(frame1);
+      expect(frame1.parentFrameId).toBe(0);
+    });
+
+    it('currentHierarchyFrameKeys tracks frames from latest hierarchy response', () => {
+      store.setFrameHierarchy([
+        { frameId: 0, tabId: TAB_ID, url: FRAME_A.url, parentFrameId: -1, title: FRAME_A.title, origin: FRAME_A.origin, iframes: [] },
+      ]);
+
+      expect(frameStore.currentHierarchyFrameKeys.has(Frame.key(TAB_ID, 0))).toBe(true);
+      expect(frameStore.currentHierarchyFrameKeys.size).toBe(1);
+    });
+  });
+
+  // ===================================================================
+  // parentFrameId inference from messages
+  // ===================================================================
+  describe('parentFrameId inference from messages', () => {
+    it('child message sets parentFrameId on source frame when registration resolves it', () => {
+      processIncomingMessage(childMsg(FRAME_B, FRAME_A));
+      processIncomingMessage(registrationMsg(FRAME_B, FRAME_A));
+
+      const frameB = frameStore.getFrame(TAB_ID, FRAME_B.frameId)!;
+      expect(frameB.parentFrameId).toBe(FRAME_A.frameId);
+
+      const frameA = frameStore.getFrame(TAB_ID, FRAME_A.frameId)!;
+      expect(frameA.children).toContain(frameB);
+    });
+
+    it('parent message sets parentFrameId on target frame', () => {
+      processIncomingMessage(parentMsg(FRAME_A, FRAME_B));
+
+      const frameB = frameStore.getFrame(TAB_ID, FRAME_B.frameId)!;
+      expect(frameB.parentFrameId).toBe(FRAME_A.frameId);
+
+      const frameA = frameStore.getFrame(TAB_ID, FRAME_A.frameId)!;
+      expect(frameA.children).toContain(frameB);
+    });
+
+    it('does not overwrite parentFrameId already set by hierarchy', () => {
+      store.setFrameHierarchy([
+        { frameId: 0, tabId: TAB_ID, url: FRAME_A.url, parentFrameId: -1, title: FRAME_A.title, origin: FRAME_A.origin, iframes: [] },
+        { frameId: 1, tabId: TAB_ID, url: FRAME_B.url, parentFrameId: 0, title: FRAME_B.title, origin: FRAME_B.origin, iframes: [] },
+      ]);
+
+      const frameB = frameStore.getFrame(TAB_ID, FRAME_B.frameId)!;
+      expect(frameB.parentFrameId).toBe(0);
+
+      processIncomingMessage(parentMsg(FRAME_A, FRAME_B));
+      expect(frameB.parentFrameId).toBe(0);
+    });
+
+    it('child message without registration does not set parentFrameId (source frame unknown)', () => {
+      processIncomingMessage(childMsg(FRAME_B, FRAME_A));
+
+      const frameA = frameStore.getFrame(TAB_ID, FRAME_A.frameId)!;
+      expect(frameA.parentFrameId).toBe(undefined);
+    });
+  });
+
+  // ===================================================================
+  // Cross-tab registration — when an opened window sends a registration
+  // to its opener, processRegistration should NOT set parentFrameId
+  // because the frames are in different tabs.
+  // ===================================================================
+  describe('cross-tab registration does not set parentFrameId', () => {
+    it('opened frame stays in nonHierarchyFrames after cross-tab registration', () => {
+      // Simulate viewing the opener tab's panel
+      store.setTabId(OPENER_TAB_ID);
+
+      // Cross-tab registration arrives: opened window → opener
+      processIncomingMessage(crossTabRegistrationMsg());
+
+      // The opened frame should be created
+      const openedFrame = frameStore.getFrame(TAB_ID, FRAME_A.frameId);
+      expect(openedFrame).toBeDefined();
+
+      // parentFrameId must remain undefined — cross-tab frames don't have
+      // a parent in the same tab
+      expect(openedFrame!.parentFrameId).toBeUndefined();
+
+      // Frame should appear in nonHierarchyFrames (visible in Sources pane)
+      expect(frameStore.nonHierarchyFrames).toContain(openedFrame);
+    });
+
+    it('opened frame survives hierarchy refresh after cross-tab registration', () => {
+      store.setTabId(OPENER_TAB_ID);
+
+      // Cross-tab registration arrives
+      processIncomingMessage(crossTabRegistrationMsg());
+
+      const openedFrame = frameStore.getFrame(TAB_ID, FRAME_A.frameId);
+      expect(openedFrame).toBeDefined();
+
+      // Simulate switching away from Sources and back — triggers hierarchy refresh
+      // Hierarchy only includes opener tab's frames
+      store.setFrameHierarchy([
+        { frameId: 0, tabId: OPENER_TAB_ID, url: OPENER_FRAME.url, parentFrameId: -1,
+          title: OPENER_FRAME.title, origin: OPENER_FRAME.origin, iframes: [] },
+      ]);
+
+      // Opened frame must still be visible — either in hierarchy or nonHierarchy
+      const inHierarchy = frameStore.hierarchyRoots.some(
+        f => f.tabId === TAB_ID && f.frameId === FRAME_A.frameId
+      );
+      const inNonHierarchy = frameStore.nonHierarchyFrames.some(
+        f => f.tabId === TAB_ID && f.frameId === FRAME_A.frameId
+      );
+      expect(inHierarchy || inNonHierarchy).toBe(true);
+    });
+  });
+
+  // ===================================================================
   // buildFrameTree — opener frame should not be dropped when its
   // frameId collides with a regular frame's frameId
   // ===================================================================
   describe('buildFrameTree with opener', () => {
     it('includes opener frame even when its frameId matches a regular frame', () => {
-      // This simulates the hierarchy data returned by getFrameHierarchy for a popup tab:
-      // - The opener (from a different tab) has frameId=0
-      // - The popup's own top frame also has frameId=0
       store.setFrameHierarchy([
         { frameId: 0, tabId: OPENER_TAB_ID, url: OPENER_FRAME.url, parentFrameId: -1, title: OPENER_FRAME.title, origin: OPENER_FRAME.origin, iframes: [], isOpener: true },
         { frameId: 0, tabId: TAB_ID, url: FRAME_A.url, parentFrameId: -1, title: FRAME_A.title, origin: FRAME_A.origin, iframes: [] },
@@ -600,11 +820,11 @@ describe('Frame model integration', () => {
 
       const openerNode = tree.find(f => f.isOpener);
       expect(openerNode).toBeDefined();
-      expect(openerNode!.origin).toBe(OPENER_FRAME.origin);
+      expect(openerNode!.currentDocument?.origin).toBe(OPENER_FRAME.origin);
 
       const regularNode = tree.find(f => !f.isOpener);
       expect(regularNode).toBeDefined();
-      expect(regularNode!.origin).toBe(FRAME_A.origin);
+      expect(regularNode!.currentDocument?.origin).toBe(FRAME_A.origin);
     });
 
     it('can select the regular frame without also selecting opener', () => {
@@ -616,13 +836,11 @@ describe('Frame model integration', () => {
       const tree = store.buildFrameTree();
       const regularNode = tree.find(f => !f.isOpener)!;
 
-      // Simulate clicking the regular frame[0] in the hierarchy table
       store.selectFrame(store.frameKey(regularNode));
 
-      // The selected frame should be the regular frame, not the opener
       expect(store.selectedFrame).toBeDefined();
       expect(store.selectedFrame!.isOpener).toBeFalsy();
-      expect(store.selectedFrame!.origin).toBe(FRAME_A.origin);
+      expect(store.selectedFrame!.currentDocument?.origin).toBe(FRAME_A.origin);
     });
   });
 });
