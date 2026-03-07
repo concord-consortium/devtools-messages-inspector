@@ -6,6 +6,15 @@ import { store } from '../../store';
 import { requestFrameHierarchy } from '../../connection';
 import type { Frame } from '../../models/Frame';
 
+function frameLabel(frame: Frame): string {
+  const isOtherTab = frame.tabId !== store.tabId;
+  const name = isOtherTab
+    ? `tab[${frame.tabId}].frame[${frame.frameId}]`
+    : `frame[${frame.frameId}]`;
+  const origin = frame.currentDocument?.origin || '';
+  return `${name} - ${origin}`;
+}
+
 // Build flat list of options with indentation from frame tree
 function flattenTree(nodes: Frame[], depth: number = 0): Array<{ frame: Frame; depth: number }> {
   const result: Array<{ frame: Frame; depth: number }> = [];
@@ -62,15 +71,9 @@ export const FrameFocusDropdown = observer(() => {
           {options.map(({ frame, depth }) => {
             const indent = '\u00A0\u00A0'.repeat(depth);
             const key = store.frameKey(frame);
-            const isOtherTab = frame.tabId !== store.tabId;
-            const frameLabel = isOtherTab
-              ? `tab[${frame.tabId}].frame[${frame.frameId}]`
-              : `frame[${frame.frameId}]`;
-            const origin = frame.currentDocument?.origin || '';
-            const label = `${indent}${frameLabel} - ${origin}`;
             return (
               <option key={key} value={key}>
-                {label}
+                {indent}{frameLabel(frame)}
               </option>
             );
           })}
@@ -79,14 +82,9 @@ export const FrameFocusDropdown = observer(() => {
           )}
           {nonHierarchy.map(frame => {
             const key = store.frameKey(frame);
-            const isOtherTab = frame.tabId !== store.tabId;
-            const frameLabel = isOtherTab
-              ? `tab[${frame.tabId}].frame[${frame.frameId}]`
-              : `frame[${frame.frameId}]`;
-            const origin = frame.currentDocument?.origin || '';
             return (
               <option key={key} value={key}>
-                {frameLabel} - {origin}
+                {frameLabel(frame)}
               </option>
             );
           })}

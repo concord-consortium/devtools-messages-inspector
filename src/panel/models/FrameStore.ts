@@ -78,6 +78,11 @@ export class FrameStore implements FrameLookup {
     for (const frame of this.frames.values()) {
       if (frame.parentFrameId === -1) {
         roots.push(frame);
+      } else if (frame.parentFrameId !== undefined
+        && !this.frames.has(Frame.key(frame.tabId, frame.parentFrameId))) {
+        // Orphaned frame: has a parent ID but parent doesn't exist in the store.
+        // Treat as root so it remains visible in the UI.
+        roots.push(frame);
       }
     }
     return roots;

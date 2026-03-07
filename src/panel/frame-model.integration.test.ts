@@ -642,6 +642,17 @@ describe('Frame model integration', () => {
       expect(frameStore.hierarchyRoots).toHaveLength(0);
     });
 
+    it('orphaned frame whose parent is missing appears in hierarchyRoots', () => {
+      // Frame 3 claims parentFrameId=99, but frame 99 doesn't exist
+      const frame = frameStore.getOrCreateFrame(TAB_ID, 3, 99);
+      expect(frame.parentFrameId).toBe(99);
+
+      // Should appear as a root since its parent is missing
+      expect(frameStore.hierarchyRoots).toHaveLength(1);
+      expect(frameStore.hierarchyRoots[0].frameId).toBe(3);
+      expect(frameStore.nonHierarchyFrames).toHaveLength(0);
+    });
+
     it('frame moves from nonHierarchyFrames to hierarchy after hierarchy refresh', () => {
       frameStore.getOrCreateFrame(TAB_ID, 1);
       expect(frameStore.nonHierarchyFrames).toHaveLength(1);
