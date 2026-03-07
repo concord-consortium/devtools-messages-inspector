@@ -10,12 +10,14 @@ export class FrameStore {
   documents = observable.map<string, FrameDocument>();
   // Secondary index for source correlation
   documentsBySourceId = observable.map<string, FrameDocument>();
+  currentHierarchyFrameKeys = observable.set<string>();
 
   constructor() {
     makeAutoObservable(this, {
       frames: false,
       documents: false,
       documentsBySourceId: false,
+      currentHierarchyFrameKeys: false,
     });
   }
 
@@ -61,6 +63,26 @@ export class FrameStore {
     return doc;
   }
 
+  get hierarchyRoots(): Frame[] {
+    const roots: Frame[] = [];
+    for (const frame of this.frames.values()) {
+      if (frame.parentFrameId === -1) {
+        roots.push(frame);
+      }
+    }
+    return roots;
+  }
+
+  get nonHierarchyFrames(): Frame[] {
+    const result: Frame[] = [];
+    for (const frame of this.frames.values()) {
+      if (frame.parentFrameId === undefined) {
+        result.push(frame);
+      }
+    }
+    return result;
+  }
+
   // Called when hierarchy data arrives from webNavigation.getAllFrames()
   processHierarchy(frames: Array<{
     frameId: number;
@@ -72,11 +94,19 @@ export class FrameStore {
     title: string;
     origin: string;
     iframes: { src: string; id: string; domPath: string; sourceId?: string }[];
-  }>): Frame[] {
+    isOpener?: boolean;
+  }>): void {
+    // Track which frames are in the current hierarchy
+    this.currentHierarchyFrameKeys.clear();
+
     // Create/update frames and documents
     for (const frameData of frames) {
+      this.currentHierarchyFrameKeys.add(Frame.key(frameData.tabId, frameData.frameId));
+
       const frame = this.getOrCreateFrame(frameData.tabId, frameData.frameId, frameData.parentFrameId);
       frame.parentFrameId = frameData.parentFrameId;
+      frame.iframes = frameData.iframes;
+      frame.isOpener = frameData.isOpener ?? false;
 
       let doc: FrameDocument | undefined;
       if (frameData.documentId) {
@@ -91,7 +121,6 @@ export class FrameStore {
         doc.title = frameData.title;
         doc.frame = frame;
       } else if (frameData.url || frameData.origin || frameData.title) {
-        // Create a new document if we have some info but no id to correlate with existing ones
         doc = new FrameDocument({
           url: frameData.url || undefined,
           origin: frameData.origin || undefined,
@@ -101,33 +130,25 @@ export class FrameStore {
       frame.currentDocument = doc;
     }
 
-    // Build parent-child relationships
-    const roots: Frame[] = [];
-    for (const frameData of frames) {
-      const frame = this.getFrame(frameData.tabId, frameData.frameId)!;
+    // Rebuild children for ALL frames with known parentFrameId
+    for (const frame of this.frames.values()) {
       frame.children = [];
     }
-    for (const frameData of frames) {
-      const frame = this.getFrame(frameData.tabId, frameData.frameId)!;
-      if (frameData.parentFrameId === -1) {
-        roots.push(frame);
-      } else {
-        const parent = this.getFrame(frameData.tabId, frameData.parentFrameId);
+    for (const frame of this.frames.values()) {
+      if (frame.parentFrameId !== undefined && frame.parentFrameId !== -1) {
+        const parent = this.getFrame(frame.tabId, frame.parentFrameId);
         if (parent) {
           parent.children.push(frame);
-        } else {
-          roots.push(frame);
         }
       }
     }
-
-    return roots;
   }
 
   clear(): void {
     this.frames.clear();
     this.documents.clear();
     this.documentsBySourceId.clear();
+    this.currentHierarchyFrameKeys.clear();
   }
 }
 

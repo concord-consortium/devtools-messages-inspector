@@ -13,7 +13,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { autorun } from 'mobx';
 import { store } from './store';
 import { processIncomingMessage } from './connection';
-import { frameStore } from './models';
+import { frameStore, Frame } from './models';
 import type { IMessage } from '../types';
 
 const TAB_ID = 42;
@@ -578,6 +578,84 @@ describe('Frame model integration', () => {
 
       // source.frameId should also resolve
       expect(msg.source.frameId).toBe(OPENER_FRAME.frameId);
+    });
+  });
+
+  // ===================================================================
+  // FrameStore hierarchy computeds
+  // ===================================================================
+  describe('FrameStore hierarchy computeds', () => {
+    it('hierarchyRoots returns frames with parentFrameId === -1', () => {
+      store.setFrameHierarchy([
+        { frameId: 0, tabId: TAB_ID, url: FRAME_A.url, parentFrameId: -1, title: FRAME_A.title, origin: FRAME_A.origin, iframes: [] },
+        { frameId: 1, tabId: TAB_ID, url: FRAME_B.url, parentFrameId: 0, title: FRAME_B.title, origin: FRAME_B.origin, iframes: [] },
+      ]);
+
+      const roots = frameStore.hierarchyRoots;
+      expect(roots).toHaveLength(1);
+      expect(roots[0].frameId).toBe(0);
+      expect(roots[0].children).toHaveLength(1);
+      expect(roots[0].children[0].frameId).toBe(1);
+    });
+
+    it('frame created by message with unknown parent appears in nonHierarchyFrames', () => {
+      frameStore.getOrCreateFrame(TAB_ID, 5);
+
+      expect(frameStore.nonHierarchyFrames).toHaveLength(1);
+      expect(frameStore.nonHierarchyFrames[0].frameId).toBe(5);
+      expect(frameStore.hierarchyRoots).toHaveLength(0);
+    });
+
+    it('frame moves from nonHierarchyFrames to hierarchy after hierarchy refresh', () => {
+      frameStore.getOrCreateFrame(TAB_ID, 1);
+      expect(frameStore.nonHierarchyFrames).toHaveLength(1);
+
+      store.setFrameHierarchy([
+        { frameId: 0, tabId: TAB_ID, url: FRAME_A.url, parentFrameId: -1, title: FRAME_A.title, origin: FRAME_A.origin, iframes: [] },
+        { frameId: 1, tabId: TAB_ID, url: FRAME_B.url, parentFrameId: 0, title: FRAME_B.title, origin: FRAME_B.origin, iframes: [] },
+      ]);
+
+      expect(frameStore.nonHierarchyFrames).toHaveLength(0);
+      expect(frameStore.hierarchyRoots).toHaveLength(1);
+      expect(frameStore.hierarchyRoots[0].children).toHaveLength(1);
+    });
+
+    it('processHierarchy populates iframes and isOpener on Frame', () => {
+      const iframes = [{ src: 'https://child.example.com', id: 'iframe1', domPath: 'body > iframe' }];
+      store.setFrameHierarchy([
+        { frameId: 0, tabId: TAB_ID, url: FRAME_A.url, parentFrameId: -1, title: FRAME_A.title, origin: FRAME_A.origin, iframes },
+        { frameId: 0, tabId: OPENER_TAB_ID, url: OPENER_FRAME.url, parentFrameId: -1, title: OPENER_FRAME.title, origin: OPENER_FRAME.origin, iframes: [], isOpener: true },
+      ]);
+
+      const frameA = frameStore.getFrame(TAB_ID, 0)!;
+      expect(frameA.iframes).toEqual(iframes);
+      expect(frameA.isOpener).toBe(false);
+
+      const openerFrame = frameStore.getFrame(OPENER_TAB_ID, 0)!;
+      expect(openerFrame.isOpener).toBe(true);
+    });
+
+    it('processHierarchy rebuilds children for all frames including message-discovered ones', () => {
+      const frame1 = frameStore.getOrCreateFrame(TAB_ID, 1);
+      expect(frame1.parentFrameId).toBeUndefined();
+
+      store.setFrameHierarchy([
+        { frameId: 0, tabId: TAB_ID, url: FRAME_A.url, parentFrameId: -1, title: FRAME_A.title, origin: FRAME_A.origin, iframes: [] },
+        { frameId: 1, tabId: TAB_ID, url: FRAME_B.url, parentFrameId: 0, title: FRAME_B.title, origin: FRAME_B.origin, iframes: [] },
+      ]);
+
+      const frame0 = frameStore.getFrame(TAB_ID, 0)!;
+      expect(frame0.children).toContain(frame1);
+      expect(frame1.parentFrameId).toBe(0);
+    });
+
+    it('currentHierarchyFrameKeys tracks frames from latest hierarchy response', () => {
+      store.setFrameHierarchy([
+        { frameId: 0, tabId: TAB_ID, url: FRAME_A.url, parentFrameId: -1, title: FRAME_A.title, origin: FRAME_A.origin, iframes: [] },
+      ]);
+
+      expect(frameStore.currentHierarchyFrameKeys.has(Frame.key(TAB_ID, 0))).toBe(true);
+      expect(frameStore.currentHierarchyFrameKeys.size).toBe(1);
     });
   });
 
