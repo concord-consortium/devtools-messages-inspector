@@ -20,7 +20,7 @@ describe('store.navigateToFrameMessages', () => {
   beforeEach(() => {
     store.setFilter('');
     store.setFocusedFrame(null);
-    store.setCurrentView('sources');
+    store.setCurrentView('endpoints');
   });
 
   it('sets focused frame, filter, and switches to log view', () => {
@@ -32,16 +32,16 @@ describe('store.navigateToFrameMessages', () => {
   });
 });
 
-describe('store.viewFrameInSources', () => {
+describe('store.viewFrameInEndpoints', () => {
   beforeEach(() => {
     store.selectFrame(null);
     store.setCurrentView('log');
   });
 
-  it('selects the frame and switches to sources view', () => {
-    store.viewFrameInSources(TAB_ID, 3);
+  it('selects the frame and switches to endpoints view', () => {
+    store.viewFrameInEndpoints(TAB_ID, 3);
 
     expect(store.selectedFrameKey).toBe(`${TAB_ID}:3`);
-    expect(store.currentView).toBe('sources');
+    expect(store.currentView).toBe('endpoints');
   });
 });

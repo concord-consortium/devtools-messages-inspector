@@ -8,7 +8,7 @@ This document analyzes how frame state is tracked, stored, and displayed in the 
 
 A snapshot of live frames populated by an on-demand request:
 
-- **Triggered by:** Sources view becoming active, FrameFocusDropdown mounting, or manual refresh
+- **Triggered by:** Endpoints view becoming active, FrameFocusDropdown mounting, or manual refresh
 - **Flow:** Panel sends `get-frame-hierarchy` → Background calls `chrome.webNavigation.getAllFrames(tabId)` → For each frame, sends `get-frame-info` to that frame's content script → Content script responds with title, origin, child iframes → Background assembles and sends `frame-hierarchy` back to panel
 - **Processed by:** `frameStore.processHierarchy()`, which updates Frame objects in place, sets `parentFrameId`, and populates `iframes`/`isOpener` fields
 - **Tracked by:** `frameStore.currentHierarchyFrameKeys` — a set of frame keys that were present in the most recent hierarchy response
@@ -51,7 +51,7 @@ This only sets `parentFrameId` when it's currently `undefined`, so hierarchy dat
 
 ## UI Components
 
-### Sources View (`SourcesView.tsx`)
+### Endpoints View (`EndpointsView.tsx`)
 
 Displays two sections:
 1. **Hierarchy frames** — tree built from `store.hierarchyRoots`, rendered with indentation via `Frame.children`
@@ -132,6 +132,6 @@ After processing all frames:
 | [Frame.ts](../src/panel/models/Frame.ts) | Frame model (`parentFrameId?: number`, `iframes`, `isOpener`, computed `children`) |
 | [FrameDocument.ts](../src/panel/models/FrameDocument.ts) | FrameDocument model (documentId, sourceId, url, origin, title) |
 | [Message.ts](../src/panel/Message.ts) | Computed properties: `sourceFrame`, `targetFrame`, `sourceDocument`, `targetDocument` |
-| [SourcesView.tsx](../src/panel/components/SourcesView/SourcesView.tsx) | Sources tab — shows hierarchy tree + non-hierarchy frames |
+| [EndpointsView.tsx](../src/panel/components/EndpointsView/EndpointsView.tsx) | Endpoints tab — shows hierarchy tree + non-hierarchy frames |
 | [FrameFocusDropdown.tsx](../src/panel/components/LogView/FrameFocusDropdown.tsx) | Frame focus selector — unified dropdown with all known frames |
 | [background-core.ts](../src/background-core.ts) | `getFrameHierarchy()` — calls webNavigation + content scripts |

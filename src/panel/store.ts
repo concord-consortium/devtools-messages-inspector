@@ -229,10 +229,10 @@ class PanelStore {
     this.setCurrentView('log');
   }
 
-  // Navigate to sources view and select a specific frame
-  viewFrameInSources(tabId: number, frameId: number): void {
+  // Navigate to endpoints view and select a specific frame
+  viewFrameInEndpoints(tabId: number, frameId: number): void {
     this.selectFrame(`${tabId}:${frameId}`);
-    this.setCurrentView('sources');
+    this.setCurrentView('endpoints');
   }
 
   getFocusPosition(msg: Message): FocusPosition {

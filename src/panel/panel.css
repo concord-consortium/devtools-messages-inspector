@@ -869,7 +869,7 @@ body {
   color: #202124;
 }
 
-/* Show messages button in Sources detail pane */
+/* Show messages button in Endpoints detail pane */
 .show-messages-btn {
   padding: 2px 8px;
   border: 1px solid #cacdd1;

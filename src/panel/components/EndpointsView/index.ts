@@ -1,0 +1,1 @@
+export { EndpointsView } from './EndpointsView';

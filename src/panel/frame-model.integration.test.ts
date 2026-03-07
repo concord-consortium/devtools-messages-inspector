@@ -773,7 +773,7 @@ describe('Frame model integration', () => {
       // a parent in the same tab
       expect(openedFrame!.parentFrameId).toBeUndefined();
 
-      // Frame should appear in nonHierarchyFrames (visible in Sources pane)
+      // Frame should appear in nonHierarchyFrames (visible in Endpoints pane)
       expect(frameStore.nonHierarchyFrames).toContain(openedFrame);
     });
 
@@ -786,7 +786,7 @@ describe('Frame model integration', () => {
       const openedFrame = frameStore.getFrame(TAB_ID, FRAME_A.frameId);
       expect(openedFrame).toBeDefined();
 
-      // Simulate switching away from Sources and back — triggers hierarchy refresh
+      // Simulate switching away from Endpoints and back — triggers hierarchy refresh
       // Hierarchy only includes opener tab's frames
       store.setFrameHierarchy([
         { frameId: 0, tabId: OPENER_TAB_ID, url: OPENER_FRAME.url, parentFrameId: -1,

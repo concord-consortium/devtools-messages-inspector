@@ -1,4 +1,4 @@
-// Inline action buttons for frame navigation (filter, focus, view in sources)
+// Inline action buttons for frame navigation (filter, focus, view in endpoints)
 
 import { observer } from 'mobx-react-lite';
 import { store } from '../../store';
@@ -19,9 +19,9 @@ export const FrameActionButtons = observer(({ tabId, frameId }: FrameActionButto
     store.setFocusedFrame({ tabId, frameId });
   };
 
-  const handleViewInSources = (e: React.MouseEvent) => {
+  const handleViewInEndpoints = (e: React.MouseEvent) => {
     e.stopPropagation();
-    store.viewFrameInSources(tabId, frameId);
+    store.viewFrameInEndpoints(tabId, frameId);
   };
 
   return (
@@ -36,7 +36,7 @@ export const FrameActionButtons = observer(({ tabId, frameId }: FrameActionButto
           <path fill="currentColor" d="M8 1a5 5 0 00-5 5c0 4 5 9 5 9s5-5 5-9a5 5 0 00-5-5zm0 7a2 2 0 110-4 2 2 0 010 4z"/>
         </svg>
       </button>
-      <button className="frame-action-btn" title="View in Sources" onClick={handleViewInSources}>
+      <button className="frame-action-btn" title="View in Endpoints" onClick={handleViewInEndpoints}>
         <svg width="12" height="12" viewBox="0 0 16 16">
           <path fill="currentColor" d="M3 1v14l10-7z"/>
         </svg>

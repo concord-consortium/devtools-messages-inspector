@@ -17,7 +17,7 @@ export interface Settings {
   globalFilterEnabled: boolean;
 }
 
-export const VIEW_TYPES = ['log', 'sources', 'settings'] as const;
+export const VIEW_TYPES = ['log', 'endpoints', 'settings'] as const;
 export type ViewType = (typeof VIEW_TYPES)[number];
 export type DetailTabType = 'data' | 'context';
 export type SortDirection = 'asc' | 'desc';

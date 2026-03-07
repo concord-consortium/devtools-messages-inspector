@@ -1,4 +1,4 @@
-// Sources view component
+// Endpoints view component
 
 import { observer } from 'mobx-react-lite';
 import { useEffect, useState } from 'react';
@@ -151,7 +151,7 @@ const ResizeHandle = () => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isResizing) return;
 
-      const container = document.querySelector('#sources-view .main-content') as HTMLElement;
+      const container = document.querySelector('#endpoints-view .main-content') as HTMLElement;
       if (!container) return;
 
       const containerWidth = container.offsetWidth;
@@ -196,8 +196,8 @@ const ResizeHandle = () => {
   );
 };
 
-// Top bar for sources view
-const SourcesTopBar = () => {
+// Top bar for endpoints view
+const EndpointsTopBar = () => {
   const handleRefresh = () => {
     requestFrameHierarchy();
   };
@@ -211,9 +211,9 @@ const SourcesTopBar = () => {
   );
 };
 
-// Main SourcesView component
-export const SourcesView = observer(() => {
-  const isActive = store.currentView === 'sources';
+// Main EndpointsView component
+export const EndpointsView = observer(() => {
+  const isActive = store.currentView === 'endpoints';
 
   // Request hierarchy when view becomes active
   useEffect(() => {
@@ -223,8 +223,8 @@ export const SourcesView = observer(() => {
   }, [isActive]);
 
   return (
-    <div id="sources-view" className={`view sources-view ${isActive ? 'active' : ''}`}>
-      <SourcesTopBar />
+    <div id="endpoints-view" className={`view endpoints-view ${isActive ? 'active' : ''}`}>
+      <EndpointsTopBar />
       <div className="main-content">
         <FrameTable />
         <ResizeHandle />
