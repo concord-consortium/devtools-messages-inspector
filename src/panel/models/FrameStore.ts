@@ -33,7 +33,7 @@ export class FrameStore {
     return this.frames.get(Frame.key(tabId, frameId));
   }
 
-  getOrCreateFrame(tabId: number, frameId: number, parentFrameId: number = -1): Frame {
+  getOrCreateFrame(tabId: number, frameId: number, parentFrameId?: number): Frame {
     const key = Frame.key(tabId, frameId);
     let frame = this.frames.get(key);
     if (!frame) {
