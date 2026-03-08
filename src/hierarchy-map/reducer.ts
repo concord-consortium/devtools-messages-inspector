@@ -135,6 +135,66 @@ function updateDocumentById(
   });
 }
 
+// --- Stale marking helpers ---
+
+function markFrameStale(frame: FrameNode): FrameNode {
+  return {
+    ...frame,
+    stale: true,
+    documents: frame.documents?.map(markDocumentStale),
+  };
+}
+
+function markDocumentStale(doc: DocumentNode): DocumentNode {
+  return {
+    ...doc,
+    stale: true,
+    iframes: doc.iframes?.map(markIframeStale),
+  };
+}
+
+function markIframeStale(iframe: IframeNode): IframeNode {
+  return {
+    ...iframe,
+    stale: true,
+    frame: iframe.frame ? markFrameStale(iframe.frame) : undefined,
+  };
+}
+
+// --- Iframe tree-walking helper ---
+
+function mapIframesInFrame(
+  frame: FrameNode,
+  fn: (iframe: IframeNode) => IframeNode,
+): FrameNode {
+  if (!frame.documents) return frame;
+  const docs = frame.documents.map((doc) => {
+    if (!doc.iframes) return doc;
+    const iframes = doc.iframes.map((iframe) => {
+      const mapped = fn(iframe);
+      // Recurse into nested frames
+      if (mapped.frame) {
+        const innerFrame = mapIframesInFrame(mapped.frame, fn);
+        if (innerFrame !== mapped.frame) {
+          return { ...mapped, frame: innerFrame };
+        }
+      }
+      return mapped;
+    });
+    return iframes === doc.iframes ? doc : { ...doc, iframes };
+  });
+  return docs === frame.documents ? frame : { ...frame, documents: docs };
+}
+
+function mapIframesInTab(
+  tab: TabNode,
+  fn: (iframe: IframeNode) => IframeNode,
+): TabNode {
+  if (!tab.frames) return tab;
+  const frames = tab.frames.map((frame) => mapIframesInFrame(frame, fn));
+  return frames === tab.frames ? tab : { ...tab, frames };
+}
+
 // --- Action handlers ---
 
 function addIframe(state: HierarchyState, documentId: string): HierarchyState {
@@ -175,6 +235,16 @@ function addIframe(state: HierarchyState, documentId: string): HierarchyState {
   };
 }
 
+function removeIframe(state: HierarchyState, iframeId: number): HierarchyState {
+  const root = mapIframesInTab(state.root, (iframe) => {
+    if (iframe.iframeId === iframeId) {
+      return markIframeStale(iframe);
+    }
+    return iframe;
+  });
+  return { ...state, root };
+}
+
 // --- Main reducer ---
 
 export function reduce(
@@ -184,6 +254,8 @@ export function reduce(
   switch (action.type) {
     case 'add-iframe':
       return addIframe(state, action.documentId);
+    case 'remove-iframe':
+      return removeIframe(state, action.iframeId);
     default:
       return state;
   }

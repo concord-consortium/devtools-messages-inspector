@@ -44,4 +44,21 @@ describe('reduce', () => {
       expect(innerDoc.origin).toBeUndefined();
     });
   });
+
+  describe('remove-iframe', () => {
+    it('marks iframe and its frame subtree as stale', () => {
+      const tab = makeTab();
+      // Add an iframe first
+      let state = initState(tab);
+      state = reduce(state, { type: 'add-iframe', documentId: 'doc-1' });
+      const iframeId = state.root.frames![0].documents![0].iframes![0].iframeId;
+
+      const next = reduce(state, { type: 'remove-iframe', iframeId });
+
+      const iframe = next.root.frames![0].documents![0].iframes![0];
+      expect(iframe.stale).toBe(true);
+      expect(iframe.frame!.stale).toBe(true);
+      expect(iframe.frame!.documents![0].stale).toBe(true);
+    });
+  });
 });
