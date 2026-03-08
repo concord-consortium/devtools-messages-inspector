@@ -1,5 +1,5 @@
 export type HierarchyAction =
-  | { type: 'open-tab'; tabId: number }
+  | { type: 'open-tab'; documentId: string }
   | { type: 'close-tab'; tabId: number }
   | { type: 'add-iframe'; documentId: string }
   | { type: 'remove-iframe'; iframeId: number }

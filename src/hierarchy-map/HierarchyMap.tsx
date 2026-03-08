@@ -70,7 +70,6 @@ function NodeActions({ node, onAction }: {
   switch (node.type) {
     case 'tab':
       buttons.push(
-        { label: 'New Tab', action: { type: 'open-tab', tabId: node.tabId } },
         { label: 'Close', action: { type: 'close-tab', tabId: node.tabId } },
       );
       break;
@@ -84,6 +83,7 @@ function NodeActions({ node, onAction }: {
       if (node.documentId) {
         buttons.push(
           { label: '+ Iframe', action: { type: 'add-iframe', documentId: node.documentId } },
+          { label: 'Open Tab', action: { type: 'open-tab', documentId: node.documentId } },
         );
       }
       break;
@@ -126,7 +126,7 @@ function NodeBox({ node, onAction }: {
   return (
     <div className={className}>
       <div className="node-header">
-        <span className="node-type-badge">{node.type}</span>
+        <span className="node-type-badge">{node.type === 'document' ? 'doc' : node.type}</span>
         <span className="node-label" title={getLabel(node)}>{getLabel(node)}</span>
         {onAction && <NodeActions node={node} onAction={onAction} />}
       </div>

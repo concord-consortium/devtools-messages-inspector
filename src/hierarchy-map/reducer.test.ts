@@ -128,7 +128,7 @@ describe('reduce', () => {
   describe('open-tab', () => {
     it('creates a new tab with frame[0] and auto-generated document', () => {
       const state = initState(makeTab());
-      const next = reduce(state, { type: 'open-tab', tabId: 1 });
+      const next = reduce(state, { type: 'open-tab', documentId: 'doc-1' });
 
       expect(next.root).toHaveLength(2);
       const newTab = next.root[1];
