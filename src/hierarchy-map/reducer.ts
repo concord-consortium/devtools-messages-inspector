@@ -284,30 +284,61 @@ function removeIframe(state: HierarchyState, iframeId: number): HierarchyState {
   return { ...state, root };
 }
 
-function navigateFrame(state: HierarchyState, frameId: number): HierarchyState {
-  const pageNum = state.nextPageNumber;
+function replaceFrameDocument(
+  state: HierarchyState,
+  frameId: number,
+  makeDoc: (frame: FrameNode, docId: number) => DocumentNode,
+): { root: TabNode; nextDocumentId: number } {
   const docId = state.nextDocumentId;
-
-  const newDoc: DocumentNode = {
-    type: 'document',
-    documentId: `doc-${docId}`,
-    url: `https://page-${pageNum}.example.com/`,
-    origin: `https://page-${pageNum}.example.com`,
-  };
+  let docCreated = false;
 
   const root = mapFramesInTab(state.root, (frame) => {
     if (frame.frameId !== frameId) return frame;
     const staleDocs = (frame.documents ?? []).map((doc) =>
       doc.stale ? doc : markDocumentStale(doc),
     );
-    return { ...frame, documents: [...staleDocs, newDoc] };
+    docCreated = true;
+    return { ...frame, documents: [...staleDocs, makeDoc(frame, docId)] };
+  });
+
+  return { root, nextDocumentId: docCreated ? docId + 1 : docId };
+}
+
+function navigateFrame(state: HierarchyState, frameId: number): HierarchyState {
+  const pageNum = state.nextPageNumber;
+
+  const { root, nextDocumentId } = replaceFrameDocument(state, frameId, (_frame, docId) => ({
+    type: 'document',
+    documentId: `doc-${docId}`,
+    url: `https://page-${pageNum}.example.com/`,
+    origin: `https://page-${pageNum}.example.com`,
+  }));
+
+  return {
+    ...state,
+    root,
+    nextDocumentId,
+    nextPageNumber: pageNum + 1,
+  };
+}
+
+function reloadFrame(state: HierarchyState, frameId: number): HierarchyState {
+  const { root, nextDocumentId } = replaceFrameDocument(state, frameId, (frame, docId) => {
+    // Find the most recent non-stale document to copy URL/origin from
+    const docs = frame.documents ?? [];
+    const currentDoc = [...docs].reverse().find((d) => !d.stale);
+    return {
+      type: 'document',
+      documentId: `doc-${docId}`,
+      url: currentDoc?.url,
+      origin: currentDoc?.origin,
+    };
   });
 
   return {
     ...state,
     root,
-    nextDocumentId: docId + 1,
-    nextPageNumber: pageNum + 1,
+    nextDocumentId,
   };
 }
 
@@ -324,6 +355,8 @@ export function reduce(
       return removeIframe(state, action.iframeId);
     case 'navigate-frame':
       return navigateFrame(state, action.frameId);
+    case 'reload-frame':
+      return reloadFrame(state, action.frameId);
     default:
       return state;
   }

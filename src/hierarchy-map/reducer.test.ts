@@ -62,6 +62,19 @@ describe('reduce', () => {
     });
   });
 
+  describe('reload-frame', () => {
+    it('adds new document with same URL and marks old document stale', () => {
+      const state = initState(makeTab());
+      const next = reduce(state, { type: 'reload-frame', frameId: 0 });
+
+      const frame = next.root.frames![0];
+      expect(frame.documents).toHaveLength(2);
+      expect(frame.documents![0].stale).toBe(true);
+      expect(frame.documents![1].url).toBe('https://page-1.example.com/');
+      expect(frame.documents![1].origin).toBe('https://page-1.example.com');
+    });
+  });
+
   describe('navigate-frame', () => {
     it('adds new document to frame and marks old document stale', () => {
       const state = initState(makeTab());
