@@ -23,6 +23,7 @@
           "iframes": [
             {
               "type": "iframe",
+              "iframeId": 1,
               "id": "widget-iframe",
               "src": "https://widget.example.com/embed",
               "frame": {
@@ -40,6 +41,7 @@
             },
             {
               "type": "iframe",
+              "iframeId": 2,
               "id": "old-ad",
               "src": "https://ads.example.com/banner",
               "stale": true,
@@ -60,6 +62,7 @@
             },
             {
               "type": "iframe",
+              "iframeId": 3,
               "src": "https://analytics.example.com/tracker",
               "frame": {
                 "type": "frame",
@@ -73,6 +76,7 @@
                     "iframes": [
                       {
                         "type": "iframe",
+                        "iframeId": 4,
                         "id": "pixel",
                         "src": "https://telemetry.example.net/pixel",
                         "frame": {

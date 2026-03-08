@@ -25,6 +25,7 @@ export interface DocumentNode {
 
 export interface IframeNode {
   type: 'iframe';
+  iframeId: number;
   src?: string;
   id?: string;
   stale?: boolean;
