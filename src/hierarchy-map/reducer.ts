@@ -436,6 +436,44 @@ function closeTab(state: HierarchyState, tabId: number): HierarchyState {
   return { ...state, root };
 }
 
+// --- Purge-stale helpers ---
+
+function purgeDocument(doc: DocumentNode): DocumentNode {
+  if (!doc.iframes) return doc;
+  const iframes = doc.iframes
+    .filter((iframe) => !iframe.stale)
+    .map(purgeIframe);
+  return { ...doc, iframes };
+}
+
+function purgeIframe(iframe: IframeNode): IframeNode {
+  if (!iframe.frame) return iframe;
+  return { ...iframe, frame: purgeFrame(iframe.frame) };
+}
+
+function purgeFrame(frame: FrameNode): FrameNode {
+  if (!frame.documents) return frame;
+  const documents = frame.documents
+    .filter((doc) => !doc.stale)
+    .map(purgeDocument);
+  return { ...frame, documents };
+}
+
+function purgeTab(tab: TabNode): TabNode {
+  if (!tab.frames) return tab;
+  const frames = tab.frames
+    .filter((frame) => !frame.stale)
+    .map(purgeFrame);
+  return { ...tab, frames };
+}
+
+function purgeStale(state: HierarchyState): HierarchyState {
+  const root = state.root
+    .filter((tab) => !tab.stale)
+    .map(purgeTab);
+  return { ...state, root };
+}
+
 // --- Main reducer ---
 
 export function reduce(
@@ -457,6 +495,8 @@ export function reduce(
       return navigateFrame(state, action.frameId);
     case 'reload-frame':
       return reloadFrame(state, action.frameId);
+    case 'purge-stale':
+      return purgeStale(state);
     default:
       return state;
   }

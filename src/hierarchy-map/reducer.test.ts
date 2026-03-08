@@ -149,4 +149,38 @@ describe('reduce', () => {
       expect(next.root[0].frames![0].documents![0].stale).toBe(true);
     });
   });
+
+  describe('purge-stale', () => {
+    it('removes all stale nodes from the tree', () => {
+      let state = initState(makeTab());
+      // Add iframe, then remove it (makes it stale)
+      state = reduce(state, { type: 'add-iframe', documentId: 'doc-1' });
+      const iframeId = state.root[0].frames![0].documents![0].iframes![0].iframeId;
+      state = reduce(state, { type: 'remove-iframe', iframeId });
+
+      const next = reduce(state, { type: 'purge-stale' });
+
+      expect(next.root[0].frames![0].documents![0].iframes).toHaveLength(0);
+    });
+
+    it('removes stale documents from frames', () => {
+      let state = initState(makeTab());
+      state = reduce(state, { type: 'navigate-frame', frameId: 0 });
+
+      const next = reduce(state, { type: 'purge-stale' });
+
+      const frame = next.root[0].frames![0];
+      expect(frame.documents).toHaveLength(1);
+      expect(frame.documents![0].stale).toBeUndefined();
+    });
+
+    it('removes stale tabs', () => {
+      let state = initState(makeTab());
+      state = reduce(state, { type: 'close-tab', tabId: 1 });
+
+      const next = reduce(state, { type: 'purge-stale' });
+
+      expect(next.root).toHaveLength(0);
+    });
+  });
 });
