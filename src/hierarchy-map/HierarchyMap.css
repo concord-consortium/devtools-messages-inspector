@@ -1,0 +1,85 @@
+.hierarchy-map {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 12px;
+  color: #303942;
+  padding: 16px;
+}
+
+/* --- Per-type custom properties --- */
+
+.node-tab {
+  --node-color: #7B1FA2;
+  --node-bg: #F3E5F5;
+}
+
+.node-frame {
+  --node-color: #1565C0;
+  --node-bg: #E3F2FD;
+}
+
+.node-document {
+  --node-color: #2E7D32;
+  --node-bg: #E8F5E9;
+}
+
+.node-iframe {
+  --node-color: #E65100;
+  --node-bg: #FFF3E0;
+}
+
+/* --- Node box --- */
+
+.node-box {
+  border: 2px solid var(--node-color);
+  border-radius: 4px;
+  margin: 8px;
+}
+
+.node-iframe.node-box {
+  border-style: dashed;
+}
+
+/* --- Header --- */
+
+.node-header {
+  background: var(--node-bg);
+  padding: 4px 8px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  border-bottom: 2px solid var(--node-color);
+}
+
+/* --- Type badge --- */
+
+.node-type-badge {
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--node-color);
+  font-weight: 600;
+}
+
+/* --- Label --- */
+
+.node-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- Body (children container) --- */
+
+.node-body {
+  padding: 4px;
+}
+
+/* --- Stale nodes --- */
+
+.node-stale {
+  opacity: 0.5;
+}
+
+.node-stale > .node-header {
+  background: #e0e0e0;
+}

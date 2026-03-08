@@ -1,0 +1,81 @@
+{
+  "type": "tab",
+  "tabId": 1,
+  "label": "Main App",
+  "frames": [
+    {
+      "type": "frame",
+      "frameId": 0,
+      "label": "Main Frame",
+      "documents": [
+        {
+          "type": "document",
+          "documentId": "doc-old",
+          "url": "https://app.example.com/old-page",
+          "origin": "https://app.example.com",
+          "stale": true
+        },
+        {
+          "type": "document",
+          "documentId": "doc-current",
+          "url": "https://app.example.com/dashboard",
+          "origin": "https://app.example.com",
+          "iframes": [
+            {
+              "type": "iframe",
+              "id": "widget-iframe",
+              "src": "https://widget.example.com/embed",
+              "frame": {
+                "type": "frame",
+                "frameId": 1,
+                "documents": [
+                  {
+                    "type": "document",
+                    "documentId": "doc-widget",
+                    "url": "https://widget.example.com/embed",
+                    "origin": "https://widget.example.com"
+                  }
+                ]
+              }
+            },
+            {
+              "type": "iframe",
+              "src": "https://analytics.example.com/tracker",
+              "frame": {
+                "type": "frame",
+                "frameId": 2,
+                "documents": [
+                  {
+                    "type": "document",
+                    "documentId": "doc-analytics",
+                    "url": "https://analytics.example.com/tracker",
+                    "origin": "https://analytics.example.com",
+                    "iframes": [
+                      {
+                        "type": "iframe",
+                        "id": "pixel",
+                        "src": "https://telemetry.example.net/pixel",
+                        "frame": {
+                          "type": "frame",
+                          "frameId": 3,
+                          "documents": [
+                            {
+                              "type": "document",
+                              "documentId": "doc-pixel",
+                              "url": "https://telemetry.example.net/pixel",
+                              "origin": "https://telemetry.example.net"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
