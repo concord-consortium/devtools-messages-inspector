@@ -23,7 +23,7 @@ function getKey(node: HierarchyNode): string {
     case 'tab': return `tab-${node.tabId}`;
     case 'frame': return `frame-${node.frameId}`;
     case 'document': return `doc-${node.documentId ?? node.url ?? ''}`;
-    case 'iframe': return `iframe-${node.id ?? node.src ?? ''}`;
+    case 'iframe': return `iframe-${node.iframeId}`;
   }
 }
 
