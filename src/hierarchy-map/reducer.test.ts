@@ -87,7 +87,7 @@ describe('reduce', () => {
       expect(frame.documents![1].url).toMatch(/^https:\/\/page-\d+\.example\.com\/$/);
     });
 
-    it('marks nested iframes in old document as stale', () => {
+    it('marks nested iframes in old document as stale (navigate-frame)', () => {
       let state = initState(makeTab());
       state = reduce(state, { type: 'add-iframe', documentId: 'doc-1' });
 
@@ -102,6 +102,26 @@ describe('reduce', () => {
       // New document should have no iframes
       const newDoc = next.root.frames![0].documents![1];
       expect(newDoc.iframes).toBeUndefined();
+    });
+  });
+
+  describe('navigate-iframe', () => {
+    it('navigates the frame inside the iframe and updates iframe src', () => {
+      let state = initState(makeTab());
+      state = reduce(state, { type: 'add-iframe', documentId: 'doc-1' });
+      const iframeId = state.root.frames![0].documents![0].iframes![0].iframeId;
+
+      const next = reduce(state, { type: 'navigate-iframe', iframeId });
+
+      const iframe = next.root.frames![0].documents![0].iframes![0];
+      // Iframe src should update to new URL
+      expect(iframe.src).toMatch(/^https:\/\/page-\d+\.example\.com\/$/);
+
+      // Inner frame should have old doc (stale) + new doc
+      const innerFrame = iframe.frame!;
+      expect(innerFrame.documents).toHaveLength(2);
+      expect(innerFrame.documents![0].stale).toBe(true);
+      expect(innerFrame.documents![1].stale).toBeUndefined();
     });
   });
 });

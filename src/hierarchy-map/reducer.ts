@@ -342,6 +342,44 @@ function reloadFrame(state: HierarchyState, frameId: number): HierarchyState {
   };
 }
 
+function navigateIframe(state: HierarchyState, iframeId: number): HierarchyState {
+  const pageNum = state.nextPageNumber;
+  const docId = state.nextDocumentId;
+  const newUrl = `https://page-${pageNum}.example.com/`;
+  const newOrigin = `https://page-${pageNum}.example.com`;
+  let docCreated = false;
+
+  const root = mapIframesInTab(state.root, (iframe) => {
+    if (iframe.iframeId !== iframeId) return iframe;
+    if (!iframe.frame) return iframe;
+
+    const staleDocs = (iframe.frame.documents ?? []).map((doc) =>
+      doc.stale ? doc : markDocumentStale(doc),
+    );
+
+    const newDoc: DocumentNode = {
+      type: 'document',
+      documentId: `doc-${docId}`,
+      url: newUrl,
+      origin: newOrigin,
+    };
+
+    docCreated = true;
+    return {
+      ...iframe,
+      src: newUrl,
+      frame: { ...iframe.frame, documents: [...staleDocs, newDoc] },
+    };
+  });
+
+  return {
+    ...state,
+    root,
+    nextDocumentId: docCreated ? docId + 1 : docId,
+    nextPageNumber: docCreated ? pageNum + 1 : pageNum,
+  };
+}
+
 // --- Main reducer ---
 
 export function reduce(
@@ -353,6 +391,8 @@ export function reduce(
       return addIframe(state, action.documentId);
     case 'remove-iframe':
       return removeIframe(state, action.iframeId);
+    case 'navigate-iframe':
+      return navigateIframe(state, action.iframeId);
     case 'navigate-frame':
       return navigateFrame(state, action.frameId);
     case 'reload-frame':
