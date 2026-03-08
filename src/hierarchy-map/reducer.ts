@@ -391,7 +391,7 @@ function navigateIframe(state: HierarchyState, iframeId: number): HierarchyState
   };
 }
 
-function openTab(state: HierarchyState): HierarchyState {
+function openTab(state: HierarchyState, openerTabId: number, openerFrameId: number): HierarchyState {
   const tabId = state.nextTabId;
   const frameId = state.nextFrameId;
   const docId = state.nextDocumentId;
@@ -413,6 +413,8 @@ function openTab(state: HierarchyState): HierarchyState {
   const newTab: TabNode = {
     type: 'tab',
     tabId,
+    openerTabId,
+    openerFrameId,
     frames: [newFrame],
   };
 
@@ -482,7 +484,7 @@ export function reduce(
 ): HierarchyState {
   switch (action.type) {
     case 'open-tab':
-      return openTab(state);
+      return openTab(state, action.tabId, action.frameId);
     case 'close-tab':
       return closeTab(state, action.tabId);
     case 'add-iframe':

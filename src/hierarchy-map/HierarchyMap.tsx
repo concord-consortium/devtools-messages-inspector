@@ -4,8 +4,13 @@ import type { HierarchyNode, TabNode } from './types';
 
 function getLabel(node: HierarchyNode): string {
   switch (node.type) {
-    case 'tab':
-      return node.label ?? 'Tab ' + node.tabId;
+    case 'tab': {
+      const base = node.label ?? 'Tab ' + node.tabId;
+      if (node.openerTabId != null && node.openerFrameId != null) {
+        return `${base} (opened by tab[${node.openerTabId}].frame[${node.openerFrameId}])`;
+      }
+      return base;
+    }
     case 'frame':
       return node.label ?? 'frame[' + node.frameId + ']';
     case 'document':
@@ -59,8 +64,9 @@ function ActionButton({ label, action, onAction }: {
   );
 }
 
-function NodeActions({ node, onAction }: {
+function NodeActions({ node, tabId, onAction }: {
   node: HierarchyNode;
+  tabId: number;
   onAction: (action: HierarchyAction) => void;
 }) {
   if (node.stale) return null;
@@ -77,13 +83,13 @@ function NodeActions({ node, onAction }: {
       buttons.push(
         { label: 'Navigate', action: { type: 'navigate-frame', frameId: node.frameId } },
         { label: 'Reload', action: { type: 'reload-frame', frameId: node.frameId } },
+        { label: 'Open Tab', action: { type: 'open-tab', tabId, frameId: node.frameId } },
       );
       break;
     case 'document':
       if (node.documentId) {
         buttons.push(
           { label: '+ Iframe', action: { type: 'add-iframe', documentId: node.documentId } },
-          { label: 'Open Tab', action: { type: 'open-tab', documentId: node.documentId } },
         );
       }
       break;
@@ -111,10 +117,13 @@ function NodeActions({ node, onAction }: {
   );
 }
 
-function NodeBox({ node, onAction }: {
+function NodeBox({ node, tabId, onAction }: {
   node: HierarchyNode;
+  tabId: number;
   onAction?: (action: HierarchyAction) => void;
 }) {
+  const currentTabId = node.type === 'tab' ? node.tabId : tabId;
+
   const className = [
     'node-box',
     `node-${node.type}`,
@@ -128,12 +137,12 @@ function NodeBox({ node, onAction }: {
       <div className="node-header">
         <span className="node-type-badge">{node.type === 'document' ? 'doc' : node.type}</span>
         <span className="node-label" title={getLabel(node)}>{getLabel(node)}</span>
-        {onAction && <NodeActions node={node} onAction={onAction} />}
+        {onAction && <NodeActions node={node} tabId={currentTabId} onAction={onAction} />}
       </div>
       {children.length > 0 && (
         <div className="node-body">
           {children.map((child) => (
-            <NodeBox key={getKey(child)} node={child} onAction={onAction} />
+            <NodeBox key={getKey(child)} node={child} tabId={currentTabId} onAction={onAction} />
           ))}
         </div>
       )}
@@ -151,7 +160,7 @@ export function HierarchyMap({ root, onAction }: HierarchyMapProps) {
   return (
     <div className="hierarchy-map">
       {tabs.map((tab) => (
-        <NodeBox key={getKey(tab)} node={tab} onAction={onAction} />
+        <NodeBox key={getKey(tab)} node={tab} tabId={tab.tabId} onAction={onAction} />
       ))}
     </div>
   );

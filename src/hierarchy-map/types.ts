@@ -1,6 +1,8 @@
 export interface TabNode {
   type: 'tab';
   tabId: number;
+  openerTabId?: number;
+  openerFrameId?: number;
   label?: string;
   stale?: boolean;
   frames?: FrameNode[];

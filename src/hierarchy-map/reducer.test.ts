@@ -128,7 +128,7 @@ describe('reduce', () => {
   describe('open-tab', () => {
     it('creates a new tab with frame[0] and auto-generated document', () => {
       const state = initState(makeTab());
-      const next = reduce(state, { type: 'open-tab', documentId: 'doc-1' });
+      const next = reduce(state, { type: 'open-tab', tabId: 1, frameId: 0 });
 
       expect(next.root).toHaveLength(2);
       const newTab = next.root[1];
@@ -136,6 +136,15 @@ describe('reduce', () => {
       expect(newTab.frames).toHaveLength(1);
       expect(newTab.frames![0].frameId).toBe(1);
       expect(newTab.frames![0].documents![0].url).toMatch(/^https:\/\/page-\d+\.example\.com\/$/);
+    });
+
+    it('stores opener tabId and frameId on the new tab', () => {
+      const state = initState(makeTab());
+      const next = reduce(state, { type: 'open-tab', tabId: 1, frameId: 0 });
+
+      const newTab = next.root[1];
+      expect(newTab.openerTabId).toBe(1);
+      expect(newTab.openerFrameId).toBe(0);
     });
   });
 
