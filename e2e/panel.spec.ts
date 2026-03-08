@@ -476,7 +476,7 @@ test.describe('cross-pane navigation', () => {
     await expect(filterInput).toHaveValue('frames:"tab[1].frame[0]"');
   });
 
-  test('view in sources button switches to sources view with frame selected', async ({ page }) => {
+  test('view in endpoints button switches to endpoints view with frame selected', async ({ page }) => {
     await sendAndWait(page, 'window.harness.sendChildToParent({ type: "sources-nav" })');
 
     // Click the row and switch to Context tab
@@ -486,13 +486,13 @@ test.describe('cross-pane navigation', () => {
     const view = page.locator(logView);
     const sourceHeading = view.locator('.section-heading').nth(1);
 
-    // Click the "View in Sources" button (third .frame-action-btn) on Source heading
+    // Click the "View in Endpoints" button (third .frame-action-btn) on Source heading
     // For child-to-parent, source is frame[1] in tab 1
     await sourceHeading.locator('.frame-action-btn').nth(2).click();
     await page.evaluate('window.harness.flushPromises()');
 
-    // Sources view should now be active
-    await expect(page.locator('.sources-view')).toHaveClass(/active/);
+    // Endpoints view should now be active
+    await expect(page.locator('.endpoints-view')).toHaveClass(/active/);
 
     // The correct frame should be selected in the frame table
     const selectedRow = page.locator('#frame-table tbody tr.selected');
@@ -500,12 +500,12 @@ test.describe('cross-pane navigation', () => {
     await expect(selectedRow.locator('td').first()).toHaveText('frame[1]');
   });
 
-  test('show messages button in sources navigates to log with filter', async ({ page }) => {
+  test('show messages button in endpoints navigates to log with filter', async ({ page }) => {
     // Send a message to populate frame hierarchy
     await sendAndWait(page, 'window.harness.sendChildToParent({ type: "show-msg" })');
 
-    // Switch to Sources view
-    await page.locator('.sidebar-item', { hasText: 'Sources' }).click();
+    // Switch to Endpoints view
+    await page.locator('.sidebar-item', { hasText: 'Endpoints' }).click();
     await page.evaluate('window.harness.flushPromises()');
 
     // Wait for frame table to have rows
