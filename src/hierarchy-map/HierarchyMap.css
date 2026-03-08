@@ -85,3 +85,28 @@
 .node-stale.node-box {
   border-color: color-mix(in srgb, var(--node-color) 50%, transparent);
 }
+
+/* --- Action buttons --- */
+
+.node-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.node-action-btn {
+  font-size: 10px;
+  padding: 1px 6px;
+  border: 1px solid var(--node-color);
+  border-radius: 3px;
+  background: white;
+  color: var(--node-color);
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.node-action-btn:hover {
+  background: var(--node-bg);
+}

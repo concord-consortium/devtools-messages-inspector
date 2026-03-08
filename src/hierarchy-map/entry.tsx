@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { HierarchyMap } from './HierarchyMap';
-import type { HierarchyNode } from './types';
+import type { TabNode } from './types';
 import './HierarchyMap.css';
 
 function App() {
-  const [data, setData] = useState<HierarchyNode | null>(null);
+  const [data, setData] = useState<TabNode | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -24,7 +24,7 @@ function App() {
         if (!json || typeof json !== 'object' || !('type' in json)) {
           throw new Error('Invalid hierarchy data: root must have a "type" field');
         }
-        setData(json as HierarchyNode);
+        setData(json as TabNode);
       })
       .catch(err => setError(String(err)));
   }, []);
