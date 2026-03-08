@@ -2,7 +2,7 @@ import type { TabNode, FrameNode, DocumentNode, IframeNode } from './types';
 import type { HierarchyAction } from './actions';
 
 export interface HierarchyState {
-  root: TabNode;
+  root: TabNode[];
   nextTabId: number;
   nextFrameId: number;
   nextDocumentId: number;
@@ -12,7 +12,7 @@ export interface HierarchyState {
 
 // --- ID scanning helpers ---
 
-function scanMaxIds(root: TabNode): {
+function scanMaxIds(roots: TabNode[]): {
   maxTabId: number;
   maxFrameId: number;
   maxDocumentId: number;
@@ -60,20 +60,23 @@ function scanMaxIds(root: TabNode): {
     }
   }
 
-  maxTabId = Math.max(maxTabId, root.tabId);
-  if (root.frames) {
-    for (const frame of root.frames) {
-      visitFrame(frame);
+  for (const root of roots) {
+    maxTabId = Math.max(maxTabId, root.tabId);
+    if (root.frames) {
+      for (const frame of root.frames) {
+        visitFrame(frame);
+      }
     }
   }
 
   return { maxTabId, maxFrameId, maxDocumentId, maxIframeId, maxPageNumber };
 }
 
-export function initState(root: TabNode): HierarchyState {
-  const ids = scanMaxIds(root);
+export function initState(root: TabNode | TabNode[]): HierarchyState {
+  const roots = Array.isArray(root) ? root : [root];
+  const ids = scanMaxIds(roots);
   return {
-    root,
+    root: roots,
     nextTabId: ids.maxTabId + 1,
     nextFrameId: ids.maxFrameId + 1,
     nextDocumentId: ids.maxDocumentId + 1,
@@ -158,6 +161,14 @@ function markIframeStale(iframe: IframeNode): IframeNode {
     ...iframe,
     stale: true,
     frame: iframe.frame ? markFrameStale(iframe.frame) : undefined,
+  };
+}
+
+function markTabStale(tab: TabNode): TabNode {
+  return {
+    ...tab,
+    stale: true,
+    frames: tab.frames?.map(markFrameStale),
   };
 }
 
@@ -259,10 +270,10 @@ function addIframe(state: HierarchyState, documentId: string): HierarchyState {
     frame: newFrame,
   };
 
-  const root = updateDocumentById(state.root, documentId, (doc) => ({
+  const root = state.root.map(tab => updateDocumentById(tab, documentId, (doc) => ({
     ...doc,
     iframes: [...(doc.iframes ?? []), newIframe],
-  }));
+  })));
 
   return {
     root,
@@ -275,12 +286,12 @@ function addIframe(state: HierarchyState, documentId: string): HierarchyState {
 }
 
 function removeIframe(state: HierarchyState, iframeId: number): HierarchyState {
-  const root = mapIframesInTab(state.root, (iframe) => {
+  const root = state.root.map(tab => mapIframesInTab(tab, (iframe) => {
     if (iframe.iframeId === iframeId) {
       return markIframeStale(iframe);
     }
     return iframe;
-  });
+  }));
   return { ...state, root };
 }
 
@@ -288,18 +299,18 @@ function replaceFrameDocument(
   state: HierarchyState,
   frameId: number,
   makeDoc: (frame: FrameNode, docId: number) => DocumentNode,
-): { root: TabNode; nextDocumentId: number } {
+): { root: TabNode[]; nextDocumentId: number } {
   const docId = state.nextDocumentId;
   let docCreated = false;
 
-  const root = mapFramesInTab(state.root, (frame) => {
+  const root = state.root.map(tab => mapFramesInTab(tab, (frame) => {
     if (frame.frameId !== frameId) return frame;
     const staleDocs = (frame.documents ?? []).map((doc) =>
       doc.stale ? doc : markDocumentStale(doc),
     );
     docCreated = true;
     return { ...frame, documents: [...staleDocs, makeDoc(frame, docId)] };
-  });
+  }));
 
   return { root, nextDocumentId: docCreated ? docId + 1 : docId };
 }
@@ -349,7 +360,7 @@ function navigateIframe(state: HierarchyState, iframeId: number): HierarchyState
   const newOrigin = `https://page-${pageNum}.example.com`;
   let docCreated = false;
 
-  const root = mapIframesInTab(state.root, (iframe) => {
+  const root = state.root.map(tab => mapIframesInTab(tab, (iframe) => {
     if (iframe.iframeId !== iframeId) return iframe;
     if (!iframe.frame) return iframe;
 
@@ -370,7 +381,7 @@ function navigateIframe(state: HierarchyState, iframeId: number): HierarchyState
       src: newUrl,
       frame: { ...iframe.frame, documents: [...staleDocs, newDoc] },
     };
-  });
+  }));
 
   return {
     ...state,
@@ -380,6 +391,51 @@ function navigateIframe(state: HierarchyState, iframeId: number): HierarchyState
   };
 }
 
+function openTab(state: HierarchyState): HierarchyState {
+  const tabId = state.nextTabId;
+  const frameId = state.nextFrameId;
+  const docId = state.nextDocumentId;
+  const pageNum = state.nextPageNumber;
+
+  const newDoc: DocumentNode = {
+    type: 'document',
+    documentId: `doc-${docId}`,
+    url: `https://page-${pageNum}.example.com/`,
+    origin: `https://page-${pageNum}.example.com`,
+  };
+
+  const newFrame: FrameNode = {
+    type: 'frame',
+    frameId,
+    documents: [newDoc],
+  };
+
+  const newTab: TabNode = {
+    type: 'tab',
+    tabId,
+    frames: [newFrame],
+  };
+
+  return {
+    root: [...state.root, newTab],
+    nextTabId: tabId + 1,
+    nextFrameId: frameId + 1,
+    nextDocumentId: docId + 1,
+    nextIframeId: state.nextIframeId,
+    nextPageNumber: pageNum + 1,
+  };
+}
+
+function closeTab(state: HierarchyState, tabId: number): HierarchyState {
+  const root = state.root.map(tab => {
+    if (tab.tabId === tabId) {
+      return markTabStale(tab);
+    }
+    return tab;
+  });
+  return { ...state, root };
+}
+
 // --- Main reducer ---
 
 export function reduce(
@@ -387,6 +443,10 @@ export function reduce(
   action: HierarchyAction,
 ): HierarchyState {
   switch (action.type) {
+    case 'open-tab':
+      return openTab(state);
+    case 'close-tab':
+      return closeTab(state, action.tabId);
     case 'add-iframe':
       return addIframe(state, action.documentId);
     case 'remove-iframe':

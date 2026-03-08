@@ -26,7 +26,7 @@ describe('reduce', () => {
       const state = initState(makeTab());
       const next = reduce(state, { type: 'add-iframe', documentId: 'doc-1' });
 
-      const doc = next.root.frames![0].documents![0];
+      const doc = next.root[0].frames![0].documents![0];
       expect(doc.iframes).toHaveLength(1);
 
       const iframe = doc.iframes![0];
@@ -51,11 +51,11 @@ describe('reduce', () => {
       // Add an iframe first
       let state = initState(tab);
       state = reduce(state, { type: 'add-iframe', documentId: 'doc-1' });
-      const iframeId = state.root.frames![0].documents![0].iframes![0].iframeId;
+      const iframeId = state.root[0].frames![0].documents![0].iframes![0].iframeId;
 
       const next = reduce(state, { type: 'remove-iframe', iframeId });
 
-      const iframe = next.root.frames![0].documents![0].iframes![0];
+      const iframe = next.root[0].frames![0].documents![0].iframes![0];
       expect(iframe.stale).toBe(true);
       expect(iframe.frame!.stale).toBe(true);
       expect(iframe.frame!.documents![0].stale).toBe(true);
@@ -67,7 +67,7 @@ describe('reduce', () => {
       const state = initState(makeTab());
       const next = reduce(state, { type: 'reload-frame', frameId: 0 });
 
-      const frame = next.root.frames![0];
+      const frame = next.root[0].frames![0];
       expect(frame.documents).toHaveLength(2);
       expect(frame.documents![0].stale).toBe(true);
       expect(frame.documents![1].url).toBe('https://page-1.example.com/');
@@ -80,7 +80,7 @@ describe('reduce', () => {
       const state = initState(makeTab());
       const next = reduce(state, { type: 'navigate-frame', frameId: 0 });
 
-      const frame = next.root.frames![0];
+      const frame = next.root[0].frames![0];
       expect(frame.documents).toHaveLength(2);
       expect(frame.documents![0].stale).toBe(true);
       expect(frame.documents![1].stale).toBeUndefined();
@@ -94,13 +94,13 @@ describe('reduce', () => {
       const next = reduce(state, { type: 'navigate-frame', frameId: 0 });
 
       // Old document's iframe and its subtree should be stale
-      const oldDoc = next.root.frames![0].documents![0];
+      const oldDoc = next.root[0].frames![0].documents![0];
       expect(oldDoc.stale).toBe(true);
       expect(oldDoc.iframes![0].stale).toBe(true);
       expect(oldDoc.iframes![0].frame!.stale).toBe(true);
 
       // New document should have no iframes
-      const newDoc = next.root.frames![0].documents![1];
+      const newDoc = next.root[0].frames![0].documents![1];
       expect(newDoc.iframes).toBeUndefined();
     });
   });
@@ -109,11 +109,11 @@ describe('reduce', () => {
     it('navigates the frame inside the iframe and updates iframe src', () => {
       let state = initState(makeTab());
       state = reduce(state, { type: 'add-iframe', documentId: 'doc-1' });
-      const iframeId = state.root.frames![0].documents![0].iframes![0].iframeId;
+      const iframeId = state.root[0].frames![0].documents![0].iframes![0].iframeId;
 
       const next = reduce(state, { type: 'navigate-iframe', iframeId });
 
-      const iframe = next.root.frames![0].documents![0].iframes![0];
+      const iframe = next.root[0].frames![0].documents![0].iframes![0];
       // Iframe src should update to new URL
       expect(iframe.src).toMatch(/^https:\/\/page-\d+\.example\.com\/$/);
 
@@ -122,6 +122,31 @@ describe('reduce', () => {
       expect(innerFrame.documents).toHaveLength(2);
       expect(innerFrame.documents![0].stale).toBe(true);
       expect(innerFrame.documents![1].stale).toBeUndefined();
+    });
+  });
+
+  describe('open-tab', () => {
+    it('creates a new tab with frame[0] and auto-generated document', () => {
+      const state = initState(makeTab());
+      const next = reduce(state, { type: 'open-tab', tabId: 1 });
+
+      expect(next.root).toHaveLength(2);
+      const newTab = next.root[1];
+      expect(newTab.tabId).toBe(2);
+      expect(newTab.frames).toHaveLength(1);
+      expect(newTab.frames![0].frameId).toBe(1);
+      expect(newTab.frames![0].documents![0].url).toMatch(/^https:\/\/page-\d+\.example\.com\/$/);
+    });
+  });
+
+  describe('close-tab', () => {
+    it('marks tab and all descendants stale', () => {
+      const state = initState(makeTab());
+      const next = reduce(state, { type: 'close-tab', tabId: 1 });
+
+      expect(next.root[0].stale).toBe(true);
+      expect(next.root[0].frames![0].stale).toBe(true);
+      expect(next.root[0].frames![0].documents![0].stale).toBe(true);
     });
   });
 });
