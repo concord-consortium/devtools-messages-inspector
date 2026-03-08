@@ -195,6 +195,45 @@ function mapIframesInTab(
   return frames === tab.frames ? tab : { ...tab, frames };
 }
 
+// --- Frame tree-walking helper ---
+
+function mapFramesInDocument(
+  doc: DocumentNode,
+  fn: (frame: FrameNode) => FrameNode,
+): DocumentNode {
+  if (!doc.iframes) return doc;
+  const iframes = doc.iframes.map((iframe) => {
+    if (!iframe.frame) return iframe;
+    const mappedFrame = fn(iframe.frame);
+    // Recurse into nested documents
+    const deepFrame = mapFramesInFrame(mappedFrame, fn);
+    return deepFrame === iframe.frame ? iframe : { ...iframe, frame: deepFrame };
+  });
+  return iframes === doc.iframes ? doc : { ...doc, iframes };
+}
+
+function mapFramesInFrame(
+  frame: FrameNode,
+  fn: (frame: FrameNode) => FrameNode,
+): FrameNode {
+  if (!frame.documents) return frame;
+  const docs = frame.documents.map((doc) => mapFramesInDocument(doc, fn));
+  return docs === frame.documents ? frame : { ...frame, documents: docs };
+}
+
+function mapFramesInTab(
+  tab: TabNode,
+  fn: (frame: FrameNode) => FrameNode,
+): TabNode {
+  if (!tab.frames) return tab;
+  const frames = tab.frames.map((frame) => {
+    const mapped = fn(frame);
+    const deep = mapFramesInFrame(mapped, fn);
+    return deep === frame ? frame : deep;
+  });
+  return frames === tab.frames ? tab : { ...tab, frames };
+}
+
 // --- Action handlers ---
 
 function addIframe(state: HierarchyState, documentId: string): HierarchyState {
@@ -245,6 +284,33 @@ function removeIframe(state: HierarchyState, iframeId: number): HierarchyState {
   return { ...state, root };
 }
 
+function navigateFrame(state: HierarchyState, frameId: number): HierarchyState {
+  const pageNum = state.nextPageNumber;
+  const docId = state.nextDocumentId;
+
+  const newDoc: DocumentNode = {
+    type: 'document',
+    documentId: `doc-${docId}`,
+    url: `https://page-${pageNum}.example.com/`,
+    origin: `https://page-${pageNum}.example.com`,
+  };
+
+  const root = mapFramesInTab(state.root, (frame) => {
+    if (frame.frameId !== frameId) return frame;
+    const staleDocs = (frame.documents ?? []).map((doc) =>
+      doc.stale ? doc : markDocumentStale(doc),
+    );
+    return { ...frame, documents: [...staleDocs, newDoc] };
+  });
+
+  return {
+    ...state,
+    root,
+    nextDocumentId: docId + 1,
+    nextPageNumber: pageNum + 1,
+  };
+}
+
 // --- Main reducer ---
 
 export function reduce(
@@ -256,6 +322,8 @@ export function reduce(
       return addIframe(state, action.documentId);
     case 'remove-iframe':
       return removeIframe(state, action.iframeId);
+    case 'navigate-frame':
+      return navigateFrame(state, action.frameId);
     default:
       return state;
   }

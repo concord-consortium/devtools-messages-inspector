@@ -61,4 +61,34 @@ describe('reduce', () => {
       expect(iframe.frame!.documents![0].stale).toBe(true);
     });
   });
+
+  describe('navigate-frame', () => {
+    it('adds new document to frame and marks old document stale', () => {
+      const state = initState(makeTab());
+      const next = reduce(state, { type: 'navigate-frame', frameId: 0 });
+
+      const frame = next.root.frames![0];
+      expect(frame.documents).toHaveLength(2);
+      expect(frame.documents![0].stale).toBe(true);
+      expect(frame.documents![1].stale).toBeUndefined();
+      expect(frame.documents![1].url).toMatch(/^https:\/\/page-\d+\.example\.com\/$/);
+    });
+
+    it('marks nested iframes in old document as stale', () => {
+      let state = initState(makeTab());
+      state = reduce(state, { type: 'add-iframe', documentId: 'doc-1' });
+
+      const next = reduce(state, { type: 'navigate-frame', frameId: 0 });
+
+      // Old document's iframe and its subtree should be stale
+      const oldDoc = next.root.frames![0].documents![0];
+      expect(oldDoc.stale).toBe(true);
+      expect(oldDoc.iframes![0].stale).toBe(true);
+      expect(oldDoc.iframes![0].frame!.stale).toBe(true);
+
+      // New document should have no iframes
+      const newDoc = next.root.frames![0].documents![1];
+      expect(newDoc.iframes).toBeUndefined();
+    });
+  });
 });
