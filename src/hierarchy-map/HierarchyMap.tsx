@@ -18,6 +18,15 @@ function getLabel(node: HierarchyNode): string {
   }
 }
 
+function getKey(node: HierarchyNode): string {
+  switch (node.type) {
+    case 'tab': return `tab-${node.tabId}`;
+    case 'frame': return `frame-${node.frameId}`;
+    case 'document': return `doc-${node.documentId ?? node.url ?? ''}`;
+    case 'iframe': return `iframe-${node.id ?? node.src ?? ''}`;
+  }
+}
+
 function getChildren(node: HierarchyNode): HierarchyNode[] {
   switch (node.type) {
     case 'tab':
@@ -44,12 +53,12 @@ function NodeBox({ node }: { node: HierarchyNode }) {
     <div className={className}>
       <div className="node-header">
         <span className="node-type-badge">{node.type}</span>
-        <span className="node-label">{getLabel(node)}</span>
+        <span className="node-label" title={getLabel(node)}>{getLabel(node)}</span>
       </div>
       {children.length > 0 && (
         <div className="node-body">
-          {children.map((child, i) => (
-            <NodeBox key={i} node={child} />
+          {children.map((child) => (
+            <NodeBox key={getKey(child)} node={child} />
           ))}
         </div>
       )}

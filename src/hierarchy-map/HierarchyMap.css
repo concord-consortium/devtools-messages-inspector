@@ -10,6 +10,7 @@
 .node-tab {
   --node-color: #7B1FA2;
   --node-bg: #F3E5F5;
+  width: 400px;
 }
 
 .node-frame {
@@ -76,10 +77,11 @@
 
 /* --- Stale nodes --- */
 
-.node-stale {
+.node-stale > .node-header {
   opacity: 0.5;
+  background: #e0e0e0;
 }
 
-.node-stale > .node-header {
-  background: #e0e0e0;
+.node-stale.node-box {
+  border-color: color-mix(in srgb, var(--node-color) 50%, transparent);
 }

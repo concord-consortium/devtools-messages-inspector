@@ -20,7 +20,12 @@ function App() {
         if (!res.ok) throw new Error(`Fetch failed: ${res.status} ${res.statusText}`);
         return res.json();
       })
-      .then(json => setData(json as HierarchyNode))
+      .then(json => {
+        if (!json || typeof json !== 'object' || !('type' in json)) {
+          throw new Error('Invalid hierarchy data: root must have a "type" field');
+        }
+        setData(json as HierarchyNode);
+      })
       .catch(err => setError(String(err)));
   }, []);
 

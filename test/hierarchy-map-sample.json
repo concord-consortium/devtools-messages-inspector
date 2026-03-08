@@ -40,6 +40,26 @@
             },
             {
               "type": "iframe",
+              "id": "old-ad",
+              "src": "https://ads.example.com/banner",
+              "stale": true,
+              "frame": {
+                "type": "frame",
+                "frameId": 4,
+                "stale": true,
+                "documents": [
+                  {
+                    "type": "document",
+                    "documentId": "doc-ad",
+                    "url": "https://ads.example.com/banner",
+                    "origin": "https://ads.example.com",
+                    "stale": true
+                  }
+                ]
+              }
+            },
+            {
+              "type": "iframe",
               "src": "https://analytics.example.com/tracker",
               "frame": {
                 "type": "frame",
