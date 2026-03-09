@@ -27,7 +27,21 @@ function App() {
     const params = new URLSearchParams(window.location.search);
     const dataUrl = params.get('data');
     if (!dataUrl) {
-      setError('Missing ?data= parameter. Provide a URL to a JSON file.');
+      const defaultData: TabNode = {
+        type: 'tab',
+        tabId: 1,
+        frames: [{
+          type: 'frame',
+          frameId: 0,
+          documents: [{
+            type: 'document',
+            documentId: 'doc1',
+            url: 'https://example.com',
+            origin: 'https://example.com',
+          }],
+        }],
+      };
+      setData(defaultData);
       return;
     }
     fetch(dataUrl)
