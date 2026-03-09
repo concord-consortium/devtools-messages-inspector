@@ -2,26 +2,40 @@ import React from 'react';
 import type { HierarchyAction } from './actions';
 import type { HierarchyNode, TabNode } from './types';
 
-function getLabel(node: HierarchyNode): string {
+export function getLabel(node: HierarchyNode): string {
   switch (node.type) {
-    case 'tab': {
-      const base = node.label ?? 'Tab ' + node.tabId;
-      if (node.openerTabId != null && node.openerFrameId != null) {
-        return `${base} (opened by tab[${node.openerTabId}].frame[${node.openerFrameId}])`;
-      }
-      return base;
-    }
+    case 'tab':
+      return node.label ?? 'Tab ' + node.tabId;
     case 'frame':
       return node.label ?? 'frame[' + node.frameId + ']';
     case 'document':
-      return node.url ?? node.origin ?? node.documentId ?? 'document';
-    case 'iframe': {
-      const parts: string[] = [];
-      if (node.id) parts.push('#' + node.id);
-      if (node.src) parts.push(node.src);
-      return parts.length > 0 ? parts.join(' ') : 'iframe';
-    }
+      return node.origin ?? node.documentId ?? 'document';
+    case 'iframe':
+      return node.id ? '#' + node.id : 'iframe';
   }
+}
+
+export function getDetails(node: HierarchyNode): { label: string; value: string }[] {
+  const details: { label: string; value: string }[] = [];
+  switch (node.type) {
+    case 'tab':
+      if (node.openerTabId != null && node.openerFrameId != null) {
+        details.push({ label: 'opener', value: `tab[${node.openerTabId}].frame[${node.openerFrameId}]` });
+      }
+      break;
+    case 'frame':
+      break;
+    case 'document':
+      if (node.documentId) details.push({ label: 'id', value: node.documentId });
+      if (node.url) details.push({ label: 'url', value: node.url });
+      if (node.title) details.push({ label: 'title', value: node.title });
+      break;
+    case 'iframe':
+      if (node.src) details.push({ label: 'src', value: node.src });
+      if (node.id) details.push({ label: 'id', value: node.id });
+      break;
+  }
+  return details;
 }
 
 function getKey(node: HierarchyNode): string {
