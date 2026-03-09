@@ -21,6 +21,7 @@ export interface DocumentNode {
   documentId?: string;
   url?: string;
   origin?: string;
+  title?: string;
   stale?: boolean;
   iframes?: IframeNode[];
 }

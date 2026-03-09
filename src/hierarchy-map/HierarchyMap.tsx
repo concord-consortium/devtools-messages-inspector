@@ -1,27 +1,41 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { HierarchyAction } from './actions';
 import type { HierarchyNode, TabNode } from './types';
 
-function getLabel(node: HierarchyNode): string {
+export function getLabel(node: HierarchyNode): string {
   switch (node.type) {
-    case 'tab': {
-      const base = node.label ?? 'Tab ' + node.tabId;
-      if (node.openerTabId != null && node.openerFrameId != null) {
-        return `${base} (opened by tab[${node.openerTabId}].frame[${node.openerFrameId}])`;
-      }
-      return base;
-    }
+    case 'tab':
+      return node.label ?? 'Tab ' + node.tabId;
     case 'frame':
       return node.label ?? 'frame[' + node.frameId + ']';
     case 'document':
-      return node.url ?? node.origin ?? node.documentId ?? 'document';
-    case 'iframe': {
-      const parts: string[] = [];
-      if (node.id) parts.push('#' + node.id);
-      if (node.src) parts.push(node.src);
-      return parts.length > 0 ? parts.join(' ') : 'iframe';
-    }
+      return node.origin ?? node.documentId ?? 'document';
+    case 'iframe':
+      return node.id ? '#' + node.id : 'iframe';
   }
+}
+
+export function getDetails(node: HierarchyNode): { label: string; value: string }[] {
+  const details: { label: string; value: string }[] = [];
+  switch (node.type) {
+    case 'tab':
+      if (node.openerTabId != null && node.openerFrameId != null) {
+        details.push({ label: 'opener', value: `tab[${node.openerTabId}].frame[${node.openerFrameId}]` });
+      }
+      break;
+    case 'frame':
+      break;
+    case 'document':
+      if (node.documentId) details.push({ label: 'id', value: node.documentId });
+      if (node.url) details.push({ label: 'url', value: node.url });
+      if (node.title) details.push({ label: 'title', value: node.title });
+      break;
+    case 'iframe':
+      if (node.src) details.push({ label: 'src', value: node.src });
+      if (node.id) details.push({ label: 'id', value: node.id });
+      break;
+  }
+  return details;
 }
 
 function getKey(node: HierarchyNode): string {
@@ -122,7 +136,9 @@ function NodeBox({ node, tabId, onAction }: {
   tabId: number;
   onAction?: (action: HierarchyAction) => void;
 }) {
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const currentTabId = node.type === 'tab' ? node.tabId : tabId;
+  const details = getDetails(node);
 
   const className = [
     'node-box',
@@ -137,8 +153,27 @@ function NodeBox({ node, tabId, onAction }: {
       <div className="node-header">
         <span className="node-type-badge">{node.type === 'document' ? 'doc' : node.type}</span>
         <span className="node-label" title={getLabel(node)}>{getLabel(node)}</span>
+        {details.length > 0 && (
+          <button
+            className="node-info-btn"
+            aria-label="info"
+            onClick={() => setDetailsOpen(prev => !prev)}
+          >
+            ℹ
+          </button>
+        )}
         {onAction && <NodeActions node={node} tabId={currentTabId} onAction={onAction} />}
       </div>
+      {detailsOpen && details.length > 0 && (
+        <div className="node-details">
+          {details.map(({ label, value }) => (
+            <div key={label} className="node-detail-row">
+              <span className="node-detail-label">{label}</span>
+              <span className="node-detail-value" title={value}>{value}</span>
+            </div>
+          ))}
+        </div>
+      )}
       {children.length > 0 && (
         <div className="node-body">
           {children.map((child) => (

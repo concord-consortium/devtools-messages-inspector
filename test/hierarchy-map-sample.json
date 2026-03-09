@@ -20,6 +20,7 @@
           "documentId": "doc-current",
           "url": "https://app.example.com/dashboard",
           "origin": "https://app.example.com",
+          "title": "Dashboard",
           "iframes": [
             {
               "type": "iframe",
@@ -34,7 +35,8 @@
                     "type": "document",
                     "documentId": "doc-widget",
                     "url": "https://widget.example.com/embed",
-                    "origin": "https://widget.example.com"
+                    "origin": "https://widget.example.com",
+                    "title": "Widget"
                   }
                 ]
               }
