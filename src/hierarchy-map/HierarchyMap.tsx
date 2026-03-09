@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { HierarchyAction } from './actions';
 import type { HierarchyNode, TabNode } from './types';
 
@@ -136,7 +136,9 @@ function NodeBox({ node, tabId, onAction }: {
   tabId: number;
   onAction?: (action: HierarchyAction) => void;
 }) {
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const currentTabId = node.type === 'tab' ? node.tabId : tabId;
+  const details = getDetails(node);
 
   const className = [
     'node-box',
@@ -151,8 +153,27 @@ function NodeBox({ node, tabId, onAction }: {
       <div className="node-header">
         <span className="node-type-badge">{node.type === 'document' ? 'doc' : node.type}</span>
         <span className="node-label" title={getLabel(node)}>{getLabel(node)}</span>
+        {details.length > 0 && (
+          <button
+            className="node-info-btn"
+            aria-label="info"
+            onClick={() => setDetailsOpen(prev => !prev)}
+          >
+            ℹ
+          </button>
+        )}
         {onAction && <NodeActions node={node} tabId={currentTabId} onAction={onAction} />}
       </div>
+      {detailsOpen && details.length > 0 && (
+        <div className="node-details">
+          {details.map(({ label, value }) => (
+            <div key={label} className="node-detail-row">
+              <span className="node-detail-label">{label}</span>
+              <span className="node-detail-value" title={value}>{value}</span>
+            </div>
+          ))}
+        </div>
+      )}
       {children.length > 0 && (
         <div className="node-body">
           {children.map((child) => (

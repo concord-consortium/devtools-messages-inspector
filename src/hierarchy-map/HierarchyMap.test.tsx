@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { getLabel, getDetails } from './HierarchyMap';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { getLabel, getDetails, HierarchyMap } from './HierarchyMap';
 import type { TabNode, FrameNode, DocumentNode, IframeNode } from './types';
 
 describe('getLabel', () => {
@@ -93,5 +95,58 @@ describe('getDetails', () => {
   it('iframe: omits missing fields', () => {
     const node: IframeNode = { type: 'iframe', iframeId: 1 };
     expect(getDetails(node)).toEqual([]);
+  });
+});
+
+describe('HierarchyMap details area', () => {
+  const tab: TabNode = {
+    type: 'tab', tabId: 1, openerTabId: 2, openerFrameId: 0,
+    frames: [{
+      type: 'frame', frameId: 0,
+      documents: [{
+        type: 'document', documentId: 'doc-1',
+        url: 'https://example.com/page', origin: 'https://example.com',
+        title: 'Example Page',
+      }],
+    }],
+  };
+
+  it('does not show details by default', () => {
+    render(<HierarchyMap root={tab} />);
+    expect(screen.queryByText('doc-1')).toBeNull();
+  });
+
+  it('shows info button for nodes with details', () => {
+    render(<HierarchyMap root={tab} />);
+    // Tab has opener info, document has details — both get info buttons
+    // Frame has no details — no info button
+    const infoButtons = screen.getAllByRole('button', { name: /info/i });
+    // Tab (1) + Document (1) = 2 info buttons
+    expect(infoButtons).toHaveLength(2);
+  });
+
+  it('toggles details when info button is clicked', async () => {
+    const user = userEvent.setup();
+    render(<HierarchyMap root={tab} />);
+
+    // Click the first info button (on the tab node)
+    const infoButtons = screen.getAllByRole('button', { name: /info/i });
+    await user.click(infoButtons[0]);
+
+    // Tab opener detail should now be visible
+    expect(screen.getByText('tab[2].frame[0]')).toBeTruthy();
+
+    // Click again to collapse
+    await user.click(infoButtons[0]);
+    expect(screen.queryByText('tab[2].frame[0]')).toBeNull();
+  });
+
+  it('does not show info button for frame nodes', () => {
+    const frameOnly: TabNode = {
+      type: 'tab', tabId: 1,
+      frames: [{ type: 'frame', frameId: 0 }],
+    };
+    render(<HierarchyMap root={frameOnly} />);
+    expect(screen.queryByRole('button', { name: /info/i })).toBeNull();
   });
 });
