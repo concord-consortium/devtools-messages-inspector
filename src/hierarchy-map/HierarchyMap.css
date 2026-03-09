@@ -119,3 +119,48 @@
 .node-action-btn:hover {
   background: var(--node-bg);
 }
+
+/* --- Info button --- */
+
+.node-info-btn {
+  font-size: 12px;
+  padding: 0 4px;
+  border: 1px solid var(--node-color);
+  border-radius: 3px;
+  background: white;
+  color: var(--node-color);
+  cursor: pointer;
+  font-family: inherit;
+  flex-shrink: 0;
+  line-height: 1.4;
+}
+
+.node-info-btn:hover {
+  background: var(--node-bg);
+}
+
+/* --- Details area --- */
+
+.node-details {
+  background: var(--node-bg);
+  padding: 4px 8px;
+  border-bottom: 2px solid var(--node-color);
+}
+
+.node-detail-row {
+  display: flex;
+  gap: 8px;
+  line-height: 1.6;
+}
+
+.node-detail-label {
+  color: #888;
+  flex-shrink: 0;
+}
+
+.node-detail-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
