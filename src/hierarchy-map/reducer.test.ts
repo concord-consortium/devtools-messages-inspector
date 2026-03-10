@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { reduce, initState } from './reducer';
-import type { TabNode } from './types';
+import type { TabNode } from '../hierarchy/types';
 
 function makeTab(overrides?: Partial<TabNode>): TabNode {
   return {

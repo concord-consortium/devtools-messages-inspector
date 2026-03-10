@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import type { HierarchyAction } from './actions';
-import type { HierarchyNode, TabNode } from './types';
+import type { HierarchyAction } from '../hierarchy/actions';
+import type { HierarchyNode, TabNode } from '../hierarchy/types';
 
 export function getLabel(node: HierarchyNode): string {
   switch (node.type) {

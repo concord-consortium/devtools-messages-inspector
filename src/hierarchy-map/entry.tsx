@@ -2,8 +2,8 @@ import React, { useCallback, useEffect, useReducer, useRef, useState } from 'rea
 import { createRoot } from 'react-dom/client';
 import { HierarchyMap } from './HierarchyMap';
 import { initState, reduce } from './reducer';
-import type { HierarchyAction } from './actions';
-import type { TabNode } from './types';
+import type { HierarchyAction } from '../hierarchy/actions';
+import type { TabNode } from '../hierarchy/types';
 import Markdown from 'react-markdown';
 import aboutMarkdown from '../../docs/hierarchy-actions.md?raw';
 import './HierarchyMap.css';
