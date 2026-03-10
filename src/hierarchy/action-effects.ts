@@ -1,8 +1,11 @@
-import { reduce } from './reducer';
+import {
+  addIframe, removeIframe, navigateFrame, reloadFrame,
+  navigateIframe, openTab, closeTab, purgeStale,
+} from './reducer';
 import type { HierarchyState } from './reducer';
 import type { HierarchyAction } from './actions';
 import type { HierarchyEvent } from './events';
-import type { TabNode, FrameNode, DocumentNode, IframeNode } from './types';
+import type { TabNode, FrameNode, IframeNode } from './types';
 
 export interface ActionResult {
   state: HierarchyState;
@@ -116,117 +119,131 @@ function findDocInFrame(frame: FrameNode, documentId: string): number | undefine
 // --- Main function ---
 
 export function applyAction(state: HierarchyState, action: HierarchyAction): ActionResult {
-  const newState = reduce(state, action);
-  const events = generateEvents(state, newState, action);
-  return { state: newState, events };
-}
-
-function generateEvents(
-  oldState: HierarchyState,
-  newState: HierarchyState,
-  action: HierarchyAction,
-): HierarchyEvent[] {
   switch (action.type) {
     case 'add-iframe': {
-      const newFrameId = newState.nextFrameId - 1;
-      const context = findParentFrameForDocument(oldState.root, action.documentId);
-      return [{
-        scope: 'dom',
-        type: 'iframeAdded',
-        tabId: context?.tabId ?? 0,
-        parentFrameId: context?.frameId ?? 0,
-        frameId: newFrameId,
-        src: 'about:blank',
-      }];
+      const context = findParentFrameForDocument(state.root, action.documentId);
+      const newState = addIframe(state, action.documentId);
+      return {
+        state: newState,
+        events: [{
+          scope: 'dom',
+          type: 'iframeAdded',
+          tabId: context?.tabId ?? 0,
+          parentFrameId: context?.frameId ?? 0,
+          frameId: newState.nextFrameId - 1,
+          src: 'about:blank',
+        }],
+      };
     }
 
     case 'remove-iframe': {
-      const context = findIframeContext(oldState.root, action.iframeId);
-      return [{
-        scope: 'dom',
-        type: 'iframeRemoved',
-        tabId: context?.tabId ?? 0,
-        parentFrameId: context?.parentFrameId ?? 0,
-        iframeId: action.iframeId,
-      }];
+      const context = findIframeContext(state.root, action.iframeId);
+      return {
+        state: removeIframe(state, action.iframeId),
+        events: [{
+          scope: 'dom',
+          type: 'iframeRemoved',
+          tabId: context?.tabId ?? 0,
+          parentFrameId: context?.parentFrameId ?? 0,
+          iframeId: action.iframeId,
+        }],
+      };
     }
 
     case 'navigate-frame': {
-      const tabId = findTabForFrame(oldState.root, action.frameId);
+      const tabId = findTabForFrame(state.root, action.frameId) ?? 0;
+      const newState = navigateFrame(state, action.frameId);
       const frame = findFrameInTab(newState.root.find(t => t.tabId === tabId)!, action.frameId);
       const newDoc = frame?.documents?.find(d => !d.stale);
-      return [{
-        scope: 'chrome',
-        type: 'onCommitted',
-        tabId: tabId ?? 0,
-        frameId: action.frameId,
-        url: newDoc?.url ?? '',
-      }];
+      return {
+        state: newState,
+        events: [{
+          scope: 'chrome',
+          type: 'onCommitted',
+          tabId,
+          frameId: action.frameId,
+          url: newDoc?.url ?? '',
+        }],
+      };
     }
 
     case 'reload-frame': {
-      const tabId = findTabForFrame(oldState.root, action.frameId);
+      const tabId = findTabForFrame(state.root, action.frameId) ?? 0;
+      const newState = reloadFrame(state, action.frameId);
       const frame = findFrameInTab(newState.root.find(t => t.tabId === tabId)!, action.frameId);
       const newDoc = frame?.documents?.find(d => !d.stale);
-      return [{
-        scope: 'chrome',
-        type: 'onCommitted',
-        tabId: tabId ?? 0,
-        frameId: action.frameId,
-        url: newDoc?.url ?? '',
-        transitionType: 'reload',
-      }];
+      return {
+        state: newState,
+        events: [{
+          scope: 'chrome',
+          type: 'onCommitted',
+          tabId,
+          frameId: action.frameId,
+          url: newDoc?.url ?? '',
+          transitionType: 'reload',
+        }],
+      };
     }
 
     case 'navigate-iframe': {
-      const context = findIframeContext(oldState.root, action.iframeId);
+      const context = findIframeContext(state.root, action.iframeId);
+      const newState = navigateIframe(state, action.iframeId);
       const newContext = findIframeContext(newState.root, action.iframeId);
-      const innerFrame = newContext?.iframe.frame;
-      const newDoc = innerFrame?.documents?.find(d => !d.stale);
-      return [{
-        scope: 'chrome',
-        type: 'onCommitted',
-        tabId: context?.tabId ?? 0,
-        frameId: context?.iframe.frame?.frameId ?? 0,
-        url: newDoc?.url ?? '',
-      }];
+      const newDoc = newContext?.iframe.frame?.documents?.find(d => !d.stale);
+      return {
+        state: newState,
+        events: [{
+          scope: 'chrome',
+          type: 'onCommitted',
+          tabId: context?.tabId ?? 0,
+          frameId: context?.iframe.frame?.frameId ?? 0,
+          url: newDoc?.url ?? '',
+        }],
+      };
     }
 
     case 'open-tab': {
+      const newState = openTab(state, action.tabId, action.frameId);
       const newTab = newState.root[newState.root.length - 1];
       const newFrame = newTab.frames![0];
       const newDoc = newFrame.documents![0];
-      return [
-        {
-          scope: 'chrome',
-          type: 'onCreatedNavigationTarget',
-          sourceTabId: action.tabId,
-          sourceFrameId: action.frameId,
-          tabId: newTab.tabId,
-          url: newDoc.url ?? '',
-        },
-        {
-          scope: 'chrome',
-          type: 'onCommitted',
-          tabId: newTab.tabId,
-          frameId: newFrame.frameId,
-          url: newDoc.url ?? '',
-        },
-      ];
+      return {
+        state: newState,
+        events: [
+          {
+            scope: 'chrome',
+            type: 'onCreatedNavigationTarget',
+            sourceTabId: action.tabId,
+            sourceFrameId: action.frameId,
+            tabId: newTab.tabId,
+            url: newDoc.url ?? '',
+          },
+          {
+            scope: 'chrome',
+            type: 'onCommitted',
+            tabId: newTab.tabId,
+            frameId: newFrame.frameId,
+            url: newDoc.url ?? '',
+          },
+        ],
+      };
     }
 
     case 'close-tab': {
-      return [{
-        scope: 'chrome',
-        type: 'onTabRemoved',
-        tabId: action.tabId,
-      }];
+      return {
+        state: closeTab(state, action.tabId),
+        events: [{
+          scope: 'chrome',
+          type: 'onTabRemoved',
+          tabId: action.tabId,
+        }],
+      };
     }
 
     case 'purge-stale':
-      return [];
+      return { state: purgeStale(state), events: [] };
 
     default:
-      return [];
+      return { state, events: [] };
   }
 }

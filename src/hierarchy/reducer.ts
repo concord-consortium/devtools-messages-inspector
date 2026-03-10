@@ -1,5 +1,4 @@
 import type { TabNode, FrameNode, DocumentNode, IframeNode } from './types';
-import type { HierarchyAction } from './actions';
 
 export interface HierarchyState {
   root: TabNode[];
@@ -247,7 +246,7 @@ function mapFramesInTab(
 
 // --- Action handlers ---
 
-function addIframe(state: HierarchyState, documentId: string): HierarchyState {
+export function addIframe(state: HierarchyState, documentId: string): HierarchyState {
   const iframeId = state.nextIframeId;
   const frameId = state.nextFrameId;
   const docId = state.nextDocumentId;
@@ -285,7 +284,7 @@ function addIframe(state: HierarchyState, documentId: string): HierarchyState {
   };
 }
 
-function removeIframe(state: HierarchyState, iframeId: number): HierarchyState {
+export function removeIframe(state: HierarchyState, iframeId: number): HierarchyState {
   const root = state.root.map(tab => mapIframesInTab(tab, (iframe) => {
     if (iframe.iframeId === iframeId) {
       return markIframeStale(iframe);
@@ -315,7 +314,7 @@ function replaceFrameDocument(
   return { root, nextDocumentId: docCreated ? docId + 1 : docId };
 }
 
-function navigateFrame(state: HierarchyState, frameId: number): HierarchyState {
+export function navigateFrame(state: HierarchyState, frameId: number): HierarchyState {
   const pageNum = state.nextPageNumber;
 
   const { root, nextDocumentId } = replaceFrameDocument(state, frameId, (_frame, docId) => ({
@@ -333,7 +332,7 @@ function navigateFrame(state: HierarchyState, frameId: number): HierarchyState {
   };
 }
 
-function reloadFrame(state: HierarchyState, frameId: number): HierarchyState {
+export function reloadFrame(state: HierarchyState, frameId: number): HierarchyState {
   const { root, nextDocumentId } = replaceFrameDocument(state, frameId, (frame, docId) => {
     // Find the most recent non-stale document to copy URL/origin from
     const docs = frame.documents ?? [];
@@ -353,7 +352,7 @@ function reloadFrame(state: HierarchyState, frameId: number): HierarchyState {
   };
 }
 
-function navigateIframe(state: HierarchyState, iframeId: number): HierarchyState {
+export function navigateIframe(state: HierarchyState, iframeId: number): HierarchyState {
   const pageNum = state.nextPageNumber;
   const docId = state.nextDocumentId;
   const newUrl = `https://page-${pageNum}.example.com/`;
@@ -391,7 +390,7 @@ function navigateIframe(state: HierarchyState, iframeId: number): HierarchyState
   };
 }
 
-function openTab(state: HierarchyState, openerTabId: number, openerFrameId: number): HierarchyState {
+export function openTab(state: HierarchyState, openerTabId: number, openerFrameId: number): HierarchyState {
   const tabId = state.nextTabId;
   const frameId = state.nextFrameId;
   const docId = state.nextDocumentId;
@@ -428,7 +427,7 @@ function openTab(state: HierarchyState, openerTabId: number, openerFrameId: numb
   };
 }
 
-function closeTab(state: HierarchyState, tabId: number): HierarchyState {
+export function closeTab(state: HierarchyState, tabId: number): HierarchyState {
   const root = state.root.map(tab => {
     if (tab.tabId === tabId) {
       return markTabStale(tab);
@@ -469,37 +468,10 @@ function purgeTab(tab: TabNode): TabNode {
   return { ...tab, frames };
 }
 
-function purgeStale(state: HierarchyState): HierarchyState {
+export function purgeStale(state: HierarchyState): HierarchyState {
   const root = state.root
     .filter((tab) => !tab.stale)
     .map(purgeTab);
   return { ...state, root };
 }
 
-// --- Main reducer ---
-
-export function reduce(
-  state: HierarchyState,
-  action: HierarchyAction,
-): HierarchyState {
-  switch (action.type) {
-    case 'open-tab':
-      return openTab(state, action.tabId, action.frameId);
-    case 'close-tab':
-      return closeTab(state, action.tabId);
-    case 'add-iframe':
-      return addIframe(state, action.documentId);
-    case 'remove-iframe':
-      return removeIframe(state, action.iframeId);
-    case 'navigate-iframe':
-      return navigateIframe(state, action.iframeId);
-    case 'navigate-frame':
-      return navigateFrame(state, action.frameId);
-    case 'reload-frame':
-      return reloadFrame(state, action.frameId);
-    case 'purge-stale':
-      return purgeStale(state);
-    default:
-      return state;
-  }
-}
