@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { HierarchyMap } from './HierarchyMap';
-import { initState, reduce } from './reducer';
+import { initState, reduce } from '../hierarchy/reducer';
 import type { HierarchyAction } from '../hierarchy/actions';
 import type { TabNode } from '../hierarchy/types';
 import Markdown from 'react-markdown';

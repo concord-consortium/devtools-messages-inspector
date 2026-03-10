@@ -1,5 +1,5 @@
-import type { TabNode, FrameNode, DocumentNode, IframeNode } from '../hierarchy/types';
-import type { HierarchyAction } from '../hierarchy/actions';
+import type { TabNode, FrameNode, DocumentNode, IframeNode } from './types';
+import type { HierarchyAction } from './actions';
 
 export interface HierarchyState {
   root: TabNode[];
