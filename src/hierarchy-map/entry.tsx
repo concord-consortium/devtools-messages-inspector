@@ -1,8 +1,10 @@
-import React, { useCallback, useEffect, useReducer, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { HierarchyMap } from './HierarchyMap';
-import { initState, reduce } from '../hierarchy/reducer';
+import { initState } from '../hierarchy/reducer';
+import { applyAction } from '../hierarchy/action-effects';
 import type { HierarchyAction } from '../hierarchy/actions';
+import type { HierarchyEvent } from '../hierarchy/events';
 import type { TabNode } from '../hierarchy/types';
 import Markdown from 'react-markdown';
 import aboutMarkdown from '../../docs/hierarchy-actions.md?raw';
@@ -10,7 +12,12 @@ import './HierarchyMap.css';
 
 type SideTab = 'log' | 'about';
 
-function ActionLog({ log }: { log: HierarchyAction[] }) {
+interface ActionLogEntry {
+  action: HierarchyAction;
+  events: HierarchyEvent[];
+}
+
+function ActionLog({ log }: { log: ActionLogEntry[] }) {
   const bottomRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -18,8 +25,13 @@ function ActionLog({ log }: { log: HierarchyAction[] }) {
   return (
     <div className="action-log">
       {log.length === 0 && <div className="action-log-empty">No actions yet.</div>}
-      {log.map((action, i) => (
-        <pre key={i} className="action-log-entry">{JSON.stringify(action, null, 2)}</pre>
+      {log.map((entry, i) => (
+        <div key={i} className="action-log-entry-group">
+          <pre className="action-log-entry">{JSON.stringify(entry.action, null, 2)}</pre>
+          {entry.events.map((event, j) => (
+            <pre key={j} className="action-log-event">{'\u2192'} {JSON.stringify(event, null, 2)}</pre>
+          ))}
+        </div>
       ))}
       <div ref={bottomRef} />
     </div>
@@ -30,7 +42,7 @@ function AboutTab() {
   return <div className="about-content"><Markdown>{aboutMarkdown}</Markdown></div>;
 }
 
-function SidePanel({ log }: { log: HierarchyAction[] }) {
+function SidePanel({ log }: { log: ActionLogEntry[] }) {
   const [activeTab, setActiveTab] = useState<SideTab>('log');
   return (
     <div className="side-panel">
@@ -52,11 +64,14 @@ function SidePanel({ log }: { log: HierarchyAction[] }) {
 }
 
 function InteractiveMap({ root }: { root: TabNode }) {
-  const [state, dispatch] = useReducer(reduce, root, initState);
-  const [actionLog, setActionLog] = useState<HierarchyAction[]>([]);
+  const [state, setState] = useState(() => initState(root));
+  const [actionLog, setActionLog] = useState<ActionLogEntry[]>([]);
   const loggedDispatch = useCallback((action: HierarchyAction) => {
-    setActionLog(prev => [...prev, action]);
-    dispatch(action);
+    setState(prev => {
+      const { state: next, events } = applyAction(prev, action);
+      setActionLog(log => [...log, { action, events }]);
+      return next;
+    });
   }, []);
   return (
     <div className="interactive-map-layout">
