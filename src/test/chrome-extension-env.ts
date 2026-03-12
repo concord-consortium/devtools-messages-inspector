@@ -46,6 +46,15 @@ export class ChromeExtensionEnv {
   }
 
   /**
+   * Register a pre-built HarnessTab with this env (used by HarnessRuntime).
+   * Wires the tab's onCommitted event to bgOnCommitted.
+   */
+  registerTab(tab: HarnessTab): void {
+    this.tabs.set(tab.id, tab);
+    tab.onCommitted = this.bgOnCommitted;
+  }
+
+  /**
    * Create a tab with its top-level frame (frameId=0), document, and window.
    * Returns the top-level HarnessFrame (access .window for the HarnessWindow).
    */
