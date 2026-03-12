@@ -26,6 +26,10 @@ export class HarnessTab {
 
   addFrame(frame: HarnessFrame): void {
     this.frames.set(frame.frameId, frame);
+    // Keep _nextFrameId above any registered frame so nextFrameId() never collides
+    if (frame.frameId >= this._nextFrameId) {
+      this._nextFrameId = frame.frameId + 1;
+    }
   }
 
   getFrame(frameId: number): HarnessFrame | undefined {
@@ -209,6 +213,9 @@ export class HarnessWindow {
   top: HarnessWindow;
   document: { title: string; querySelectorAll(selector: string): NodeListOf<Element> };
   __postmessage_devtools_content__?: boolean;
+
+  /** Mirrors window.origin — shorthand for location.origin */
+  get origin(): string { return this.location.origin; }
 
   private _rawParent: HarnessWindow;
   private _parentProxy: CrossOriginWindowProxy | null = null;
