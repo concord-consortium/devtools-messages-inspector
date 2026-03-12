@@ -246,15 +246,18 @@ function mapFramesInTab(
 
 // --- Action handlers ---
 
-export function addIframe(state: HierarchyState, documentId: string): HierarchyState {
+export function addIframe(state: HierarchyState, documentId: string, actionUrl?: string): HierarchyState {
   const iframeId = state.nextIframeId;
   const frameId = state.nextFrameId;
   const docId = state.nextDocumentId;
+  const pageNum = state.nextPageNumber;
 
+  const url = actionUrl ?? `https://page-${pageNum}.example.com/`;
   const newDoc: DocumentNode = {
     type: 'document',
     documentId: `doc-${docId}`,
-    url: 'about:blank',
+    url,
+    origin: new URL(url).origin,
   };
 
   const newFrame: FrameNode = {
@@ -280,7 +283,7 @@ export function addIframe(state: HierarchyState, documentId: string): HierarchyS
     nextFrameId: frameId + 1,
     nextDocumentId: docId + 1,
     nextIframeId: iframeId + 1,
-    nextPageNumber: state.nextPageNumber,
+    nextPageNumber: actionUrl ? state.nextPageNumber : pageNum + 1,
   };
 }
 

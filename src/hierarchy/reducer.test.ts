@@ -24,7 +24,7 @@ function makeTab(overrides?: Partial<TabNode>): TabNode {
 }
 
 describe('addIframe', () => {
-  it('adds iframe with new frame and about:blank document to target document', () => {
+  it('adds iframe with new frame and auto-generated URL to target document', () => {
     const state = initState(makeTab());
     const next = addIframe(state, 'doc-1');
 
@@ -42,8 +42,24 @@ describe('addIframe', () => {
 
     const innerDoc = frame.documents![0];
     expect(innerDoc.type).toBe('document');
-    expect(innerDoc.url).toBe('about:blank');
-    expect(innerDoc.origin).toBeUndefined();
+    expect(innerDoc.url).toBe('https://page-2.example.com/');
+    expect(innerDoc.origin).toBe('https://page-2.example.com');
+  });
+
+  it('increments nextPageNumber when URL is auto-generated', () => {
+    const state = initState(makeTab());
+    const next = addIframe(state, 'doc-1');
+    expect(next.nextPageNumber).toBe(3);
+  });
+
+  it('uses provided URL and does not increment nextPageNumber', () => {
+    const state = initState(makeTab());
+    const next = addIframe(state, 'doc-1', 'https://custom.example.com/page');
+
+    const innerDoc = next.root[0].frames![0].documents![0].iframes![0].frame!.documents![0];
+    expect(innerDoc.url).toBe('https://custom.example.com/page');
+    expect(innerDoc.origin).toBe('https://custom.example.com');
+    expect(next.nextPageNumber).toBe(state.nextPageNumber);
   });
 });
 

@@ -122,9 +122,14 @@ export function applyAction(state: HierarchyState, action: HierarchyAction): Act
   switch (action.type) {
     case 'add-iframe': {
       const context = findParentFrameForDocument(state.root, action.documentId);
-      const newState = addIframe(state, action.documentId);
+      const newState = addIframe(state, action.documentId, action.url);
       const tabId = context?.tabId ?? 0;
       const frameId = newState.nextFrameId - 1;
+      // Find the newly created iframe's document to get the URL
+      const iframeId = newState.nextIframeId - 1;
+      const newIframeContext = findIframeContext(newState.root, iframeId);
+      const newDoc = newIframeContext?.iframe.frame?.documents?.[0];
+      const url = newDoc?.url ?? '';
       return {
         state: newState,
         events: [
@@ -134,14 +139,14 @@ export function applyAction(state: HierarchyState, action: HierarchyAction): Act
             tabId,
             parentFrameId: context?.frameId ?? 0,
             frameId,
-            src: 'about:blank',
+            src: url,
           },
           {
             scope: 'chrome',
             type: 'onCommitted',
             tabId,
             frameId,
-            url: 'about:blank',
+            url,
           },
         ],
       };
