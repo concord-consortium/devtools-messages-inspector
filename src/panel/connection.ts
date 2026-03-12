@@ -1,5 +1,6 @@
 // Background script connection for Messages Inspector panel
 
+import { runInAction } from 'mobx';
 import { store } from './store';
 import { Message } from './Message';
 import { frameStore, Frame, FrameDocument, OwnerElement } from './models';
@@ -36,6 +37,10 @@ export function connect(): void {
 // 4. Handle registration if applicable
 // 5. Push to the store
 export function processIncomingMessage(msg: IMessage): void {
+  runInAction(() => _processIncomingMessage(msg));
+}
+
+function _processIncomingMessage(msg: IMessage): void {
   // --- Target ---
   let targetOwnerElement: OwnerElement | undefined = undefined;
   if (msg.target.documentId) {
