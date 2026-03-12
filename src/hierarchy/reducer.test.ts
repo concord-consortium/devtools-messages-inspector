@@ -134,7 +134,7 @@ describe('openTab', () => {
     const newTab = next.root[1];
     expect(newTab.tabId).toBe(2);
     expect(newTab.frames).toHaveLength(1);
-    expect(newTab.frames![0].frameId).toBe(1);
+    expect(newTab.frames![0].frameId).toBe(0);
     expect(newTab.frames![0].documents![0].url).toMatch(/^https:\/\/page-\d+\.example\.com\/$/);
   });
 

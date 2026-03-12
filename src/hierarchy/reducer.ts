@@ -392,7 +392,6 @@ export function navigateIframe(state: HierarchyState, iframeId: number): Hierarc
 
 export function openTab(state: HierarchyState, openerTabId: number, openerFrameId: number): HierarchyState {
   const tabId = state.nextTabId;
-  const frameId = state.nextFrameId;
   const docId = state.nextDocumentId;
   const pageNum = state.nextPageNumber;
 
@@ -405,7 +404,7 @@ export function openTab(state: HierarchyState, openerTabId: number, openerFrameI
 
   const newFrame: FrameNode = {
     type: 'frame',
-    frameId,
+    frameId: 0,
     documents: [newDoc],
   };
 
@@ -420,7 +419,7 @@ export function openTab(state: HierarchyState, openerTabId: number, openerFrameI
   return {
     root: [...state.root, newTab],
     nextTabId: tabId + 1,
-    nextFrameId: frameId + 1,
+    nextFrameId: state.nextFrameId,
     nextDocumentId: docId + 1,
     nextIframeId: state.nextIframeId,
     nextPageNumber: pageNum + 1,
