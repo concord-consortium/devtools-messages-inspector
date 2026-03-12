@@ -23,16 +23,22 @@ function makeTab(overrides?: Partial<TabNode>): TabNode {
 
 describe('applyAction', () => {
   describe('add-iframe', () => {
-    it('returns iframeAdded dom event with correct frame IDs', () => {
+    it('returns iframeAdded and onCommitted events', () => {
       const state = initState(makeTab());
       const { events } = applyAction(state, { type: 'add-iframe', documentId: 'doc-1' });
 
-      expect(events).toHaveLength(1);
+      expect(events).toHaveLength(2);
       expect(events[0]).toMatchObject({
         scope: 'dom',
         type: 'iframeAdded',
         tabId: 1,
         parentFrameId: 0,
+      });
+      expect(events[1]).toMatchObject({
+        scope: 'chrome',
+        type: 'onCommitted',
+        tabId: 1,
+        url: 'about:blank',
       });
     });
 

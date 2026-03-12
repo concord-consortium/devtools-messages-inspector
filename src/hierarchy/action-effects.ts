@@ -123,16 +123,27 @@ export function applyAction(state: HierarchyState, action: HierarchyAction): Act
     case 'add-iframe': {
       const context = findParentFrameForDocument(state.root, action.documentId);
       const newState = addIframe(state, action.documentId);
+      const tabId = context?.tabId ?? 0;
+      const frameId = newState.nextFrameId - 1;
       return {
         state: newState,
-        events: [{
-          scope: 'dom',
-          type: 'iframeAdded',
-          tabId: context?.tabId ?? 0,
-          parentFrameId: context?.frameId ?? 0,
-          frameId: newState.nextFrameId - 1,
-          src: 'about:blank',
-        }],
+        events: [
+          {
+            scope: 'dom',
+            type: 'iframeAdded',
+            tabId,
+            parentFrameId: context?.frameId ?? 0,
+            frameId,
+            src: 'about:blank',
+          },
+          {
+            scope: 'chrome',
+            type: 'onCommitted',
+            tabId,
+            frameId,
+            url: 'about:blank',
+          },
+        ],
       };
     }
 
