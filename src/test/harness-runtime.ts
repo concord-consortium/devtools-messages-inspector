@@ -22,7 +22,7 @@ function frameKey(tabId: number, frameId: number): string {
 
 export class HarnessRuntime {
   readonly env: ChromeExtensionEnv;
-  hierarchyState!: HierarchyState;
+  hierarchyState: HierarchyState = initState([]);
   actionLog: Array<{ action: HierarchyAction; events: HierarchyEvent[] }> = [];
 
   private tabs = new Map<number, HarnessTab>();
