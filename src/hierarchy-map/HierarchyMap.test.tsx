@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { getLabel, getDetails, HierarchyMap } from './HierarchyMap';
-import type { TabNode, FrameNode, DocumentNode, IframeNode } from './types';
+import type { TabNode, FrameNode, DocumentNode, IframeNode } from '../hierarchy/types';
 
 describe('getLabel', () => {
   it('tab: shows tab ID without opener info', () => {
