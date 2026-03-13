@@ -1,67 +1,60 @@
 # Action-Centric Hierarchy Framework
 
-## Goal
+## Why This Exists
 
-Unify the hierarchy map and test harness around a shared action framework. Each action type defines what can happen to a frame hierarchy, what tree changes result, and what observable events fire at each layer (Chrome extension, DOM, window).
+Chrome's frame hierarchy (tabs, frames, documents, iframes, opened windows) produces a complex set of events across multiple layers: Chrome extension APIs (`webNavigation.onCommitted`, `tabs.onRemoved`, etc.), DOM mutations (iframe elements appearing/disappearing), and window-level events (`postMessage`). Understanding which events fire for a given user action — and in what order — is essential for both the extension and its test harness.
 
-This serves three purposes:
-1. **Interactive documentation** — the standalone hierarchy map shows which events each action produces
-2. **Test harness** — the harness uses the same action definitions to fire correct mock events
-3. **Future Chrome verification** — Playwright tests compare real Chrome events against the action-defined expectations
+Rather than encoding this knowledge separately in the extension code, the hierarchy map UI, and the test harness, we define it once as a shared action framework.
 
-## Core Module: `src/hierarchy/action-effects.ts`
+## Design
 
-A pure function that takes tree state + action and returns the updated tree + a list of event descriptors:
+### Actions and Effects
+
+Each thing that can happen to a frame hierarchy is modeled as an **action** (e.g., `add-iframe`, `navigate-frame`, `open-tab`). The `applyAction` function takes the current hierarchy state and an action, and returns the updated state plus a list of **events** that the action would produce:
 
 ```ts
-interface ActionResult {
+function applyAction(state: HierarchyState, action: HierarchyAction): {
   state: HierarchyState;
   events: HierarchyEvent[];
 }
-
-function applyAction(state: HierarchyState, action: HierarchyAction): ActionResult
 ```
 
-### Event Descriptors
+The state update is a pure reducer — it transforms the immutable tree of `TabNode`/`FrameNode`/`DocumentNode`/`IframeNode` values. The events are descriptors tagged with a `scope` indicating which layer produces them (`chrome`, `dom`, or `window`).
 
-Each event has an explicit `scope` indicating which layer produces it:
+### Event-Driven Materialization
 
-```ts
-type HierarchyEvent =
-  | { scope: 'chrome'; type: 'onCommitted'; tabId: number; frameId: number; url: string; transitionType?: string }
-  | { scope: 'chrome'; type: 'onCreatedNavigationTarget'; sourceTabId: number; sourceFrameId: number; tabId: number; url: string }
-  | { scope: 'chrome'; type: 'onTabRemoved'; tabId: number }
-  | { scope: 'dom'; type: 'iframeAdded'; tabId: number; parentFrameId: number; frameId: number; src: string }
-  | { scope: 'dom'; type: 'iframeRemoved'; tabId: number; parentFrameId: number; frameId: number }
-  | { scope: 'window'; type: 'message'; sourceFrameId: number; targetFrameId: number; data: any; origin: string }
-```
+The test harness uses a `HarnessRuntime` that dispatches actions through `applyAction` and then **materializes** each returned event into the corresponding harness object mutation. For example:
 
-### Action-to-Events Mapping
+- An `onCommitted` event creates a new `HarnessDocument` and `HarnessWindow` on the target frame
+- An `iframeAdded` event creates a child `HarnessFrame`, wires cross-origin proxy pairs, and adds an `<iframe>` element to the parent window's DOM
+- An `onCreatedNavigationTarget` event wires opener/opened proxy relationships between windows
 
-| Action | Tree Change | Events |
-|--------|------------|--------|
-| `add-iframe` | Appends IframeNode + FrameNode + DocumentNode | `dom: iframeAdded` |
-| `remove-iframe` | Marks iframe stale | `dom: iframeRemoved` |
-| `navigate-iframe` | New DocumentNode in iframe's frame | `chrome: onCommitted` |
-| `navigate-frame` | New DocumentNode, marks old stale | `chrome: onCommitted` |
-| `reload-frame` | New DocumentNode (same URL) | `chrome: onCommitted` (transitionType: 'reload') |
-| `open-tab` | New TabNode + FrameNode + DocumentNode | `chrome: onCreatedNavigationTarget` then `chrome: onCommitted` |
-| `close-tab` | Marks tab stale | `chrome: onTabRemoved` |
-| `purge-stale` | Removes stale nodes | (none) |
-| `send-message` | (none) | `window: message` |
+This means the harness doesn't need its own logic for "what happens when an iframe is added" — it just responds to the same events that the real Chrome extension would see. Every harness mutation is traceable to a real browser event, which keeps the simulation honest. So far, there has always been a legitimate event of some kind that would normally fire which we can use to trigger the changes in the harness models.
+
+### Convenience Layer: HarnessActions
+
+`HarnessActions` provides a high-level API (`createTab`, `addIframe`, `openPopup`, `navigate`) that constructs the right action object and dispatches it through the runtime. Tests and the browser-based test harness use this API rather than constructing actions directly.
+
+### Actions
+
+Each action and its browser triggers/Chrome events are documented in [hierarchy-actions.md](hierarchy-actions.md).
 
 ## File Structure
 
 ```
 src/hierarchy/
-  actions.ts          — action type definitions (moved from hierarchy-map/)
-  types.ts            — TabNode/FrameNode/etc (moved from hierarchy-map/)
+  actions.ts          — action type definitions
+  types.ts            — TabNode/FrameNode/DocumentNode/IframeNode
   events.ts           — HierarchyEvent type definitions
   action-effects.ts   — applyAction(): state + action → new state + events
-  reducer.ts          — tree-update logic (extracted from current reducer)
+  reducer.ts          — pure tree-update functions
+src/test/
+  harness-runtime.ts  — materializes events into harness objects
+  harness-actions.ts  — convenience API over runtime.dispatch()
+  harness-models.ts   — HarnessTab, HarnessFrame, HarnessDocument, HarnessWindow
+  chrome-extension-env.ts — wires content scripts, background, and panel together
 src/hierarchy-map/
   HierarchyMap.tsx    — UI component (imports from src/hierarchy/)
-  HierarchyMap.css
   entry.tsx           — standalone page entry point
 ```
 
@@ -69,36 +62,21 @@ The `src/hierarchy/` module is pure data transformation — no React, no Chrome 
 
 ## Consumers
 
+### Test Harness
+
+`HarnessRuntime` interprets event descriptors to create harness objects (tabs, frames, windows, proxy pairs) and fire mock Chrome events. `HarnessActions` provides the high-level API used by tests and the browser-based test page.
+
 ### Standalone Hierarchy Map
 
-Calls `applyAction()` instead of the old `reduce()`. The action log shows both the action and resulting event descriptors, serving as interactive documentation.
+Calls `applyAction()` to update the tree. The action log shows both the action and resulting event descriptors, serving as interactive documentation of what Chrome does for each action.
 
-### Test Harness (future phases)
+### Future: Playwright Chrome Verification
 
-A runtime layer interprets event descriptors to fire mock Chrome events, trigger DOM mutations, and dispatch messages. The details of this integration will be designed when we have concrete `action-effects` to work with.
+Playwright drives a real browser to perform an action, collects actual Chrome events via the extension, and compares against the event descriptors from `applyAction()`. This would validate that the action-to-event mapping stays accurate across Chrome versions.
 
-### Future Playwright Chrome Verification
+## Remaining Phases
 
-Playwright drives a real browser to perform an action, collects actual Chrome events via the extension, and compares against the event descriptors from `applyAction()`.
-
-## Layout in test.html (future phases)
-
-Hierarchy map on the left sidebar, panel message table on the right. Topology buttons (add iframe, navigate, etc.) modify the tree and fire mock events. Message-send buttons on child/opened frames trigger postMessage flow through the content script mock into the panel.
-
-### Message-Send Buttons
-
-| Button | On which node | Effect |
-|--------|--------------|--------|
-| `↓ msg` | Child frame | Parent sends canned message to this child |
-| `↑ msg` | Child frame | This child sends canned message to parent |
-| `↓ msg` | Opened tab's frame | Opener sends canned message to this window |
-| `↑ msg` | Opened tab's frame | This window sends canned message to opener |
-
-## Phasing
-
-**Phase 1: Extract shared module.** Move types/actions/reducer into `src/hierarchy/`. Add event types and `action-effects.ts`. Hierarchy map and test harness continue working unchanged.
-
-**Phase 2: Refactor test harness.** Create a runtime layer that uses `action-effects.ts` to fire mock events. Refactor `HarnessFrame.addIframe()`, `ChromeExtensionEnv.openPopup()`, etc. to dispatch through the shared module.
+Phases 1 and 2 are complete.
 
 **Phase 3: Integrate hierarchy map into test.html.** Add hierarchy map to left sidebar, wire action buttons to harness runtime.
 

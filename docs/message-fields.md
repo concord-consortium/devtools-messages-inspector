@@ -48,7 +48,7 @@ The origin of the window that received this message.
 
 Obtained from window.location.origin of the receiving frame.
 
-**Filter:** `target:example.com`
+**Filter:** `target.origin:example.com`
 
 ---
 
@@ -92,7 +92,7 @@ The origin of the window that sent this message.
 
 Obtained from MessageEvent.origin. May be "null" for data: or file: URLs.
 
-**Filter:** `source:example.com`
+**Filter:** `source.origin:example.com`
 
 ---
 
