@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   initState, addIframe, removeIframe, navigateFrame,
-  reloadFrame, navigateIframe, openTab, closeTab, purgeStale,
+  reloadFrame, navigateIframe, openTab, closeTab, purgeStale, createTab,
 } from './reducer';
 import type { TabNode } from './types';
 
@@ -61,6 +61,14 @@ describe('addIframe', () => {
     expect(innerDoc.origin).toBe('https://custom.example.com');
     expect(next.nextPageNumber).toBe(state.nextPageNumber);
   });
+
+  it('sets title on the created document when provided', () => {
+    const state = initState(makeTab());
+    const next = addIframe(state, 'doc-1', 'https://child.example.com/', 'Child Title');
+
+    const innerDoc = next.root[0].frames![0].documents![0].iframes![0].frame!.documents![0];
+    expect(innerDoc.title).toBe('Child Title');
+  });
 });
 
 describe('removeIframe', () => {
@@ -101,6 +109,17 @@ describe('navigateFrame', () => {
     expect(frame.documents![0].stale).toBe(true);
     expect(frame.documents![1].stale).toBeUndefined();
     expect(frame.documents![1].url).toMatch(/^https:\/\/page-\d+\.example\.com\/$/);
+  });
+
+  it('uses provided URL and title instead of auto-generating', () => {
+    const state = initState(makeTab());
+    const next = navigateFrame(state, 0, 'https://specific.example.com/', 'Specific Page');
+
+    const newDoc = next.root[0].frames![0].documents![1];
+    expect(newDoc.url).toBe('https://specific.example.com/');
+    expect(newDoc.origin).toBe('https://specific.example.com');
+    expect(newDoc.title).toBe('Specific Page');
+    expect(next.nextPageNumber).toBe(state.nextPageNumber); // not incremented
   });
 
   it('marks nested iframes in old document as stale', () => {
@@ -162,6 +181,17 @@ describe('openTab', () => {
     expect(newTab.openerTabId).toBe(1);
     expect(newTab.openerFrameId).toBe(0);
   });
+
+  it('uses provided URL and title when given', () => {
+    const state = initState(makeTab());
+    const next = openTab(state, 1, 0, 'https://popup.example.com/', 'Popup');
+
+    const newDoc = next.root[1].frames![0].documents![0];
+    expect(newDoc.url).toBe('https://popup.example.com/');
+    expect(newDoc.origin).toBe('https://popup.example.com');
+    expect(newDoc.title).toBe('Popup');
+    expect(next.nextPageNumber).toBe(state.nextPageNumber); // not incremented
+  });
 });
 
 describe('closeTab', () => {
@@ -172,6 +202,37 @@ describe('closeTab', () => {
     expect(next.root[0].stale).toBe(true);
     expect(next.root[0].frames![0].stale).toBe(true);
     expect(next.root[0].frames![0].documents![0].stale).toBe(true);
+  });
+});
+
+describe('createTab', () => {
+  it('creates a new tab with frame[0] and document using provided URL', () => {
+    const state = initState(makeTab());
+    const next = createTab(state, 'https://new-tab.example.com/', 'New Tab');
+
+    expect(next.root).toHaveLength(2);
+    const newTab = next.root[1];
+    expect(newTab.tabId).toBe(2);
+    expect(newTab.openerTabId).toBeUndefined();
+    expect(newTab.openerFrameId).toBeUndefined();
+    expect(newTab.frames).toHaveLength(1);
+    expect(newTab.frames![0].frameId).toBe(0);
+
+    const doc = newTab.frames![0].documents![0];
+    expect(doc.url).toBe('https://new-tab.example.com/');
+    expect(doc.origin).toBe('https://new-tab.example.com');
+    expect(doc.title).toBe('New Tab');
+    expect(doc.documentId).toBe(`doc-${state.nextDocumentId}`);
+  });
+
+  it('increments nextTabId and nextDocumentId but not nextPageNumber', () => {
+    const state = initState(makeTab());
+    const next = createTab(state, 'https://new-tab.example.com/');
+
+    expect(next.nextTabId).toBe(state.nextTabId + 1);
+    expect(next.nextDocumentId).toBe(state.nextDocumentId + 1);
+    expect(next.nextPageNumber).toBe(state.nextPageNumber);
+    expect(next.nextFrameId).toBe(state.nextFrameId);
   });
 });
 
