@@ -103,3 +103,6 @@ Hierarchy map on the left sidebar, panel message table on the right. Topology bu
 **Phase 3: Integrate hierarchy map into test.html.** Add hierarchy map to left sidebar, wire action buttons to harness runtime.
 
 **Phase 4: Add message-send buttons.** Add `send-message` action type and wire buttons to harness runtime.
+
+**Phase 5: Clean up broken harness behaviors.**
+- **Navigation should replace HarnessWindow, not mutate it.** When `navigate-frame` fires, the hierarchy reducer creates a new `DocumentNode`, but `materializeOnCommitted` only updates the existing `HarnessWindow`'s location and document. This leaves old iframe elements, child proxy registrations, and message listeners intact. In a real browser, navigation replaces the entire document and window context. The fix: `materializeOnCommitted` should create a new `HarnessWindow` and `HarnessDocument` for the frame (mirroring the new `DocumentNode` in the hierarchy), replacing the old window entirely. This naturally clears child iframes, proxies, and listeners.

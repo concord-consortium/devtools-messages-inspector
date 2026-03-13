@@ -137,7 +137,7 @@ describe('content → background → panel integration', () => {
     const { messages } = env.connectPanel(topFrame.tab.id);
     await flushPromises();
 
-    actions.navigate(topFrame, 'https://parent.example.com/new');
+    actions.navigate(topFrame, { url: 'https://parent.example.com/new' });
     await flushPromises();
 
     const clearMsgs = messages.filter(m => m.type === 'clear');
@@ -149,7 +149,7 @@ describe('content → background → panel integration', () => {
     const { messages } = env.connectPanel(topFrame.tab.id);
     await flushPromises();
 
-    actions.navigate(childFrame, 'https://child.example.com/new');
+    actions.navigate(childFrame, { url: 'https://child.example.com/new' });
     await flushPromises();
 
     const clearMsgs = messages.filter(m => m.type === 'clear');

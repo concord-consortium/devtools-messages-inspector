@@ -66,12 +66,12 @@ export class HarnessActions {
   }
 
   /** Navigate a frame to a new URL. */
-  navigate(frame: HarnessFrame, url: string, title?: string): void {
+  navigate(frame: HarnessFrame, config: { url: string; title?: string }): void {
     this.runtime.dispatch({
       type: 'navigate-frame',
       frameId: frame.frameId,
-      url,
-      title,
+      url: config.url,
+      title: config.title,
     });
   }
 }

@@ -106,7 +106,7 @@ describe('HarnessActions', () => {
   describe('navigate', () => {
     it('updates the frame document and window location', () => {
       const topFrame = actions.createTab({ url: 'https://example.com/' });
-      actions.navigate(topFrame, 'https://example.com/new-page', 'New Page');
+      actions.navigate(topFrame, { url: 'https://example.com/new-page', title: 'New Page' });
 
       expect(topFrame.currentDocument?.url).toBe('https://example.com/new-page');
       expect(topFrame.currentDocument?.title).toBe('New Page');
@@ -119,7 +119,7 @@ describe('HarnessActions', () => {
       const committedUrls: string[] = [];
       env.bgOnCommitted.addListener((d: any) => committedUrls.push(d.url));
 
-      actions.navigate(topFrame, 'https://example.com/page2');
+      actions.navigate(topFrame, { url: 'https://example.com/page2' });
 
       // Should see exactly one onCommitted with the requested URL (not auto-generated)
       const page2Commits = committedUrls.filter(u => u === 'https://example.com/page2');
