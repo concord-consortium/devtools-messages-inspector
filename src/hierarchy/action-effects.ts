@@ -1,6 +1,6 @@
 import {
   addIframe, removeIframe, navigateFrame, reloadFrame,
-  navigateIframe, openTab, closeTab, purgeStale,
+  navigateIframe, openTab, closeTab, purgeStale, createTab,
 } from './reducer';
 import type { HierarchyState } from './reducer';
 import type { HierarchyAction } from './actions';
@@ -122,9 +122,14 @@ export function applyAction(state: HierarchyState, action: HierarchyAction): Act
   switch (action.type) {
     case 'add-iframe': {
       const context = findParentFrameForDocument(state.root, action.documentId);
-      const newState = addIframe(state, action.documentId);
+      const newState = addIframe(state, action.documentId, action.url, action.title);
       const tabId = context?.tabId ?? 0;
       const frameId = newState.nextFrameId - 1;
+      // Find the newly created iframe's document to get the URL
+      const iframeId = newState.nextIframeId - 1;
+      const newIframeContext = findIframeContext(newState.root, iframeId);
+      const newDoc = newIframeContext?.iframe.frame?.documents?.[0];
+      const url = newDoc?.url ?? '';
       return {
         state: newState,
         events: [
@@ -134,14 +139,14 @@ export function applyAction(state: HierarchyState, action: HierarchyAction): Act
             tabId,
             parentFrameId: context?.frameId ?? 0,
             frameId,
-            src: 'about:blank',
+            src: url,
           },
           {
             scope: 'chrome',
             type: 'onCommitted',
             tabId,
             frameId,
-            url: 'about:blank',
+            url,
           },
         ],
       };
@@ -163,7 +168,7 @@ export function applyAction(state: HierarchyState, action: HierarchyAction): Act
 
     case 'navigate-frame': {
       const tabId = findTabForFrame(state.root, action.frameId) ?? 0;
-      const newState = navigateFrame(state, action.frameId);
+      const newState = navigateFrame(state, action.frameId, action.url, action.title);
       const frame = findFrameInTab(newState.root.find(t => t.tabId === tabId)!, action.frameId);
       const newDoc = frame?.documents?.find(d => !d.stale);
       return {
@@ -213,14 +218,43 @@ export function applyAction(state: HierarchyState, action: HierarchyAction): Act
       };
     }
 
-    case 'open-tab': {
-      const newState = openTab(state, action.tabId, action.frameId);
+    case 'create-tab': {
+      const newState = createTab(state, action.url, action.title);
       const newTab = newState.root[newState.root.length - 1];
       const newFrame = newTab.frames![0];
       const newDoc = newFrame.documents![0];
       return {
         state: newState,
         events: [
+          {
+            scope: 'chrome',
+            type: 'onTabCreated',
+            tabId: newTab.tabId,
+          },
+          {
+            scope: 'chrome',
+            type: 'onCommitted',
+            tabId: newTab.tabId,
+            frameId: newFrame.frameId,
+            url: newDoc.url ?? '',
+          },
+        ],
+      };
+    }
+
+    case 'open-tab': {
+      const newState = openTab(state, action.tabId, action.frameId, action.url, action.title);
+      const newTab = newState.root[newState.root.length - 1];
+      const newFrame = newTab.frames![0];
+      const newDoc = newFrame.documents![0];
+      return {
+        state: newState,
+        events: [
+          {
+            scope: 'chrome',
+            type: 'onTabCreated',
+            tabId: newTab.tabId,
+          },
           {
             scope: 'chrome',
             type: 'onCreatedNavigationTarget',

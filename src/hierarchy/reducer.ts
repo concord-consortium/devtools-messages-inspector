@@ -246,15 +246,19 @@ function mapFramesInTab(
 
 // --- Action handlers ---
 
-export function addIframe(state: HierarchyState, documentId: string): HierarchyState {
+export function addIframe(state: HierarchyState, documentId: string, actionUrl?: string, title?: string): HierarchyState {
   const iframeId = state.nextIframeId;
   const frameId = state.nextFrameId;
   const docId = state.nextDocumentId;
+  const pageNum = state.nextPageNumber;
 
+  const url = actionUrl ?? `https://page-${pageNum}.example.com/`;
   const newDoc: DocumentNode = {
     type: 'document',
     documentId: `doc-${docId}`,
-    url: 'about:blank',
+    url,
+    origin: new URL(url).origin,
+    title,
   };
 
   const newFrame: FrameNode = {
@@ -280,7 +284,7 @@ export function addIframe(state: HierarchyState, documentId: string): HierarchyS
     nextFrameId: frameId + 1,
     nextDocumentId: docId + 1,
     nextIframeId: iframeId + 1,
-    nextPageNumber: state.nextPageNumber,
+    nextPageNumber: actionUrl ? state.nextPageNumber : pageNum + 1,
   };
 }
 
@@ -314,21 +318,23 @@ function replaceFrameDocument(
   return { root, nextDocumentId: docCreated ? docId + 1 : docId };
 }
 
-export function navigateFrame(state: HierarchyState, frameId: number): HierarchyState {
+export function navigateFrame(state: HierarchyState, frameId: number, actionUrl?: string, title?: string): HierarchyState {
   const pageNum = state.nextPageNumber;
+  const url = actionUrl ?? `https://page-${pageNum}.example.com/`;
 
   const { root, nextDocumentId } = replaceFrameDocument(state, frameId, (_frame, docId) => ({
     type: 'document',
     documentId: `doc-${docId}`,
-    url: `https://page-${pageNum}.example.com/`,
-    origin: `https://page-${pageNum}.example.com`,
+    url,
+    origin: new URL(url).origin,
+    title,
   }));
 
   return {
     ...state,
     root,
     nextDocumentId,
-    nextPageNumber: pageNum + 1,
+    nextPageNumber: actionUrl ? state.nextPageNumber : pageNum + 1,
   };
 }
 
@@ -390,16 +396,18 @@ export function navigateIframe(state: HierarchyState, iframeId: number): Hierarc
   };
 }
 
-export function openTab(state: HierarchyState, openerTabId: number, openerFrameId: number): HierarchyState {
+export function openTab(state: HierarchyState, openerTabId: number, openerFrameId: number, actionUrl?: string, title?: string): HierarchyState {
   const tabId = state.nextTabId;
   const docId = state.nextDocumentId;
   const pageNum = state.nextPageNumber;
+  const url = actionUrl ?? `https://page-${pageNum}.example.com/`;
 
   const newDoc: DocumentNode = {
     type: 'document',
     documentId: `doc-${docId}`,
-    url: `https://page-${pageNum}.example.com/`,
-    origin: `https://page-${pageNum}.example.com`,
+    url,
+    origin: new URL(url).origin,
+    title,
   };
 
   const newFrame: FrameNode = {
@@ -422,7 +430,41 @@ export function openTab(state: HierarchyState, openerTabId: number, openerFrameI
     nextFrameId: state.nextFrameId,
     nextDocumentId: docId + 1,
     nextIframeId: state.nextIframeId,
-    nextPageNumber: pageNum + 1,
+    nextPageNumber: actionUrl ? state.nextPageNumber : pageNum + 1,
+  };
+}
+
+export function createTab(state: HierarchyState, url: string, title?: string): HierarchyState {
+  const tabId = state.nextTabId;
+  const docId = state.nextDocumentId;
+
+  const newDoc: DocumentNode = {
+    type: 'document',
+    documentId: `doc-${docId}`,
+    url,
+    origin: new URL(url).origin,
+    title,
+  };
+
+  const newFrame: FrameNode = {
+    type: 'frame',
+    frameId: 0,
+    documents: [newDoc],
+  };
+
+  const newTab: TabNode = {
+    type: 'tab',
+    tabId,
+    frames: [newFrame],
+  };
+
+  return {
+    root: [...state.root, newTab],
+    nextTabId: tabId + 1,
+    nextFrameId: state.nextFrameId,
+    nextDocumentId: docId + 1,
+    nextIframeId: state.nextIframeId,
+    nextPageNumber: state.nextPageNumber,
   };
 }
 

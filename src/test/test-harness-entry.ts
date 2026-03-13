@@ -6,9 +6,9 @@ import { ChromeExtensionEnv, flushPromises } from './chrome-extension-env';
 import { createPortPair } from './chrome-api';
 import { initBackgroundScript } from '../background-core';
 import { initContentScript } from '../content-core';
+import { HarnessRuntime } from './harness-runtime';
+import { HarnessActions } from './harness-actions';
 import { autorun } from 'mobx';
-
-const TAB_ID = 1;
 
 // ---------------------------------------------------------------------------
 // 1. Set up the test environment
@@ -20,8 +20,11 @@ const env = new ChromeExtensionEnv(initContentScript);
 initBackgroundScript(env.createBackgroundChrome());
 
 // Set up tab with parent (frameId=0) + child iframe (frameId=1)
-const topFrame = env.createTab({ tabId: TAB_ID, url: 'https://parent.example.com/', title: 'Parent Page' });
-const childFrame = topFrame.addIframe({ url: 'https://child.example.com/', iframeId: 'child-iframe', title: 'Child Page' });
+const runtime = new HarnessRuntime(env);
+const actions = new HarnessActions(runtime);
+const topFrame = actions.createTab({ url: 'https://parent.example.com/', title: 'Parent Page' });
+const childFrame = actions.addIframe(topFrame, { url: 'https://child.example.com/', iframeId: 'child-iframe', title: 'Child Page' });
+const TAB_ID = topFrame.tab.id;
 const parentWin = topFrame.window!;
 const childWin = childFrame.window!;
 // Content scripts are auto-injected when the panel connects (via executeScript mock)
@@ -96,10 +99,11 @@ async function init() {
   (window as any).harness = {
     env,
     store,
+    runtime,
+    actions,
     parentWin,
     childWin,
     topFrame,
-    childFrame,
     TAB_ID,
     flushPromises,
 
