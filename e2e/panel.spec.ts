@@ -141,7 +141,7 @@ test.describe('dynamic frames', () => {
   test('messages from a dynamically added iframe appear', async ({ page }) => {
     // Add a new iframe at runtime
     await page.evaluate(`
-      window.harness.topFrame.addIframe({ url: 'https://dynamic.example.com/', iframeId: 'dynamic' });
+      window.harness.actions.addIframe(window.harness.topFrame, { url: 'https://dynamic.example.com/', iframeId: 'dynamic' });
     `);
     await page.evaluate('window.harness.flushPromises()');
 
@@ -187,7 +187,7 @@ test.describe('focused frame', () => {
 
     // Add a third frame
     await page.evaluate(`
-      window.harness.topFrame.addIframe({ url: 'https://third.example.com/', iframeId: 'third' });
+      window.harness.actions.addIframe(window.harness.topFrame, { url: 'https://third.example.com/', iframeId: 'third' });
     `);
     await page.evaluate('window.harness.flushPromises()');
 
@@ -248,7 +248,7 @@ test.describe('focused frame', () => {
   test('messages not involving focused frame show gray dot', async ({ page }) => {
     // Add a third frame
     await page.evaluate(`
-      window.harness.topFrame.addIframe({ url: 'https://third.example.com/', iframeId: 'third' });
+      window.harness.actions.addIframe(window.harness.topFrame, { url: 'https://third.example.com/', iframeId: 'third' });
     `);
     await page.evaluate('window.harness.flushPromises()');
     await sendAndWait(page, 'window.harness.sendChildToParent({ type: "trigger" })');
@@ -363,7 +363,7 @@ test.describe('focused frame', () => {
 
     // Add third frame and focus it
     await page.evaluate(`
-      window.harness.topFrame.addIframe({ url: 'https://third.example.com/', iframeId: 'third' });
+      window.harness.actions.addIframe(window.harness.topFrame, { url: 'https://third.example.com/', iframeId: 'third' });
     `);
     await page.evaluate('window.harness.flushPromises()');
     await sendAndWait(page, 'window.harness.sendChildToParent({ type: "trigger" })');
