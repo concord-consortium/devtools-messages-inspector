@@ -4,7 +4,7 @@ export const HARNESS_EXAMPLES = [
   'harness.sendChildToParent({ type: "hello" })',
   'harness.sendParentToChild({ type: "hi" })',
   'harness.childWin.parent.postMessage(data, "*")',
-  'harness.topFrame.addIframe({ url: "https://other.com/" })',
+  'harness.actions.addIframe(harness.topFrame, { url: "https://other.com/" })',
 ];
 
 export function HarnessBanner() {

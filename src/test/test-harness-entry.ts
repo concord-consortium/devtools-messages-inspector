@@ -7,9 +7,8 @@ import { createPortPair } from './chrome-api';
 import { initBackgroundScript } from '../background-core';
 import { initContentScript } from '../content-core';
 import { HarnessRuntime } from './harness-runtime';
+import { HarnessActions } from './harness-actions';
 import { autorun } from 'mobx';
-
-const TAB_ID = 1;
 
 // ---------------------------------------------------------------------------
 // 1. Set up the test environment
@@ -22,22 +21,12 @@ initBackgroundScript(env.createBackgroundChrome());
 
 // Set up tab with parent (frameId=0) + child iframe (frameId=1)
 const runtime = new HarnessRuntime(env);
-runtime.materializeTree({
-  type: 'tab', tabId: TAB_ID, frames: [{
-    type: 'frame', frameId: 0, documents: [{
-      type: 'document', documentId: 'doc-0',
-      url: 'https://parent.example.com/', title: 'Parent Page',
-      iframes: [{
-        type: 'iframe', iframeId: 1, src: 'https://child.example.com/',
-        frame: { type: 'frame', frameId: 1, documents: [{
-          type: 'document', documentId: 'doc-1', url: 'https://child.example.com/', title: 'Child Page',
-        }]}
-      }]
-    }]
-  }]
-});
-const parentWin = runtime.getWindow(0)!;
-const childWin = runtime.getWindow(1)!;
+const actions = new HarnessActions(runtime);
+const topFrame = actions.createTab({ url: 'https://parent.example.com/', title: 'Parent Page' });
+const childFrame = actions.addIframe(topFrame, { url: 'https://child.example.com/', iframeId: 'child-iframe', title: 'Child Page' });
+const TAB_ID = topFrame.tab.id;
+const parentWin = topFrame.window!;
+const childWin = childFrame.window!;
 // Content scripts are auto-injected when the panel connects (via executeScript mock)
 
 // ---------------------------------------------------------------------------
@@ -111,9 +100,10 @@ async function init() {
     env,
     store,
     runtime,
+    actions,
     parentWin,
     childWin,
-    topFrame: runtime.getFrame(0)!,
+    topFrame,
     TAB_ID,
     flushPromises,
 
