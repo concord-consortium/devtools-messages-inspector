@@ -10,7 +10,6 @@ import { ChromeEvent } from './chrome-api';
 export class HarnessTab {
   readonly id: number;
   readonly frames = new Map<number, HarnessFrame>();
-  private _nextFrameId = 1; // 0 is reserved for top frame
 
   /** Fired when a frame in this tab navigates or loads. Assigned by ChromeExtensionEnv to bgOnCommitted. */
   onCommitted: ChromeEvent<(details: { tabId: number; frameId: number; url: string }) => void> =
@@ -20,16 +19,8 @@ export class HarnessTab {
     this.id = id;
   }
 
-  nextFrameId(): number {
-    return this._nextFrameId++;
-  }
-
   addFrame(frame: HarnessFrame): void {
     this.frames.set(frame.frameId, frame);
-    // Keep _nextFrameId above any registered frame so nextFrameId() never collides
-    if (frame.frameId >= this._nextFrameId) {
-      this._nextFrameId = frame.frameId + 1;
-    }
   }
 
   getFrame(frameId: number): HarnessFrame | undefined {
@@ -57,58 +48,6 @@ export class HarnessFrame {
     this.frameId = frameId;
     this.parentFrameId = parentFrameId;
   }
-
-  /**
-   * Add an iframe to this frame. Automatically creates the child frame,
-   * document, window, and cross-origin proxy wiring.
-   * Returns the child HarnessFrame (access .window for the raw HarnessWindow).
-   */
-  addIframe(config: { url: string; iframeId?: string; title?: string }): HarnessFrame {
-    const frameId = this.tab.nextFrameId();
-    const origin = new URL(config.url).origin;
-
-    const childFrame = new HarnessFrame(this.tab, frameId, this.frameId);
-    childFrame.currentDocument = new HarnessDocument(`doc-f${frameId}`, config.url, config.title);
-    const childWin = new HarnessWindow({
-      location: { href: config.url, origin },
-      title: config.title,
-    });
-    childFrame.window = childWin;
-    this.tab.addFrame(childFrame);
-
-    // Create cross-origin proxy pair
-    const parentWin = this.window!;
-    const { aForB: parentProxyForChild, bForA: childProxyForParent } =
-      createProxyPair(parentWin, childWin);
-
-    // Wire parent↔child proxy relationships
-    childWin.setParentProxy(parentWin, parentProxyForChild);
-    parentWin.registerChildProxy(childWin, childProxyForParent);
-
-    // Create iframe element with proxy as contentWindow (matches real browser behavior)
-    parentWin.addIframeElement({ src: config.url, id: config.iframeId ?? '', contentWindow: childProxyForParent });
-
-    // Fire onCommitted for the iframe load (like a real browser)
-    this.tab.onCommitted.fire({ tabId: this.tab.id, frameId: childFrame.frameId, url: config.url });
-
-    return childFrame;
-  }
-
-  /**
-   * Navigate this frame to a new URL. Updates the document and fires the
-   * onCommitted callback (which triggers the background's webNavigation handler).
-   */
-  navigate(url: string, title?: string): void {
-    this._navCount++;
-    this.currentDocument = new HarnessDocument(`doc-f${this.frameId}-nav${this._navCount}`, url, title);
-    if (this.window) {
-      const origin = new URL(url).origin;
-      this.window.location = { href: url, origin };
-    }
-    this.tab.onCommitted.fire({ tabId: this.tab.id, frameId: this.frameId, url });
-  }
-
-  private _navCount = 0;
 
   toFrameInfo(): { tabId: number; frameId: number; parentFrameId: number; documentId: string | undefined; url: string } {
     return {

@@ -7,7 +7,7 @@
 // - panel chrome.runtime.connect → background's chrome.runtime.onConnect (via port pairs)
 
 import { ChromeEvent, createPortPair } from './chrome-api';
-import { HarnessTab, HarnessFrame, HarnessDocument, HarnessWindow, createProxyPair } from './harness-models';
+import { HarnessTab, HarnessFrame, HarnessDocument, HarnessWindow } from './harness-models';
 import type { MockPort } from './chrome-api';
 import type { BackgroundChrome } from '../background-core';
 import type { ContentWindow, ContentChrome } from '../content-core';
@@ -52,60 +52,6 @@ export class ChromeExtensionEnv {
   registerTab(tab: HarnessTab): void {
     this.tabs.set(tab.id, tab);
     tab.onCommitted = this.bgOnCommitted;
-  }
-
-  /**
-   * Create a tab with its top-level frame (frameId=0), document, and window.
-   * Returns the top-level HarnessFrame (access .window for the HarnessWindow).
-   */
-  createTab(config: { tabId: number; url: string; title?: string }): HarnessFrame {
-    const tab = new HarnessTab(config.tabId);
-    this.tabs.set(config.tabId, tab);
-
-    // Share the bgOnCommitted event so frame.navigate() and addIframe() fire it directly
-    tab.onCommitted = this.bgOnCommitted;
-
-    const origin = new URL(config.url).origin;
-    const frame = new HarnessFrame(tab, 0, -1);
-    frame.currentDocument = new HarnessDocument(`doc-f0`, config.url, config.title);
-    frame.window = new HarnessWindow({
-      location: { href: config.url, origin },
-      title: config.title,
-    });
-    tab.addFrame(frame);
-
-    // Fire onCommitted for the initial page load (like a real browser)
-    this.bgOnCommitted.fire({ tabId: config.tabId, frameId: 0, url: config.url });
-
-    return frame;
-  }
-
-  /**
-   * Open a popup tab from a source frame (simulates window.open or link click).
-   * Fires onCreatedNavigationTarget first (enables buffering), then createTab
-   * fires onCommitted (triggers content script injection).
-   */
-  openPopup(sourceFrame: HarnessFrame, config: { tabId: number; url: string; title?: string }): HarnessFrame {
-    // Fire onCreatedNavigationTarget first so buffering is enabled before the page load
-    this.bgOnCreatedNavTarget.fire({
-      sourceTabId: sourceFrame.tab.id,
-      sourceFrameId: sourceFrame.frameId,
-      tabId: config.tabId,
-      url: config.url,
-    });
-
-    const popupFrame = this.createTab(config);
-
-    // Wire opener/opened-window proxy pair
-    const openerWin = sourceFrame.window!;
-    const popupWin = popupFrame.window!;
-    const { aForB: openerProxyForPopup, bForA: popupProxyForOpener } =
-      createProxyPair(openerWin, popupWin);
-
-    popupWin.setOpenerProxy(openerWin, openerProxyForPopup);
-    openerWin.registerOpenedWindowProxy(popupWin, popupProxyForOpener);
-
-    return popupFrame;
   }
 
   /**
