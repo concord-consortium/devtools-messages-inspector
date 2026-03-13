@@ -130,22 +130,52 @@ describe('applyAction', () => {
     });
   });
 
+  describe('create-tab', () => {
+    it('returns onTabCreated then onCommitted events', () => {
+      const state = initState(makeTab());
+      const { state: next, events } = applyAction(state, {
+        type: 'create-tab', url: 'https://new-tab.example.com/', title: 'New Tab',
+      });
+
+      expect(events).toHaveLength(2);
+
+      const newTab = next.root[1];
+      expect(events[0]).toEqual({
+        scope: 'chrome',
+        type: 'onTabCreated',
+        tabId: newTab.tabId,
+      });
+      expect(events[1]).toMatchObject({
+        scope: 'chrome',
+        type: 'onCommitted',
+        tabId: newTab.tabId,
+        frameId: 0,
+        url: 'https://new-tab.example.com/',
+      });
+    });
+  });
+
   describe('open-tab', () => {
-    it('returns onCreatedNavigationTarget then onCommitted', () => {
+    it('returns onTabCreated, onCreatedNavigationTarget, then onCommitted', () => {
       const state = initState(makeTab());
       const { state: next, events } = applyAction(state, { type: 'open-tab', tabId: 1, frameId: 0 });
 
-      expect(events).toHaveLength(2);
+      expect(events).toHaveLength(3);
       const newTab = next.root[1];
 
-      expect(events[0]).toMatchObject({
+      expect(events[0]).toEqual({
+        scope: 'chrome',
+        type: 'onTabCreated',
+        tabId: newTab.tabId,
+      });
+      expect(events[1]).toMatchObject({
         scope: 'chrome',
         type: 'onCreatedNavigationTarget',
         sourceTabId: 1,
         sourceFrameId: 0,
         tabId: newTab.tabId,
       });
-      expect(events[1]).toMatchObject({
+      expect(events[2]).toMatchObject({
         scope: 'chrome',
         type: 'onCommitted',
         tabId: newTab.tabId,
