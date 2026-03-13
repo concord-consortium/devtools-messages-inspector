@@ -203,23 +203,21 @@ describe('HarnessRuntime', () => {
 
       const { events } = runtime.dispatch({ type: 'open-tab', tabId: 1, frameId: 0 });
 
-      expect(events).toHaveLength(2);
-      expect(events[0].type).toBe('onCreatedNavigationTarget');
-      expect(events[1].type).toBe('onCommitted');
+      expect(events).toHaveLength(3);
+      expect(events[0].type).toBe('onTabCreated');
+      expect(events[1].type).toBe('onCreatedNavigationTarget');
+      expect(events[2].type).toBe('onCommitted');
 
-      const navTargetEvent = events[0] as any;
+      const navTargetEvent = events[1] as any;
       const newTabId = navTargetEvent.tabId;
 
-      // New tab materialized
       const newTab = runtime.getTab(newTabId);
       expect(newTab).toBeDefined();
 
-      // New tab's top frame (look up via tab since frameId 0 exists in both tabs)
       const newFrame = newTab!.getFrame(0);
       expect(newFrame).toBeDefined();
       expect(newFrame!.window).toBeDefined();
 
-      // Opener proxies wired
       const popupWin = newFrame!.window!;
       expect(popupWin.opener).not.toBeNull();
       expect(popupWin.opener!.origin).toBe('https://page-1.example.com');
@@ -242,6 +240,32 @@ describe('HarnessRuntime', () => {
       // onCommitted fired for the new tab's frame
       const newTabCommitted = committedEvents.find(e => e.tabId === navTargetEvents[0].tabId);
       expect(newTabCommitted).toBeDefined();
+    });
+
+    it('create-tab creates new tab, frame, window (no opener proxies)', () => {
+      setupSingleTab();
+
+      const { events } = runtime.dispatch({
+        type: 'create-tab', url: 'https://new-tab.example.com/', title: 'New Tab',
+      });
+
+      expect(events).toHaveLength(2);
+      expect(events[0].type).toBe('onTabCreated');
+      expect(events[1].type).toBe('onCommitted');
+
+      const tabCreatedEvent = events[0] as any;
+      const newTabId = tabCreatedEvent.tabId;
+
+      const newTab = runtime.getTab(newTabId);
+      expect(newTab).toBeDefined();
+
+      const newFrame = newTab!.getFrame(0);
+      expect(newFrame).toBeDefined();
+      expect(newFrame!.window).toBeDefined();
+      expect(newFrame!.window!.location.href).toBe('https://new-tab.example.com/');
+      expect(newFrame!.currentDocument?.title).toBe('New Tab');
+
+      expect(newFrame!.window!.opener).toBeNull();
     });
 
     it('navigate-frame updates document and location, fires onCommitted', () => {

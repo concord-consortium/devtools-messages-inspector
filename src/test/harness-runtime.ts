@@ -212,6 +212,9 @@ export class HarnessRuntime {
       case 'onCreatedNavigationTarget':
         this.materializeOnCreatedNavTarget(event);
         break;
+      case 'onTabCreated':
+        this.materializeOnTabCreated(event);
+        break;
       case 'onTabRemoved':
         this.env.bgOnTabRemoved.fire(event.tabId);
         break;
@@ -265,13 +268,15 @@ export class HarnessRuntime {
     const frame = this.lookupFrame(tabId, frameId);
 
     if (frame) {
-      // Find the active document from the hierarchy state
-      const frameNode = this.findFrameInHierarchyState(frameId);
+      // Find the active document from the hierarchy state (scoped to correct tab)
+      const tabNode = this.hierarchyState.root.find(t => t.tabId === tabId);
+      const frameNode = tabNode ? this.findFrameInTabNode(tabNode, frameId) : undefined;
       const doc = frameNode ? this.findActiveDocument(frameNode) : undefined;
 
       frame.currentDocument = new HarnessDocument(
         doc?.documentId ?? frame.currentDocument?.documentId ?? `doc-f${frameId}`,
         url,
+        doc?.title,
       );
       if (frame.window) {
         const origin = url ? new URL(url).origin : '';
@@ -282,46 +287,53 @@ export class HarnessRuntime {
     this.env.bgOnCommitted.fire({ tabId, frameId, url });
   }
 
-  private materializeOnCreatedNavTarget(event: Extract<HierarchyEvent, { type: 'onCreatedNavigationTarget' }>): void {
-    const { sourceTabId, sourceFrameId, tabId, url } = event;
+  private materializeOnTabCreated(event: Extract<HierarchyEvent, { type: 'onTabCreated' }>): void {
+    const { tabId } = event;
 
-    // Look up opener frame BEFORE creating the new tab
-    const openerFrame = this.lookupFrame(sourceTabId, sourceFrameId);
-
-    // Create new tab
     const tab = new HarnessTab(tabId);
     this.env.registerTab(tab);
     this.tabs.set(tabId, tab);
 
-    // Create top frame
-    const origin = url ? new URL(url).origin : '';
     const newTabNode = this.hierarchyState.root.find(t => t.tabId === tabId);
     const frameNode = newTabNode?.frames?.[0];
     const doc = frameNode ? this.findActiveDocument(frameNode) : undefined;
-    const popupFrameId = frameNode?.frameId ?? 0;
+    const url = doc?.url ?? '';
+    const origin = url ? new URL(url).origin : '';
+    const frameId = frameNode?.frameId ?? 0;
 
-    const frame = new HarnessFrame(tab, popupFrameId, -1);
+    const frame = new HarnessFrame(tab, frameId, -1);
     frame.currentDocument = new HarnessDocument(
-      doc?.documentId ?? `doc-f${popupFrameId}`,
+      doc?.documentId ?? `doc-f${frameId}`,
       url,
+      doc?.title,
     );
-    const popupWin = new HarnessWindow({
+    frame.window = new HarnessWindow({
       location: { href: url, origin },
+      title: doc?.title,
     });
-    frame.window = popupWin;
     tab.addFrame(frame);
-    this.storeFrame(tabId, popupFrameId, frame);
+    this.storeFrame(tabId, frameId, frame);
+  }
 
-    // Opener proxy pair
-    if (openerFrame?.window) {
+  private materializeOnCreatedNavTarget(event: Extract<HierarchyEvent, { type: 'onCreatedNavigationTarget' }>): void {
+    const { sourceTabId, sourceFrameId, tabId, url } = event;
+
+    // Tab and frame were already created by materializeOnTabCreated.
+    // Look up the popup frame and the opener frame, then wire proxies.
+    const openerFrame = this.lookupFrame(sourceTabId, sourceFrameId);
+    const newTabNode = this.hierarchyState.root.find(t => t.tabId === tabId);
+    const popupFrameId = newTabNode?.frames?.[0]?.frameId ?? 0;
+    const popupFrame = this.lookupFrame(tabId, popupFrameId);
+
+    if (openerFrame?.window && popupFrame?.window) {
       const openerWin = openerFrame.window;
+      const popupWin = popupFrame.window;
       const { aForB: openerProxyForPopup, bForA: popupProxyForOpener } =
         createProxyPair(openerWin, popupWin);
       popupWin.setOpenerProxy(openerWin, openerProxyForPopup);
       openerWin.registerOpenedWindowProxy(popupWin, popupProxyForOpener);
     }
 
-    // Fire onCreatedNavigationTarget
     this.env.bgOnCreatedNavTarget.fire({ sourceTabId, sourceFrameId, tabId, url });
   }
 
@@ -334,7 +346,7 @@ export class HarnessRuntime {
   }
 
   /** Find a frame node in the hierarchy state by frameId (searches all tabs). */
-  private findFrameInHierarchyState(frameId: number): FrameNode | undefined {
+  findFrameInHierarchyState(frameId: number): FrameNode | undefined {
     for (const tab of this.hierarchyState.root) {
       const found = this.findFrameInTabNode(tab, frameId);
       if (found) return found;
