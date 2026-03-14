@@ -9,12 +9,26 @@
     #harness-layout { display: flex; flex-direction: column; height: 100%; }
     #harness-banner { flex-shrink: 0; }
     #panel-container { flex: 1; min-height: 0; position: relative; display: flex; flex-direction: row; overflow: hidden; }
+    #hierarchy-sidebar {
+      width: 450px;
+      flex-shrink: 0;
+      border-right: 1px solid #ccc;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    #root { flex: 1; min-width: 0; }
+    .harness-sidebar { display: flex; flex-direction: column; height: 100%; }
+    .harness-sidebar-content { flex: 1; overflow: auto; padding: 8px; }
+    .harness-sidebar-map { padding: 0; }
+    .harness-sidebar-buttons { padding: 8px 16px; display: flex; gap: 4px; }
   </style>
 </head>
 <body>
   <div id="harness-layout">
     <div id="harness-banner"></div>
     <div id="panel-container">
+      <div id="hierarchy-sidebar"></div>
       <div id="root"></div>
 
       <!-- Same context menus as panel.html -->
