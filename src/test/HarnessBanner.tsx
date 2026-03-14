@@ -1,4 +1,6 @@
 import React from 'react';
+// @ts-ignore — virtual module provided by vite plugin
+import gitBranch from 'virtual:git-branch';
 
 export const HARNESS_EXAMPLES = [
   'harness.sendChildToParent({ type: "hello" })',
@@ -18,7 +20,7 @@ export function HarnessBanner() {
       textAlign: 'center',
       borderBottom: '1px solid #333',
     }}>
-      Test Harness
+      Test Harness{gitBranch ? ` (${gitBranch})` : ''}
     </div>
   );
 }
