@@ -380,7 +380,7 @@ describe('HarnessRuntime', () => {
       runtime.materializeTree(tree);
 
       const states: any[] = [];
-      autorun(() => { states.push(runtime.hierarchyState); });
+      const dispose = autorun(() => { states.push(runtime.hierarchyState); });
 
       expect(states).toHaveLength(1); // initial run
 
@@ -388,6 +388,7 @@ describe('HarnessRuntime', () => {
 
       expect(states).toHaveLength(2);
       expect(states[1]).not.toBe(states[0]);
+      dispose();
     });
 
     it('notifies observers when dispatch() updates actionLog', () => {
@@ -398,7 +399,7 @@ describe('HarnessRuntime', () => {
       runtime.materializeTree(tree);
 
       const logs: any[] = [];
-      autorun(() => { logs.push(runtime.actionLog); });
+      const dispose = autorun(() => { logs.push(runtime.actionLog); });
 
       expect(logs).toHaveLength(1);
       expect(logs[0]).toHaveLength(0);
@@ -407,6 +408,7 @@ describe('HarnessRuntime', () => {
 
       expect(logs).toHaveLength(2);
       expect(logs[1]).toHaveLength(1);
+      dispose();
     });
   });
 });

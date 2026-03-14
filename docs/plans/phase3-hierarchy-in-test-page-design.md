@@ -6,7 +6,7 @@ Embed the hierarchy map in the test harness page (`test.html`) as a left sidebar
 
 ## Layout
 
-Left sidebar (around 280px wide) added to `#panel-container` in `test.html`, with a border separating it from the panel. The sidebar CSS goes in `test.html`'s existing `<style>` block. `#root` gets `flex: 1; min-width: 0;` to fill remaining space. The sidebar contains two tabs across the top:
+Left sidebar (450px wide) added to `#panel-container` in `test.html`, with a border separating it from the panel. The sidebar CSS goes in `test.html`'s existing `<style>` block. `#root` gets `flex: 1; min-width: 0;` to fill remaining space. The sidebar contains two tabs across the top:
 
 - **Map** (default): The `HierarchyMap` component showing the frame tree with action buttons, plus a "+ Tab" button for creating new tabs.
 - **Log**: The action log showing dispatched actions and their resulting hierarchy events, same format as the standalone hierarchy map page.
@@ -63,7 +63,7 @@ The `ActionLog` component in `src/hierarchy-map/entry.tsx` renders the log forma
 
 ## Wiring in test-harness-entry.ts
 
-After mounting the panel `App` into `#root`, also mount `HarnessSidebar` into `#hierarchy-sidebar`:
+Mount `HarnessSidebar` into `#hierarchy-sidebar` before mounting the panel `App` into `#root`:
 
 ```ts
 const sidebar = document.getElementById('hierarchy-sidebar');
