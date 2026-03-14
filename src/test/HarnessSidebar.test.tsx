@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ChromeExtensionEnv } from './chrome-extension-env';
 import { HarnessRuntime } from './harness-runtime';
@@ -47,15 +47,15 @@ describe('HarnessSidebar', () => {
   });
 
   it('updates when runtime state changes externally', () => {
-    const { rerender } = render(<HarnessSidebar runtime={runtime} />);
+    render(<HarnessSidebar runtime={runtime} />);
     // No iframe nodes initially
     expect(screen.queryByText('iframe')).toBeNull();
 
     // Dispatch externally (simulating console/Playwright)
-    runtime.dispatch({ type: 'add-iframe', documentId: 'doc-1', url: 'https://b.com/' });
+    act(() => {
+      runtime.dispatch({ type: 'add-iframe', documentId: 'doc-1', url: 'https://b.com/' });
+    });
 
-    // observer() should trigger re-render — re-render to flush
-    rerender(<HarnessSidebar runtime={runtime} />);
     expect(screen.getAllByText('iframe').length).toBeGreaterThan(0);
   });
 });
