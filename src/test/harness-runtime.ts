@@ -3,6 +3,7 @@
 // through hierarchy actions, and the runtime materializes the correct harness
 // objects and fires the correct Chrome events.
 
+import { makeObservable, observable, runInAction } from 'mobx';
 import { ChromeExtensionEnv } from './chrome-extension-env';
 import {
   HarnessTab, HarnessFrame, HarnessDocument, HarnessWindow, createProxyPair,
@@ -31,12 +32,18 @@ export class HarnessRuntime {
 
   constructor(env: ChromeExtensionEnv) {
     this.env = env;
+    makeObservable(this, {
+      hierarchyState: observable.ref,
+      actionLog: observable.ref,
+    });
   }
 
   /** Materialize an initial tree into harness objects. Call once before dispatch(). */
   materializeTree(tree: TabNode | TabNode[]): void {
     const roots = Array.isArray(tree) ? tree : [tree];
-    this.hierarchyState = initState(roots);
+    runInAction(() => {
+      this.hierarchyState = initState(roots);
+    });
 
     for (const tabNode of roots) {
       this.materializeTab(tabNode);
@@ -63,8 +70,10 @@ export class HarnessRuntime {
   /** Dispatch a hierarchy action: update state, create objects, fire events. */
   dispatch(action: HierarchyAction): ActionResult {
     const result = applyAction(this.hierarchyState, action);
-    this.hierarchyState = result.state;
-    this.actionLog.push({ action, events: result.events });
+    runInAction(() => {
+      this.hierarchyState = result.state;
+      this.actionLog = [...this.actionLog, { action, events: result.events }];
+    });
 
     for (const event of result.events) {
       this.materializeEvent(event);

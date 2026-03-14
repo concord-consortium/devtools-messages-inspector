@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { autorun } from 'mobx';
 import { ChromeExtensionEnv, flushPromises } from './chrome-extension-env';
 import { HarnessRuntime } from './harness-runtime';
 import { initContentScript } from '../content-core';
@@ -363,6 +364,49 @@ describe('HarnessRuntime', () => {
       expect(msgPayloads).toHaveLength(1);
       expect(msgPayloads[0].payload.data).toEqual({ type: 'hello-from-child' });
       expect(msgPayloads[0].payload.source.type).toBe('child');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // MobX observability
+  // -------------------------------------------------------------------------
+
+  describe('MobX observability', () => {
+    it('notifies observers when dispatch() updates hierarchyState', () => {
+      const tree: TabNode = {
+        type: 'tab', tabId: 1,
+        frames: [{ type: 'frame', frameId: 0, documents: [{ type: 'document', documentId: 'doc-1', url: 'https://a.com/', origin: 'https://a.com' }] }],
+      };
+      runtime.materializeTree(tree);
+
+      const states: any[] = [];
+      autorun(() => { states.push(runtime.hierarchyState); });
+
+      expect(states).toHaveLength(1); // initial run
+
+      runtime.dispatch({ type: 'add-iframe', documentId: 'doc-1', url: 'https://b.com/' });
+
+      expect(states).toHaveLength(2);
+      expect(states[1]).not.toBe(states[0]);
+    });
+
+    it('notifies observers when dispatch() updates actionLog', () => {
+      const tree: TabNode = {
+        type: 'tab', tabId: 1,
+        frames: [{ type: 'frame', frameId: 0, documents: [{ type: 'document', documentId: 'doc-1', url: 'https://a.com/', origin: 'https://a.com' }] }],
+      };
+      runtime.materializeTree(tree);
+
+      const logs: any[] = [];
+      autorun(() => { logs.push(runtime.actionLog); });
+
+      expect(logs).toHaveLength(1);
+      expect(logs[0]).toHaveLength(0);
+
+      runtime.dispatch({ type: 'add-iframe', documentId: 'doc-1', url: 'https://b.com/' });
+
+      expect(logs).toHaveLength(2);
+      expect(logs[1]).toHaveLength(1);
     });
   });
 });
