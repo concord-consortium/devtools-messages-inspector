@@ -76,11 +76,11 @@ Playwright drives a real browser to perform an action, collects actual Chrome ev
 
 ## Remaining Phases
 
-Phases 1 and 2 are complete.
-
-**Phase 3: Integrate hierarchy map into test.html.** Add hierarchy map to left sidebar, wire action buttons to harness runtime.
+Phases 1, 2, and 3 are complete.
 
 **Phase 4: Add message-send buttons.** Add `send-message` action type and wire buttons to harness runtime.
 
 **Phase 5: Clean up broken harness behaviors.**
 - **Navigation should replace HarnessWindow, not mutate it.** When `navigate-frame` fires, the hierarchy reducer creates a new `DocumentNode`, but `materializeOnCommitted` only updates the existing `HarnessWindow`'s location and document. This leaves old iframe elements, child proxy registrations, and message listeners intact. In a real browser, navigation replaces the entire document and window context. The fix: `materializeOnCommitted` should create a new `HarnessWindow` and `HarnessDocument` for the frame (mirroring the new `DocumentNode` in the hierarchy), replacing the old window entirely. This naturally clears child iframes, proxies, and listeners.
+
+**Phase 6: Multi-panel extension instances.** Add an "Open Extension" action on tab nodes in the hierarchy map. Each click creates a new Messages Inspector panel instance connected to that tab. The right side becomes a tabbed container with one UI tab per open panel, allowing simultaneous monitoring of multiple harness tabs without losing messages.
