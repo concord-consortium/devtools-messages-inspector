@@ -21,3 +21,6 @@ blob-report/
 
 # Worktrees
 .worktrees/
+
+# Superpowers brainstorm mockups
+.superpowers/
