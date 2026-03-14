@@ -87,6 +87,13 @@ async function init() {
     createRoot(banner).render(React.createElement(HarnessBanner));
   }
 
+  const { HarnessSidebar } = await import('./HarnessSidebar');
+
+  const sidebar = document.getElementById('hierarchy-sidebar');
+  if (sidebar) {
+    createRoot(sidebar).render(React.createElement(HarnessSidebar, { runtime }));
+  }
+
   const container = document.getElementById('root');
   if (container) {
     createRoot(container).render(React.createElement(App));
