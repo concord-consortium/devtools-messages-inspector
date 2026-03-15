@@ -106,3 +106,25 @@ Reloads the current document in a frame, creating a new document with the same U
 
 **Chrome events:**
 - `chrome.webNavigation.onCommitted` — fires with `transitionType: 'reload'` for the reloaded `frameId`
+
+## send-message
+
+Sends a `postMessage` between two frames. Unlike other actions, this does not modify the frame hierarchy — it only emits a `window`-scoped `message` event and increments a sequence counter.
+
+The `direction` parameter determines the source and target frames relative to the frame specified in the action:
+
+| Direction | Source | Target |
+|-----------|--------|--------|
+| `self` | The frame itself | The frame itself |
+| `self->parent` | The child frame | Its parent frame |
+| `parent->self` | The parent frame | The child frame |
+| `self->opener` | The opened tab's frame | The opener frame |
+| `opener->self` | The opener frame | The opened tab's frame |
+
+**Browser triggers:**
+- JavaScript calls `window.postMessage(data, targetOrigin)`
+- JavaScript calls `window.parent.postMessage(data, targetOrigin)`
+- JavaScript calls `window.opener.postMessage(data, targetOrigin)`
+
+**Chrome events:**
+None. `postMessage` is a DOM/window-level API with no corresponding Chrome extension event. The extension's content script listens for `message` events on `window` directly.
