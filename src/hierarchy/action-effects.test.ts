@@ -198,6 +198,139 @@ describe('applyAction', () => {
     });
   });
 
+  describe('send-message', () => {
+    it('self: emits message event with same source and target frameId', () => {
+      const state = initState(makeTab());
+      const { state: next, events } = applyAction(state, {
+        type: 'send-message', tabId: 1, frameId: 0, direction: 'self',
+      });
+
+      expect(events).toHaveLength(1);
+      expect(events[0]).toMatchObject({
+        scope: 'window',
+        type: 'message',
+        sourceTabId: 1,
+        sourceFrameId: 0,
+        targetTabId: 1,
+        targetFrameId: 0,
+        data: { type: 'test-message', seq: 1 },
+        origin: 'https://page-1.example.com',
+      });
+      expect(next.nextMessageSeq).toBe(2);
+    });
+
+    it('self->parent: source is child frame, target is parent frame', () => {
+      let state = initState(makeTab());
+      state = applyAction(state, { type: 'add-iframe', documentId: 'doc-1' }).state;
+      const childFrameId = state.root[0].frames![0].documents![0].iframes![0].frame!.frameId;
+
+      const { events } = applyAction(state, {
+        type: 'send-message', tabId: 1, frameId: childFrameId, direction: 'self->parent',
+      });
+
+      expect(events).toHaveLength(1);
+      expect(events[0]).toMatchObject({
+        scope: 'window',
+        type: 'message',
+        sourceTabId: 1,
+        sourceFrameId: childFrameId,
+        targetTabId: 1,
+        targetFrameId: 0,
+      });
+    });
+
+    it('parent->self: source is parent frame, target is child frame', () => {
+      let state = initState(makeTab());
+      state = applyAction(state, { type: 'add-iframe', documentId: 'doc-1' }).state;
+      const childFrameId = state.root[0].frames![0].documents![0].iframes![0].frame!.frameId;
+
+      const { events } = applyAction(state, {
+        type: 'send-message', tabId: 1, frameId: childFrameId, direction: 'parent->self',
+      });
+
+      expect(events).toHaveLength(1);
+      expect(events[0]).toMatchObject({
+        scope: 'window',
+        type: 'message',
+        sourceTabId: 1,
+        sourceFrameId: 0,
+        targetTabId: 1,
+        targetFrameId: childFrameId,
+      });
+    });
+
+    it('self->opener: source is opened tab, target is opener frame', () => {
+      let state = initState(makeTab());
+      state = applyAction(state, { type: 'open-tab', tabId: 1, frameId: 0 }).state;
+      const openedTab = state.root[1];
+      const openedFrameId = openedTab.frames![0].frameId;
+
+      const { events } = applyAction(state, {
+        type: 'send-message', tabId: openedTab.tabId, frameId: openedFrameId, direction: 'self->opener',
+      });
+
+      expect(events).toHaveLength(1);
+      expect(events[0]).toMatchObject({
+        scope: 'window',
+        type: 'message',
+        sourceTabId: openedTab.tabId,
+        sourceFrameId: openedFrameId,
+        targetTabId: 1,
+        targetFrameId: 0,
+      });
+    });
+
+    it('opener->self: source is opener frame, target is opened tab', () => {
+      let state = initState(makeTab());
+      state = applyAction(state, { type: 'open-tab', tabId: 1, frameId: 0 }).state;
+      const openedTab = state.root[1];
+      const openedFrameId = openedTab.frames![0].frameId;
+
+      const { events } = applyAction(state, {
+        type: 'send-message', tabId: openedTab.tabId, frameId: openedFrameId, direction: 'opener->self',
+      });
+
+      expect(events).toHaveLength(1);
+      expect(events[0]).toMatchObject({
+        scope: 'window',
+        type: 'message',
+        sourceTabId: 1,
+        sourceFrameId: 0,
+        targetTabId: openedTab.tabId,
+        targetFrameId: openedFrameId,
+      });
+    });
+
+    it('self->parent on root frame: returns no events', () => {
+      const state = initState(makeTab());
+      const { state: next, events } = applyAction(state, {
+        type: 'send-message', tabId: 1, frameId: 0, direction: 'self->parent',
+      });
+
+      expect(events).toHaveLength(0);
+      expect(next).toBe(state);
+    });
+
+    it('self->opener on tab without opener: returns no events', () => {
+      const state = initState(makeTab());
+      const { state: next, events } = applyAction(state, {
+        type: 'send-message', tabId: 1, frameId: 0, direction: 'self->opener',
+      });
+
+      expect(events).toHaveLength(0);
+      expect(next).toBe(state);
+    });
+
+    it('seq counter increments across multiple sends', () => {
+      const state = initState(makeTab());
+      const r1 = applyAction(state, { type: 'send-message', tabId: 1, frameId: 0, direction: 'self' });
+      const r2 = applyAction(r1.state, { type: 'send-message', tabId: 1, frameId: 0, direction: 'self' });
+
+      expect((r1.events[0] as any).data.seq).toBe(1);
+      expect((r2.events[0] as any).data.seq).toBe(2);
+    });
+  });
+
   describe('purge-stale', () => {
     it('returns no events', () => {
       let state = initState(makeTab());

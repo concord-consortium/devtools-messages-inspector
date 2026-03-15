@@ -116,6 +116,39 @@ function findDocInFrame(frame: FrameNode, documentId: string): number | undefine
   return undefined;
 }
 
+// --- Send-message helpers ---
+
+function findParentFrameId(tab: TabNode, targetFrameId: number): number | undefined {
+  if (!tab.frames) return undefined;
+  for (const frame of tab.frames) {
+    const result = findParentInFrame(frame, targetFrameId);
+    if (result !== undefined) return result;
+  }
+  return undefined;
+}
+
+function findParentInFrame(frame: FrameNode, targetFrameId: number): number | undefined {
+  if (!frame.documents) return undefined;
+  for (const doc of frame.documents) {
+    if (!doc.iframes) continue;
+    for (const iframe of doc.iframes) {
+      if (iframe.frame) {
+        if (iframe.frame.frameId === targetFrameId) return frame.frameId;
+        const nested = findParentInFrame(iframe.frame, targetFrameId);
+        if (nested !== undefined) return nested;
+      }
+    }
+  }
+  return undefined;
+}
+
+function getFrameOrigin(tab: TabNode, frameId: number): string {
+  const frame = findFrameInTab(tab, frameId);
+  if (!frame?.documents) return '';
+  const doc = frame.documents.find(d => !d.stale);
+  return doc?.origin ?? '';
+}
+
 // --- Main function ---
 
 export function applyAction(state: HierarchyState, action: HierarchyAction): ActionResult {
@@ -281,6 +314,73 @@ export function applyAction(state: HierarchyState, action: HierarchyAction): Act
           scope: 'chrome',
           type: 'onTabRemoved',
           tabId: action.tabId,
+        }],
+      };
+    }
+
+    case 'send-message': {
+      const tab = state.root.find(t => t.tabId === action.tabId);
+      if (!tab) return { state, events: [] };
+
+      let sourceTabId: number;
+      let sourceFrameId: number;
+      let targetTabId: number;
+      let targetFrameId: number;
+
+      switch (action.direction) {
+        case 'self':
+          sourceTabId = targetTabId = action.tabId;
+          sourceFrameId = targetFrameId = action.frameId;
+          break;
+        case 'self->parent': {
+          const parentId = findParentFrameId(tab, action.frameId);
+          if (parentId === undefined) return { state, events: [] };
+          sourceTabId = targetTabId = action.tabId;
+          sourceFrameId = action.frameId;
+          targetFrameId = parentId;
+          break;
+        }
+        case 'parent->self': {
+          const parentId = findParentFrameId(tab, action.frameId);
+          if (parentId === undefined) return { state, events: [] };
+          sourceTabId = targetTabId = action.tabId;
+          sourceFrameId = parentId;
+          targetFrameId = action.frameId;
+          break;
+        }
+        case 'self->opener': {
+          if (tab.openerTabId == null || tab.openerFrameId == null) return { state, events: [] };
+          sourceTabId = action.tabId;
+          sourceFrameId = action.frameId;
+          targetTabId = tab.openerTabId;
+          targetFrameId = tab.openerFrameId;
+          break;
+        }
+        case 'opener->self': {
+          if (tab.openerTabId == null || tab.openerFrameId == null) return { state, events: [] };
+          sourceTabId = tab.openerTabId;
+          sourceFrameId = tab.openerFrameId;
+          targetTabId = action.tabId;
+          targetFrameId = action.frameId;
+          break;
+        }
+      }
+
+      const seq = state.nextMessageSeq;
+      const sourceTab = state.root.find(t => t.tabId === sourceTabId)!;
+      const origin = getFrameOrigin(sourceTab, sourceFrameId);
+
+      return {
+        state: { ...state, nextMessageSeq: seq + 1 },
+        events: [{
+          scope: 'window',
+          type: 'message',
+          sourceTabId,
+          sourceFrameId,
+          targetTabId,
+          targetFrameId,
+          data: { type: 'test-message', seq },
+          origin,
         }],
       };
     }
