@@ -273,18 +273,18 @@ describe('HarnessRuntime', () => {
       setupSingleTab();
 
       // Open a popup tab from the main tab
-      const { events } = runtime.dispatch({ type: 'open-tab', tabId: 1, frameId: 0 });
-      const newTabId = (events[1] as any).tabId;
+      const { events: openEvents } = runtime.dispatch({ type: 'open-tab', tabId: 1, frameId: 0 });
+      const newTabId = (openEvents[1] as any).tabId;
 
       // Find the popup's top-level document ID so we can add an iframe to it
       const popupTabNode = runtime.hierarchyState.root.find(t => t.tabId === newTabId)!;
       const popupDocId = popupTabNode.frames![0].documents![0].documentId!;
 
       // Add a child iframe inside the popup tab
-      runtime.dispatch({ type: 'add-iframe', documentId: popupDocId });
+      const { events: iframeEvents } = runtime.dispatch({ type: 'add-iframe', documentId: popupDocId });
+      const childFrameId = (iframeEvents[0] as any).frameId;
 
       // The child iframe's window should NOT have an opener
-      const childFrameId = runtime.hierarchyState.nextFrameId - 1;
       const childWin = runtime.getWindow(childFrameId)!;
       expect(childWin.opener).toBeNull();
     });
@@ -331,6 +331,42 @@ describe('HarnessRuntime', () => {
         newWin,
       );
       expect(received).toHaveLength(0);
+    });
+
+    it('navigate child iframe does not duplicate parent iframe elements', () => {
+      setupSingleTab();
+
+      // Add a child iframe
+      const { events } = runtime.dispatch({ type: 'add-iframe', documentId: 'doc-1' });
+      const childFrameId = (events[0] as any).frameId;
+      const parentWin = runtime.getWindow(0)!;
+      expect(parentWin.frames.length).toBe(1);
+
+      // Navigate the child iframe
+      runtime.dispatch({ type: 'navigate-frame', frameId: childFrameId });
+
+      // Parent should still have exactly 1 iframe element, not 2
+      expect(parentWin.frames.length).toBe(1);
+    });
+
+    it('navigate child iframe keeps stable contentWindow proxy in parent', () => {
+      setupSingleTab();
+
+      // Add a child iframe
+      const { events } = runtime.dispatch({ type: 'add-iframe', documentId: 'doc-1' });
+      const childFrameId = (events[0] as any).frameId;
+      const parentWin = runtime.getWindow(0)!;
+      const proxyBefore = parentWin.frames[0];
+
+      // Navigate the child iframe
+      runtime.dispatch({ type: 'navigate-frame', frameId: childFrameId });
+
+      // The proxy visible to the parent should be the same object
+      // and should reflect the new origin
+      const proxyAfter = parentWin.frames[0];
+      expect(proxyAfter).toBe(proxyBefore);
+      const newChildWin = runtime.getWindow(childFrameId)!;
+      expect(proxyAfter.origin).toBe(newChildWin.location.origin);
     });
 
     it('navigate-frame creates a new document with a new ID', () => {

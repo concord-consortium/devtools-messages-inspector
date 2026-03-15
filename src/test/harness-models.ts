@@ -112,6 +112,16 @@ export class CrossOriginWindowProxy {
   get origin(): string { return this._target.location.origin; }
 
   get closed(): boolean { return false; }
+
+  /** Update this proxy to point at a new window (e.g. after iframe navigation). */
+  retarget(newTarget: HarnessWindow): void {
+    this._target = newTarget;
+  }
+
+  /** Update the caller origin (e.g. when the peer window navigates to a new origin). */
+  setCallerOrigin(origin: string): void {
+    this._callerOrigin = origin;
+  }
 }
 
 /**
@@ -273,6 +283,11 @@ export class HarnessWindow {
     this._childProxies.set(childWin, proxy);
   }
 
+  /** Remove a child proxy entry (e.g. when the child window is replaced by navigation). */
+  unregisterChildProxy(childWin: HarnessWindow): void {
+    this._childProxies.delete(childWin);
+  }
+
   /** Set the parent relationship with a cross-origin proxy. */
   setParentProxy(rawParent: HarnessWindow, proxy: CrossOriginWindowProxy): void {
     this._rawParent = rawParent;
@@ -282,6 +297,11 @@ export class HarnessWindow {
   /** Register a proxy for an opened window (for dispatchMessage source resolution). */
   registerOpenedWindowProxy(openedWin: HarnessWindow, proxy: CrossOriginWindowProxy): void {
     this._openedWindowProxies.set(openedWin, proxy);
+  }
+
+  /** Remove an opened window proxy entry (e.g. when the popup window is replaced by navigation). */
+  unregisterOpenedWindowProxy(openedWin: HarnessWindow): void {
+    this._openedWindowProxies.delete(openedWin);
   }
 
   /** Set the opener relationship with a cross-origin proxy. */
