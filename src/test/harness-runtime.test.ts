@@ -400,7 +400,7 @@ describe('HarnessRuntime', () => {
       runtime.materializeTree(tree);
       initBackgroundScript(env.createBackgroundChrome());
 
-      const openerWin = runtime.getWindow(0)!;
+      const openerWin = runtime.getTab(1)!.getFrame(0)!.window!;
       const received: any[] = [];
       openerWin.addEventListener('message', (e: any) => received.push(e));
 

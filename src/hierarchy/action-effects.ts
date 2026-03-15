@@ -367,7 +367,8 @@ export function applyAction(state: HierarchyState, action: HierarchyAction): Act
       }
 
       const seq = state.nextMessageSeq;
-      const sourceTab = state.root.find(t => t.tabId === sourceTabId)!;
+      const sourceTab = state.root.find(t => t.tabId === sourceTabId);
+      if (!sourceTab) return { state, events: [] };
       const origin = getFrameOrigin(sourceTab, sourceFrameId);
 
       return {

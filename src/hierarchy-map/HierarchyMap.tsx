@@ -106,12 +106,14 @@ function MessageButton({ direction, onAction }: {
   return (
     <button
       className={`node-action-btn msg-icon-btn dir-${sourceType}`}
+      title={`Send message: ${direction}`}
+      aria-label={`Send message: ${direction}`}
       onClick={(e) => {
         e.stopPropagation();
         onAction({ type: 'send-message', tabId: frameContext.tabId, frameId: frameContext.frameId, direction });
       }}
     >
-      <DirectionIcon sourceType={sourceType} focusPosition={focusPosition} />
+      <DirectionIcon sourceType={sourceType} focusPosition={focusPosition} hideTitle />
     </button>
   );
 }
@@ -250,7 +252,7 @@ function NodeBox({ node, tabId, onAction }: {
                   tabId: currentTabId,
                   frameId: child.frameId,
                   isRootFrame: node.type === 'tab',
-                  hasOpener: node.type === 'tab' && node.openerTabId != null,
+                  hasOpener: node.type === 'tab' && node.openerTabId != null && node.openerFrameId != null,
                 }}>
                   {childBox}
                 </FrameCtx.Provider>
