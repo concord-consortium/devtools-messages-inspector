@@ -318,6 +318,102 @@ describe('HarnessRuntime', () => {
   });
 
   // -------------------------------------------------------------------------
+  // send-message dispatch
+  // -------------------------------------------------------------------------
+
+  describe('send-message dispatch', () => {
+    it('self: dispatches message on the same window', async () => {
+      const tree: TabNode = {
+        type: 'tab', tabId: 1,
+        frames: [{
+          type: 'frame', frameId: 0,
+          documents: [{ type: 'document', documentId: 'doc-1', url: 'https://self.example.com/', origin: 'https://self.example.com' }],
+        }],
+      };
+      runtime.materializeTree(tree);
+      initBackgroundScript(env.createBackgroundChrome());
+
+      const win = runtime.getWindow(0)!;
+      const received: any[] = [];
+      win.addEventListener('message', (e: any) => received.push(e));
+
+      runtime.dispatch({ type: 'send-message', tabId: 1, frameId: 0, direction: 'self' });
+      await flushPromises();
+
+      expect(received).toHaveLength(1);
+      expect(received[0].data).toEqual({ type: 'test-message', seq: 1 });
+      expect(received[0].origin).toBe('https://self.example.com');
+      expect(received[0].source).toBe(win);
+    });
+
+    it('self->parent: dispatches message on parent window with child as source', async () => {
+      const tree: TabNode = {
+        type: 'tab', tabId: 1,
+        frames: [{
+          type: 'frame', frameId: 0,
+          documents: [{
+            type: 'document', documentId: 'doc-1', url: 'https://parent.example.com/', origin: 'https://parent.example.com',
+            iframes: [{
+              type: 'iframe', iframeId: 1,
+              frame: {
+                type: 'frame', frameId: 1,
+                documents: [{ type: 'document', documentId: 'doc-2', url: 'https://child.example.com/', origin: 'https://child.example.com' }],
+              },
+            }],
+          }],
+        }],
+      };
+      runtime.materializeTree(tree);
+      initBackgroundScript(env.createBackgroundChrome());
+
+      const parentWin = runtime.getWindow(0)!;
+      const received: any[] = [];
+      parentWin.addEventListener('message', (e: any) => received.push(e));
+
+      runtime.dispatch({ type: 'send-message', tabId: 1, frameId: 1, direction: 'self->parent' });
+      await flushPromises();
+
+      expect(received).toHaveLength(1);
+      expect(received[0].data).toEqual({ type: 'test-message', seq: 1 });
+      expect(received[0].origin).toBe('https://child.example.com');
+      expect(received[0].source).not.toBe(runtime.getWindow(1));
+      expect(received[0].source.postMessage).toBeDefined();
+    });
+
+    it('self->opener: dispatches message on opener window', async () => {
+      const tree: TabNode[] = [
+        {
+          type: 'tab', tabId: 1,
+          frames: [{
+            type: 'frame', frameId: 0,
+            documents: [{ type: 'document', documentId: 'doc-1', url: 'https://opener.example.com/', origin: 'https://opener.example.com' }],
+          }],
+        },
+        {
+          type: 'tab', tabId: 2, openerTabId: 1, openerFrameId: 0,
+          frames: [{
+            type: 'frame', frameId: 0,
+            documents: [{ type: 'document', documentId: 'doc-2', url: 'https://popup.example.com/', origin: 'https://popup.example.com' }],
+          }],
+        },
+      ];
+      runtime.materializeTree(tree);
+      initBackgroundScript(env.createBackgroundChrome());
+
+      const openerWin = runtime.getWindow(0)!;
+      const received: any[] = [];
+      openerWin.addEventListener('message', (e: any) => received.push(e));
+
+      runtime.dispatch({ type: 'send-message', tabId: 2, frameId: 0, direction: 'self->opener' });
+      await flushPromises();
+
+      expect(received).toHaveLength(1);
+      expect(received[0].data).toEqual({ type: 'test-message', seq: 1 });
+      expect(received[0].origin).toBe('https://popup.example.com');
+    });
+  });
+
+  // -------------------------------------------------------------------------
   // Integration: runtime + env + background + content scripts
   // -------------------------------------------------------------------------
 

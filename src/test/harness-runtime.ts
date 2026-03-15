@@ -230,6 +230,9 @@ export class HarnessRuntime {
       case 'iframeRemoved':
         // No-op for now
         break;
+      case 'message':
+        this.materializeMessage(event);
+        break;
     }
   }
 
@@ -344,6 +347,15 @@ export class HarnessRuntime {
     }
 
     this.env.bgOnCreatedNavTarget.fire({ sourceTabId, sourceFrameId, tabId, url });
+  }
+
+  private materializeMessage(event: Extract<HierarchyEvent, { type: 'message' }>): void {
+    const { sourceTabId, sourceFrameId, targetTabId, targetFrameId, data, origin } = event;
+    const sourceWin = this.lookupFrame(sourceTabId, sourceFrameId)?.window;
+    const targetWin = this.lookupFrame(targetTabId, targetFrameId)?.window;
+    if (!sourceWin || !targetWin) return;
+
+    targetWin.dispatchMessage(data, origin, sourceWin);
   }
 
   // ---------------------------------------------------------------------------
