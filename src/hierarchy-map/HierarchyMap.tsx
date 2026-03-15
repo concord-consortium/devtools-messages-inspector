@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import type { HierarchyAction } from '../hierarchy/actions';
+import type { HierarchyAction, MessageDirection } from '../hierarchy/actions';
 import type { HierarchyNode, TabNode } from '../hierarchy/types';
 import { DirectionIcon } from '../panel/components/shared/DirectionIcon';
+import type { FocusPosition } from '../panel/types';
 
 interface FrameContext {
   tabId: number;
@@ -86,18 +87,26 @@ function ActionButton({ label, action, onAction }: {
   );
 }
 
-function MessageButton({ sourceType, focusPosition, action, onAction }: {
-  sourceType: string;
-  focusPosition: 'source' | 'target' | 'both';
-  action: HierarchyAction;
+const directionDisplay: Record<MessageDirection, { sourceType: string; focusPosition: FocusPosition }> = {
+  'self': { sourceType: 'self', focusPosition: 'both' },
+  'self->parent': { sourceType: 'child', focusPosition: 'source' },
+  'parent->self': { sourceType: 'parent', focusPosition: 'target' },
+  'self->opener': { sourceType: 'opened', focusPosition: 'source' },
+  'opener->self': { sourceType: 'opener', focusPosition: 'target' },
+};
+
+function MessageButton({ direction, frameContext, onAction }: {
+  direction: MessageDirection;
+  frameContext: FrameContext;
   onAction: (action: HierarchyAction) => void;
 }) {
+  const { sourceType, focusPosition } = directionDisplay[direction];
   return (
     <button
       className={`node-action-btn msg-icon-btn dir-${sourceType}`}
       onClick={(e) => {
         e.stopPropagation();
-        onAction(action);
+        onAction({ type: 'send-message', tabId: frameContext.tabId, frameId: frameContext.frameId, direction });
       }}
     >
       <DirectionIcon sourceType={sourceType} focusPosition={focusPosition} />
@@ -159,37 +168,17 @@ function NodeActions({ node, tabId, frameContext, onAction }: {
       {node.type === 'document' && frameContext && (
         <>
           <span className="msg-separator" />
-          <MessageButton
-            sourceType="self" focusPosition="both"
-            action={{ type: 'send-message', tabId: frameContext.tabId, frameId: frameContext.frameId, direction: 'self' }}
-            onAction={onAction}
-          />
+          <MessageButton direction="self" frameContext={frameContext} onAction={onAction} />
           {!frameContext.isRootFrame && (
             <>
-              <MessageButton
-                sourceType="child" focusPosition="source"
-                action={{ type: 'send-message', tabId: frameContext.tabId, frameId: frameContext.frameId, direction: 'self->parent' }}
-                onAction={onAction}
-              />
-              <MessageButton
-                sourceType="parent" focusPosition="target"
-                action={{ type: 'send-message', tabId: frameContext.tabId, frameId: frameContext.frameId, direction: 'parent->self' }}
-                onAction={onAction}
-              />
+              <MessageButton direction="self->parent" frameContext={frameContext} onAction={onAction} />
+              <MessageButton direction="parent->self" frameContext={frameContext} onAction={onAction} />
             </>
           )}
           {frameContext.hasOpener && frameContext.isRootFrame && (
             <>
-              <MessageButton
-                sourceType="opened" focusPosition="source"
-                action={{ type: 'send-message', tabId: frameContext.tabId, frameId: frameContext.frameId, direction: 'self->opener' }}
-                onAction={onAction}
-              />
-              <MessageButton
-                sourceType="opener" focusPosition="target"
-                action={{ type: 'send-message', tabId: frameContext.tabId, frameId: frameContext.frameId, direction: 'opener->self' }}
-                onAction={onAction}
-              />
+              <MessageButton direction="self->opener" frameContext={frameContext} onAction={onAction} />
+              <MessageButton direction="opener->self" frameContext={frameContext} onAction={onAction} />
             </>
           )}
         </>
