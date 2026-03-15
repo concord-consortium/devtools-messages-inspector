@@ -1,6 +1,14 @@
 import React, { useState } from 'react';
 import type { HierarchyAction } from '../hierarchy/actions';
 import type { HierarchyNode, TabNode } from '../hierarchy/types';
+import { DirectionIcon } from '../panel/components/shared/DirectionIcon';
+
+interface FrameContext {
+  tabId: number;
+  frameId: number;
+  isRootFrame: boolean;
+  hasOpener: boolean;
+}
 
 export function getLabel(node: HierarchyNode): string {
   switch (node.type) {
@@ -78,9 +86,29 @@ function ActionButton({ label, action, onAction }: {
   );
 }
 
-function NodeActions({ node, tabId, onAction }: {
+function MessageButton({ sourceType, focusPosition, action, onAction }: {
+  sourceType: string;
+  focusPosition: 'source' | 'target' | 'both';
+  action: HierarchyAction;
+  onAction: (action: HierarchyAction) => void;
+}) {
+  return (
+    <button
+      className={`node-action-btn msg-icon-btn dir-${sourceType}`}
+      onClick={(e) => {
+        e.stopPropagation();
+        onAction(action);
+      }}
+    >
+      <DirectionIcon sourceType={sourceType} focusPosition={focusPosition} />
+    </button>
+  );
+}
+
+function NodeActions({ node, tabId, frameContext, onAction }: {
   node: HierarchyNode;
   tabId: number;
+  frameContext?: FrameContext;
   onAction: (action: HierarchyAction) => void;
 }) {
   if (node.stale) return null;
@@ -115,7 +143,8 @@ function NodeActions({ node, tabId, onAction }: {
       break;
   }
 
-  if (buttons.length === 0) return null;
+  const hasMessageButtons = node.type === 'document' && frameContext;
+  if (buttons.length === 0 && !hasMessageButtons) return null;
 
   return (
     <span className="node-actions">
@@ -127,13 +156,52 @@ function NodeActions({ node, tabId, onAction }: {
           onAction={onAction}
         />
       ))}
+      {node.type === 'document' && frameContext && (
+        <>
+          <span className="msg-separator" />
+          <MessageButton
+            sourceType="self" focusPosition="both"
+            action={{ type: 'send-message', tabId: frameContext.tabId, frameId: frameContext.frameId, direction: 'self' }}
+            onAction={onAction}
+          />
+          {!frameContext.isRootFrame && (
+            <>
+              <MessageButton
+                sourceType="child" focusPosition="source"
+                action={{ type: 'send-message', tabId: frameContext.tabId, frameId: frameContext.frameId, direction: 'self->parent' }}
+                onAction={onAction}
+              />
+              <MessageButton
+                sourceType="parent" focusPosition="target"
+                action={{ type: 'send-message', tabId: frameContext.tabId, frameId: frameContext.frameId, direction: 'parent->self' }}
+                onAction={onAction}
+              />
+            </>
+          )}
+          {frameContext.hasOpener && frameContext.isRootFrame && (
+            <>
+              <MessageButton
+                sourceType="opened" focusPosition="source"
+                action={{ type: 'send-message', tabId: frameContext.tabId, frameId: frameContext.frameId, direction: 'self->opener' }}
+                onAction={onAction}
+              />
+              <MessageButton
+                sourceType="opener" focusPosition="target"
+                action={{ type: 'send-message', tabId: frameContext.tabId, frameId: frameContext.frameId, direction: 'opener->self' }}
+                onAction={onAction}
+              />
+            </>
+          )}
+        </>
+      )}
     </span>
   );
 }
 
-function NodeBox({ node, tabId, onAction }: {
+function NodeBox({ node, tabId, frameContext, onAction }: {
   node: HierarchyNode;
   tabId: number;
+  frameContext?: FrameContext;
   onAction?: (action: HierarchyAction) => void;
 }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -162,7 +230,7 @@ function NodeBox({ node, tabId, onAction }: {
             ℹ
           </button>
         )}
-        {onAction && <NodeActions node={node} tabId={currentTabId} onAction={onAction} />}
+        {onAction && <NodeActions node={node} tabId={currentTabId} frameContext={frameContext} onAction={onAction} />}
       </div>
       {detailsOpen && details.length > 0 && (
         <div className="node-details">
@@ -176,9 +244,37 @@ function NodeBox({ node, tabId, onAction }: {
       )}
       {children.length > 0 && (
         <div className="node-body">
-          {children.map((child) => (
-            <NodeBox key={getKey(child)} node={child} tabId={currentTabId} onAction={onAction} />
-          ))}
+          {children.map((child) => {
+            let childFrameContext = frameContext;
+
+            if (node.type === 'frame' && child.type === 'document') {
+              const isRootFrame = node.frameId === 0;
+              childFrameContext = {
+                tabId: currentTabId,
+                frameId: node.frameId,
+                isRootFrame,
+                hasOpener: frameContext?.hasOpener ?? false,
+              };
+            }
+            if (node.type === 'tab' && child.type === 'frame') {
+              childFrameContext = {
+                tabId: currentTabId,
+                frameId: child.frameId,
+                isRootFrame: true,
+                hasOpener: node.openerTabId != null,
+              };
+            }
+
+            return (
+              <NodeBox
+                key={getKey(child)}
+                node={child}
+                tabId={currentTabId}
+                frameContext={childFrameContext}
+                onAction={onAction}
+              />
+            );
+          })}
         </div>
       )}
     </div>

@@ -120,6 +120,31 @@
   background: var(--node-bg);
 }
 
+/* --- Message icon buttons --- */
+
+.msg-icon-btn {
+  padding: 1px 2px;
+  line-height: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.msg-separator {
+  width: 1px;
+  height: 14px;
+  background: var(--node-color);
+  opacity: 0.3;
+  flex-shrink: 0;
+}
+
+/* Direction colors for message buttons */
+.dir-self { color: #f9ab00; }
+.dir-parent { color: #1a73e8; }
+.dir-child { color: #1e8e3e; }
+.dir-opener { color: #9334e6; }
+.dir-opened { color: #d01884; }
+
 /* --- Info button --- */
 
 .node-info-btn {
