@@ -269,6 +269,80 @@ describe('HarnessRuntime', () => {
       expect(newFrame!.window!.opener).toBeNull();
     });
 
+    it('open-tab child iframe does not get opener proxy', () => {
+      setupSingleTab();
+
+      // Open a popup tab from the main tab
+      const { events } = runtime.dispatch({ type: 'open-tab', tabId: 1, frameId: 0 });
+      const newTabId = (events[1] as any).tabId;
+
+      // Find the popup's top-level document ID so we can add an iframe to it
+      const popupTabNode = runtime.hierarchyState.root.find(t => t.tabId === newTabId)!;
+      const popupDocId = popupTabNode.frames![0].documents![0].documentId!;
+
+      // Add a child iframe inside the popup tab
+      runtime.dispatch({ type: 'add-iframe', documentId: popupDocId });
+
+      // The child iframe's window should NOT have an opener
+      const childFrameId = runtime.hierarchyState.nextFrameId - 1;
+      const childWin = runtime.getWindow(childFrameId)!;
+      expect(childWin.opener).toBeNull();
+    });
+
+    it('navigate-frame clears child iframes from the window', () => {
+      setupSingleTab();
+
+      // Add a child iframe to the top frame
+      runtime.dispatch({ type: 'add-iframe', documentId: 'doc-1' });
+      const parentWin = runtime.getWindow(0)!;
+      expect(parentWin.frames.length).toBe(1);
+
+      // Navigate the parent frame
+      runtime.dispatch({ type: 'navigate-frame', frameId: 0 });
+
+      // After navigation, the new window should have no child iframes
+      const newWin = runtime.getWindow(0)!;
+      expect(newWin.frames.length).toBe(0);
+    });
+
+    it('navigate-frame replaces the HarnessWindow instance', () => {
+      setupSingleTab();
+      const oldWin = runtime.getWindow(0)!;
+
+      runtime.dispatch({ type: 'navigate-frame', frameId: 0 });
+
+      const newWin = runtime.getWindow(0)!;
+      expect(newWin).not.toBe(oldWin);
+    });
+
+    it('navigate-frame drops message listeners from the old window', () => {
+      setupSingleTab();
+      const oldWin = runtime.getWindow(0)!;
+      const received: any[] = [];
+      oldWin.addEventListener('message', (e: any) => received.push(e));
+
+      runtime.dispatch({ type: 'navigate-frame', frameId: 0 });
+
+      // Dispatching a message on the new window should not trigger the old listener
+      const newWin = runtime.getWindow(0)!;
+      newWin.dispatchMessage(
+        { type: 'after-nav' },
+        newWin.location.origin,
+        newWin,
+      );
+      expect(received).toHaveLength(0);
+    });
+
+    it('navigate-frame creates a new document with a new ID', () => {
+      setupSingleTab();
+      const oldDocId = runtime.getFrame(0)!.currentDocument?.documentId;
+
+      runtime.dispatch({ type: 'navigate-frame', frameId: 0 });
+
+      const newDocId = runtime.getFrame(0)!.currentDocument?.documentId;
+      expect(newDocId).not.toBe(oldDocId);
+    });
+
     it('navigate-frame updates document and location, fires onCommitted', () => {
       setupSingleTab();
 

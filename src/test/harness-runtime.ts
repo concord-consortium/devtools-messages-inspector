@@ -237,40 +237,12 @@ export class HarnessRuntime {
   }
 
   private materializeIframeAdded(event: Extract<HierarchyEvent, { type: 'iframeAdded' }>): void {
-    const { tabId, parentFrameId, frameId, src } = event;
+    const { tabId, parentFrameId, frameId } = event;
     const tab = this.tabs.get(tabId)!;
-    const parentFrame = this.lookupFrame(tabId, parentFrameId)!;
-    const parentWin = parentFrame.window!;
 
-    const origin = src ? new URL(src).origin : '';
-
-    // Find the new document info from the hierarchy state
-    const frameNode = this.findFrameInHierarchyState(frameId);
-    const doc = frameNode ? this.findActiveDocument(frameNode) : undefined;
-
+    // Create the frame only — window, document, proxies, and iframe DOM element
+    // are all created by materializeOnCommitted when the onCommitted event fires.
     const childFrame = new HarnessFrame(tab, frameId, parentFrameId);
-    childFrame.currentDocument = new HarnessDocument(
-      doc?.documentId ?? `doc-f${frameId}`,
-      src,
-    );
-    const childWin = new HarnessWindow({
-      location: { href: src, origin },
-    });
-    childFrame.window = childWin;
-
-    // Proxy pair
-    const { aForB: parentProxyForChild, bForA: childProxyForParent } =
-      createProxyPair(parentWin, childWin);
-    childWin.setParentProxy(parentWin, parentProxyForChild);
-    parentWin.registerChildProxy(childWin, childProxyForParent);
-
-    // Iframe DOM element
-    parentWin.addIframeElement({
-      src,
-      id: '',
-      contentWindow: childProxyForParent,
-    });
-
     tab.addFrame(childFrame);
     this.storeFrame(tabId, frameId, childFrame);
   }
@@ -280,20 +252,55 @@ export class HarnessRuntime {
     const frame = this.lookupFrame(tabId, frameId);
 
     if (frame) {
-      // Find the active document from the hierarchy state (scoped to correct tab)
       const tabNode = this.hierarchyState.root.find(t => t.tabId === tabId);
       const frameNode = tabNode ? this.findFrameInTabNode(tabNode, frameId) : undefined;
       const doc = frameNode ? this.findActiveDocument(frameNode) : undefined;
 
       frame.currentDocument = new HarnessDocument(
-        doc?.documentId ?? frame.currentDocument?.documentId ?? `doc-f${frameId}`,
+        doc?.documentId ?? `doc-f${frameId}`,
         url,
         doc?.title,
       );
-      if (frame.window) {
-        const origin = url ? new URL(url).origin : '';
-        frame.window.location = { href: url, origin };
+
+      const origin = url ? new URL(url).origin : '';
+      const newWin = new HarnessWindow({
+        location: { href: url, origin },
+        title: doc?.title,
+      });
+
+      // Wire parent proxy and iframe DOM element if this is a child frame
+      if (frame.parentFrameId >= 0) {
+        const parentFrame = this.lookupFrame(tabId, frame.parentFrameId);
+        if (parentFrame?.window) {
+          const parentWin = parentFrame.window;
+          const { aForB: parentProxyForChild, bForA: childProxyForParent } =
+            createProxyPair(parentWin, newWin);
+          newWin.setParentProxy(parentWin, parentProxyForChild);
+          parentWin.registerChildProxy(newWin, childProxyForParent);
+
+          parentWin.addIframeElement({
+            src: url,
+            id: '',
+            contentWindow: childProxyForParent,
+          });
+        }
       }
+
+      // Wire opener proxy only for the tab's top-level frame — in real browsers,
+      // child iframes don't have access to the tab's opener.
+      const isTopFrame = frame.parentFrameId < 0;
+      if (isTopFrame && tabNode?.openerTabId != null && tabNode.openerFrameId != null) {
+        const openerFrame = this.lookupFrame(tabNode.openerTabId, tabNode.openerFrameId);
+        if (openerFrame?.window) {
+          const openerWin = openerFrame.window;
+          const { aForB: openerProxyForPopup, bForA: popupProxyForOpener } =
+            createProxyPair(openerWin, newWin);
+          newWin.setOpenerProxy(openerWin, openerProxyForPopup);
+          openerWin.registerOpenedWindowProxy(newWin, popupProxyForOpener);
+        }
+      }
+
+      frame.window = newWin;
     }
 
     this.env.bgOnCommitted.fire({ tabId, frameId, url });
@@ -306,46 +313,21 @@ export class HarnessRuntime {
     this.env.registerTab(tab);
     this.tabs.set(tabId, tab);
 
+    // Create the frame only — window and document are created by
+    // materializeOnCommitted when the onCommitted event fires.
     const newTabNode = this.hierarchyState.root.find(t => t.tabId === tabId);
     const frameNode = newTabNode?.frames?.[0];
-    const doc = frameNode ? this.findActiveDocument(frameNode) : undefined;
-    const url = doc?.url ?? '';
-    const origin = url ? new URL(url).origin : '';
     const frameId = frameNode?.frameId ?? 0;
 
     const frame = new HarnessFrame(tab, frameId, -1);
-    frame.currentDocument = new HarnessDocument(
-      doc?.documentId ?? `doc-f${frameId}`,
-      url,
-      doc?.title,
-    );
-    frame.window = new HarnessWindow({
-      location: { href: url, origin },
-      title: doc?.title,
-    });
     tab.addFrame(frame);
     this.storeFrame(tabId, frameId, frame);
   }
 
   private materializeOnCreatedNavTarget(event: Extract<HierarchyEvent, { type: 'onCreatedNavigationTarget' }>): void {
     const { sourceTabId, sourceFrameId, tabId, url } = event;
-
-    // Tab and frame were already created by materializeOnTabCreated.
-    // Look up the popup frame and the opener frame, then wire proxies.
-    const openerFrame = this.lookupFrame(sourceTabId, sourceFrameId);
-    const newTabNode = this.hierarchyState.root.find(t => t.tabId === tabId);
-    const popupFrameId = newTabNode?.frames?.[0]?.frameId ?? 0;
-    const popupFrame = this.lookupFrame(tabId, popupFrameId);
-
-    if (openerFrame?.window && popupFrame?.window) {
-      const openerWin = openerFrame.window;
-      const popupWin = popupFrame.window;
-      const { aForB: openerProxyForPopup, bForA: popupProxyForOpener } =
-        createProxyPair(openerWin, popupWin);
-      popupWin.setOpenerProxy(openerWin, openerProxyForPopup);
-      openerWin.registerOpenedWindowProxy(popupWin, popupProxyForOpener);
-    }
-
+    // Opener proxies are wired by materializeOnCommitted using the hierarchy
+    // state's openerTabId/openerFrameId. This just fires the Chrome event.
     this.env.bgOnCreatedNavTarget.fire({ sourceTabId, sourceFrameId, tabId, url });
   }
 
