@@ -43,6 +43,12 @@ export class HarnessFrame {
   currentDocument: HarnessDocument | undefined;
   window: HarnessWindow | undefined;
 
+  /** Proxy info set during iframe/opener wiring, used when creating windows in onCommitted */
+  _parentFrame?: HarnessFrame;
+  _parentProxyForSelf?: CrossOriginWindowProxy;
+  _openerFrame?: HarnessFrame;
+  _openerProxyForSelf?: CrossOriginWindowProxy;
+
   constructor(tab: HarnessTab, frameId: number, parentFrameId: number) {
     this.tab = tab;
     this.frameId = frameId;
@@ -89,27 +95,28 @@ export class HarnessDocument {
  * event.source to use when delivering messages (the peer proxy).
  */
 export class CrossOriginWindowProxy {
-  private _target: HarnessWindow;
-  private _callerOrigin: string;
+  private _target: HarnessFrame;
 
   /** The peer proxy: proxy of the caller window as seen by the target's content script */
   _peerProxy!: CrossOriginWindowProxy;
 
-  constructor(target: HarnessWindow, callerOrigin: string) {
+  constructor(target: HarnessFrame) {
     this._target = target;
-    this._callerOrigin = callerOrigin;
   }
 
   postMessage(data: any, _targetOrigin: string): void {
     // Deliver asynchronously like real postMessage.
     // event.source is the peer proxy so equality checks in content-core.ts work.
     setTimeout(() => {
-      this._target.dispatchMessage(data, this._callerOrigin, this._peerProxy);
+      const targetWin = this._target.window;
+      if (!targetWin) return;
+      const callerOrigin = this._peerProxy._target.window?.location.origin ?? '';
+      targetWin.dispatchMessage(data, callerOrigin, this._peerProxy);
     }, 0);
   }
 
   // window.origin is accessible cross-origin in real browsers
-  get origin(): string { return this._target.location.origin; }
+  get origin(): string { return this._target.window?.location.origin ?? ''; }
 
   get closed(): boolean { return false; }
 }
@@ -124,10 +131,10 @@ export class CrossOriginWindowProxy {
  *   calling bForA.postMessage() dispatches on B with source = aForB
  */
 export function createProxyPair(
-  winA: HarnessWindow, winB: HarnessWindow
+  frameA: HarnessFrame, frameB: HarnessFrame
 ): { aForB: CrossOriginWindowProxy; bForA: CrossOriginWindowProxy } {
-  const aForB = new CrossOriginWindowProxy(winA, winB.location.origin);
-  const bForA = new CrossOriginWindowProxy(winB, winA.location.origin);
+  const aForB = new CrossOriginWindowProxy(frameA);
+  const bForA = new CrossOriginWindowProxy(frameB);
 
   // Wire the circular reference: each proxy's peer is the other
   aForB._peerProxy = bForA;
@@ -143,8 +150,6 @@ export function createProxyPair(
 export interface HarnessWindowOptions {
   location: { href: string; origin: string };
   title?: string;
-  parent?: HarnessWindow;
-  opener?: HarnessWindow | null;
 }
 
 export class HarnessWindow {
@@ -156,9 +161,9 @@ export class HarnessWindow {
   /** Mirrors window.origin — shorthand for location.origin */
   get origin(): string { return this.location.origin; }
 
-  private _rawParent: HarnessWindow;
+  private _parentFrame: HarnessFrame | null = null;
   private _parentProxy: CrossOriginWindowProxy | null = null;
-  private _rawOpener: HarnessWindow | null;
+  private _openerFrame: HarnessFrame | null = null;
   private _openerProxy: CrossOriginWindowProxy | null = null;
 
   private messageListeners: ((event: any) => void)[] = [];
@@ -166,16 +171,14 @@ export class HarnessWindow {
   // If you do the iframe src URLs will actually load.
   private _iframeContainer = document.createElement('div');
 
-  /** Proxies of child windows, keyed by the raw child HarnessWindow.
+  /** Proxies of child frames, keyed by HarnessFrame (stable across navigations).
    *  Used by dispatchMessage() to resolve raw window sources to proxies. */
-  private _childProxies = new Map<HarnessWindow, CrossOriginWindowProxy>();
-  private _openedWindowProxies = new Map<HarnessWindow, CrossOriginWindowProxy>();
+  private _childProxies = new Map<HarnessFrame, CrossOriginWindowProxy>();
+  private _openedWindowProxies = new Map<HarnessFrame, CrossOriginWindowProxy>();
 
   constructor(options: HarnessWindowOptions) {
     this.location = { ...options.location };
-    this._rawParent = options.parent ?? this;
     this.top = this; // simplified: top is self unless explicitly set
-    this._rawOpener = options.opener ?? null;
 
     const container = this._iframeContainer;
     this.document = {
@@ -188,17 +191,11 @@ export class HarnessWindow {
 
   get parent(): HarnessWindow | CrossOriginWindowProxy {
     if (this._parentProxy) return this._parentProxy;
-    if (this._rawParent !== this) {
-      throw new Error('HarnessWindow has a parent but no proxy was set — call setParentProxy() first');
-    }
     return this;
   }
 
   get opener(): HarnessWindow | CrossOriginWindowProxy | null {
     if (this._openerProxy) return this._openerProxy;
-    if (this._rawOpener !== null) {
-      throw new Error('HarnessWindow has an opener but no proxy was set — call setOpenerProxy() first');
-    }
     return null;
   }
 
@@ -232,16 +229,20 @@ export class HarnessWindow {
   dispatchMessage(data: any, origin: string, source: any): void {
     let resolvedSource = source;
     if (source instanceof HarnessWindow) {
-      const childProxy = this._childProxies.get(source);
-      if (childProxy) {
-        resolvedSource = childProxy;
-      } else if (source === this._rawParent && this._parentProxy) {
+      // Resolve raw HarnessWindow sources to their cross-origin proxy.
+      // Maps are keyed by HarnessFrame (stable), so we match via frame.window.
+      for (const [frame, proxy] of this._childProxies) {
+        if (frame.window === source) { resolvedSource = proxy; break; }
+      }
+      if (resolvedSource === source) {
+        for (const [frame, proxy] of this._openedWindowProxies) {
+          if (frame.window === source) { resolvedSource = proxy; break; }
+        }
+      }
+      if (resolvedSource === source && this._parentFrame?.window === source && this._parentProxy) {
         resolvedSource = this._parentProxy;
       }
-      const openedWindowProxy = this._openedWindowProxies.get(source);
-      if (openedWindowProxy) {
-        resolvedSource = openedWindowProxy;
-      } else if (source === this._rawOpener && this._openerProxy) {
+      if (resolvedSource === source && this._openerFrame?.window === source && this._openerProxy) {
         resolvedSource = this._openerProxy;
       }
     }
@@ -268,25 +269,25 @@ export class HarnessWindow {
     this._iframeContainer.appendChild(el);
   }
 
-  /** Register a proxy for a child window (for dispatchMessage source resolution). */
-  registerChildProxy(childWin: HarnessWindow, proxy: CrossOriginWindowProxy): void {
-    this._childProxies.set(childWin, proxy);
+  /** Register a proxy for a child frame (for dispatchMessage source resolution). */
+  registerChildProxy(childFrame: HarnessFrame, proxy: CrossOriginWindowProxy): void {
+    this._childProxies.set(childFrame, proxy);
   }
 
   /** Set the parent relationship with a cross-origin proxy. */
-  setParentProxy(rawParent: HarnessWindow, proxy: CrossOriginWindowProxy): void {
-    this._rawParent = rawParent;
+  setParentProxy(parentFrame: HarnessFrame, proxy: CrossOriginWindowProxy): void {
+    this._parentFrame = parentFrame;
     this._parentProxy = proxy;
   }
 
   /** Register a proxy for an opened window (for dispatchMessage source resolution). */
-  registerOpenedWindowProxy(openedWin: HarnessWindow, proxy: CrossOriginWindowProxy): void {
-    this._openedWindowProxies.set(openedWin, proxy);
+  registerOpenedWindowProxy(openedFrame: HarnessFrame, proxy: CrossOriginWindowProxy): void {
+    this._openedWindowProxies.set(openedFrame, proxy);
   }
 
   /** Set the opener relationship with a cross-origin proxy. */
-  setOpenerProxy(rawOpener: HarnessWindow, proxy: CrossOriginWindowProxy): void {
-    this._rawOpener = rawOpener;
+  setOpenerProxy(openerFrame: HarnessFrame, proxy: CrossOriginWindowProxy): void {
+    this._openerFrame = openerFrame;
     this._openerProxy = proxy;
   }
 }
