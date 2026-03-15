@@ -91,10 +91,10 @@ function UnknownIcon() {
   return <text x={8} y={12} textAnchor="middle" fill="currentColor" fontSize={12}>?</text>;
 }
 
-function IconSvg({ title, children }: { title: string; children: React.ReactNode }) {
+function IconSvg({ title, children }: { title?: string; children: React.ReactNode }) {
   return (
     <svg viewBox="0 0 16 16" width={16} height={16}>
-      <title>{title}</title>
+      {title && <title>{title}</title>}
       {children}
     </svg>
   );
@@ -162,10 +162,10 @@ function getTitle(sourceType: string, focusPosition: FocusPosition): string {
   return `${source} to ${target}`;
 }
 
-export function DirectionIcon({ sourceType, focusPosition }: DirectionIconProps) {
+export function DirectionIcon({ sourceType, focusPosition, hideTitle }: DirectionIconProps & { hideTitle?: boolean }) {
   return (
     <span className="direction-icon">
-      <IconSvg title={getTitle(sourceType, focusPosition)}>
+      <IconSvg title={hideTitle ? undefined : getTitle(sourceType, focusPosition)}>
         <IconContent sourceType={sourceType} focusPosition={focusPosition} />
       </IconSvg>
     </span>

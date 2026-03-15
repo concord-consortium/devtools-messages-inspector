@@ -1,6 +1,17 @@
-import React, { useState } from 'react';
-import type { HierarchyAction } from '../hierarchy/actions';
+import React, { createContext, useContext, useState } from 'react';
+import type { HierarchyAction, MessageDirection } from '../hierarchy/actions';
 import type { HierarchyNode, TabNode } from '../hierarchy/types';
+import { DirectionIcon } from '../panel/components/shared/DirectionIcon';
+import type { FocusPosition } from '../panel/types';
+
+interface FrameContext {
+  tabId: number;
+  frameId: number;
+  isRootFrame: boolean;
+  hasOpener: boolean;
+}
+
+const FrameCtx = createContext<FrameContext | undefined>(undefined);
 
 export function getLabel(node: HierarchyNode): string {
   switch (node.type) {
@@ -78,11 +89,41 @@ function ActionButton({ label, action, onAction }: {
   );
 }
 
+const directionDisplay: Record<MessageDirection, { sourceType: string; focusPosition: FocusPosition }> = {
+  'self': { sourceType: 'self', focusPosition: 'both' },
+  'self->parent': { sourceType: 'child', focusPosition: 'source' },
+  'parent->self': { sourceType: 'parent', focusPosition: 'target' },
+  'self->opener': { sourceType: 'opened', focusPosition: 'source' },
+  'opener->self': { sourceType: 'opener', focusPosition: 'target' },
+};
+
+function MessageButton({ direction, onAction }: {
+  direction: MessageDirection;
+  onAction: (action: HierarchyAction) => void;
+}) {
+  const frameContext = useContext(FrameCtx)!;
+  const { sourceType, focusPosition } = directionDisplay[direction];
+  return (
+    <button
+      className={`node-action-btn msg-icon-btn dir-${sourceType}`}
+      title={`Send message: ${direction}`}
+      aria-label={`Send message: ${direction}`}
+      onClick={(e) => {
+        e.stopPropagation();
+        onAction({ type: 'send-message', tabId: frameContext.tabId, frameId: frameContext.frameId, direction });
+      }}
+    >
+      <DirectionIcon sourceType={sourceType} focusPosition={focusPosition} hideTitle />
+    </button>
+  );
+}
+
 function NodeActions({ node, tabId, onAction }: {
   node: HierarchyNode;
   tabId: number;
   onAction: (action: HierarchyAction) => void;
 }) {
+  const frameContext = useContext(FrameCtx);
   if (node.stale) return null;
 
   const buttons: { label: string; action: HierarchyAction }[] = [];
@@ -115,7 +156,8 @@ function NodeActions({ node, tabId, onAction }: {
       break;
   }
 
-  if (buttons.length === 0) return null;
+  const hasMessageButtons = node.type === 'document' && frameContext;
+  if (buttons.length === 0 && !hasMessageButtons) return null;
 
   return (
     <span className="node-actions">
@@ -127,6 +169,24 @@ function NodeActions({ node, tabId, onAction }: {
           onAction={onAction}
         />
       ))}
+      {node.type === 'document' && frameContext && (
+        <>
+          <span className="msg-separator" />
+          <MessageButton direction="self" onAction={onAction} />
+          {!frameContext.isRootFrame && (
+            <>
+              <MessageButton direction="self->parent" onAction={onAction} />
+              <MessageButton direction="parent->self" onAction={onAction} />
+            </>
+          )}
+          {frameContext.hasOpener && frameContext.isRootFrame && (
+            <>
+              <MessageButton direction="self->opener" onAction={onAction} />
+              <MessageButton direction="opener->self" onAction={onAction} />
+            </>
+          )}
+        </>
+      )}
     </span>
   );
 }
@@ -176,9 +236,31 @@ function NodeBox({ node, tabId, onAction }: {
       )}
       {children.length > 0 && (
         <div className="node-body">
-          {children.map((child) => (
-            <NodeBox key={getKey(child)} node={child} tabId={currentTabId} onAction={onAction} />
-          ))}
+          {children.map((child) => {
+            const childBox = (
+              <NodeBox
+                key={getKey(child)}
+                node={child}
+                tabId={currentTabId}
+                onAction={onAction}
+              />
+            );
+
+            if (child.type === 'frame') {
+              return (
+                <FrameCtx.Provider key={getKey(child)} value={{
+                  tabId: currentTabId,
+                  frameId: child.frameId,
+                  isRootFrame: node.type === 'tab',
+                  hasOpener: node.type === 'tab' && node.openerTabId != null && node.openerFrameId != null,
+                }}>
+                  {childBox}
+                </FrameCtx.Provider>
+              );
+            }
+
+            return childBox;
+          })}
         </div>
       )}
     </div>

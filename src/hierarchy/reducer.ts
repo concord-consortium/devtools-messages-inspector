@@ -7,6 +7,7 @@ export interface HierarchyState {
   nextDocumentId: number;
   nextIframeId: number;
   nextPageNumber: number;
+  nextMessageSeq: number;
 }
 
 // --- ID scanning helpers ---
@@ -81,6 +82,7 @@ export function initState(root: TabNode | TabNode[]): HierarchyState {
     nextDocumentId: ids.maxDocumentId + 1,
     nextIframeId: ids.maxIframeId + 1,
     nextPageNumber: ids.maxPageNumber + 1,
+    nextMessageSeq: 1,
   };
 }
 
@@ -285,6 +287,7 @@ export function addIframe(state: HierarchyState, documentId: string, actionUrl?:
     nextDocumentId: docId + 1,
     nextIframeId: iframeId + 1,
     nextPageNumber: actionUrl ? state.nextPageNumber : pageNum + 1,
+    nextMessageSeq: state.nextMessageSeq,
   };
 }
 
@@ -431,6 +434,7 @@ export function openTab(state: HierarchyState, openerTabId: number, openerFrameI
     nextDocumentId: docId + 1,
     nextIframeId: state.nextIframeId,
     nextPageNumber: actionUrl ? state.nextPageNumber : pageNum + 1,
+    nextMessageSeq: state.nextMessageSeq,
   };
 }
 
@@ -465,6 +469,7 @@ export function createTab(state: HierarchyState, url: string, title?: string): H
     nextDocumentId: docId + 1,
     nextIframeId: state.nextIframeId,
     nextPageNumber: state.nextPageNumber,
+    nextMessageSeq: state.nextMessageSeq,
   };
 }
 

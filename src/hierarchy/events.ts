@@ -7,4 +7,4 @@ export type HierarchyEvent =
   | { scope: 'chrome'; type: 'onTabCreated'; tabId: number }
   | { scope: 'dom'; type: 'iframeAdded'; tabId: number; parentFrameId: number; frameId: number; src: string }
   | { scope: 'dom'; type: 'iframeRemoved'; tabId: number; parentFrameId: number; iframeId: number }
-  | { scope: 'window'; type: 'message'; sourceFrameId: number; targetFrameId: number; data: any; origin: string };
+  | { scope: 'window'; type: 'message'; sourceTabId: number; sourceFrameId: number; targetTabId: number; targetFrameId: number; data: any; origin: string };

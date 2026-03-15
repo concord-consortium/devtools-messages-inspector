@@ -7,4 +7,7 @@ export type HierarchyAction =
   | { type: 'navigate-iframe'; iframeId: number }
   | { type: 'navigate-frame'; frameId: number; url?: string; title?: string }
   | { type: 'reload-frame'; frameId: number }
-  | { type: 'purge-stale' };
+  | { type: 'purge-stale' }
+  | { type: 'send-message'; tabId: number; frameId: number; direction: MessageDirection };
+
+export type MessageDirection = 'self' | 'self->parent' | 'parent->self' | 'self->opener' | 'opener->self';
