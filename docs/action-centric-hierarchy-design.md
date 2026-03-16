@@ -73,9 +73,3 @@ Calls `applyAction()` to update the tree. The action log shows both the action a
 ### Future: Playwright Chrome Verification
 
 Playwright drives a real browser to perform an action, collects actual Chrome events via the extension, and compares against the event descriptors from `applyAction()`. This would validate that the action-to-event mapping stays accurate across Chrome versions.
-
-## Remaining Phases
-
-Phases 1, 2, 3, 4, and 5 are complete.
-
-**Phase 6: Multi-panel extension instances.** Add an "Open Extension" action on tab nodes in the hierarchy map. Each click creates a new Messages Inspector panel instance connected to that tab. The right side becomes a tabbed container with one UI tab per open panel, allowing simultaneous monitoring of multiple harness tabs without losing messages.
