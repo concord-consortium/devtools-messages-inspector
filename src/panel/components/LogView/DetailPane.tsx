@@ -123,18 +123,7 @@ export const DetailPane = observer(() => {
   };
 
   if (!isVisible) {
-    return (
-      <div className="detail-pane hidden">
-        <div className="detail-tabs">
-          <button className="tab-btn active">Data</button>
-          <button className="tab-btn">Context</button>
-          <button className="close-detail-btn" title="Close">×</button>
-        </div>
-        <div className="tab-content">
-          <div className="placeholder">Select a message to view details</div>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   return (

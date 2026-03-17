@@ -66,17 +66,16 @@ test.describe('detail panel', () => {
     await sendAndWait(page, 'window.harness.sendChildToParent({ type: "detail-test", payload: [1, 2, 3] })');
 
     const view = page.locator(logView);
-
     const detailPane = view.locator('.detail-pane');
 
-    // Detail pane should be hidden initially
-    await expect(detailPane).toHaveClass(/hidden/);
+    // Detail pane should not exist initially (conditionally rendered)
+    await expect(detailPane).toHaveCount(0);
 
     // Click the row
     await page.locator('#message-table tbody tr').first().click();
 
     // Detail pane should now be visible
-    await expect(detailPane).not.toHaveClass(/hidden/);
+    await expect(detailPane).toBeVisible();
 
     // Should show the JSON data
     await expect(view.locator('.json-tree')).toContainText('detail-test');
@@ -84,15 +83,14 @@ test.describe('detail panel', () => {
 
   test('close button hides the detail panel', async ({ page }) => {
     const view = page.locator(logView);
-
     const detailPane = view.locator('.detail-pane');
 
     await sendAndWait(page, 'window.harness.sendChildToParent({ type: "close-test" })');
     await page.locator('#message-table tbody tr').first().click();
-    await expect(detailPane).not.toHaveClass(/hidden/);
+    await expect(detailPane).toBeVisible();
 
     await view.locator('.close-detail-btn').click();
-    await expect(detailPane).toHaveClass(/hidden/);
+    await expect(detailPane).toHaveCount(0);
   });
 });
 
