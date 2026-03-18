@@ -9,9 +9,10 @@
   </style>
 </head>
 <body>
-  <strong>Iframe</strong>
+  <strong>Iframe (Page 1)</strong>
   <button onclick="sendToParent('ready')">Send ready</button>
   <button onclick="sendToParent('ack')">Send ack</button>
+  <button onclick="location.href='iframe-page2.html'">Navigate to Page 2</button>
 
   <script>
     function sendToParent(type) {

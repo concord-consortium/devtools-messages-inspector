@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Test Iframe Page 2</title>
+  <style>
+    body { font-family: sans-serif; padding: 10px; margin: 0; background: #e8f5e9; }
+    button { margin: 5px; padding: 4px 8px; }
+  </style>
+</head>
+<body>
+  <strong>Iframe (Page 2)</strong>
+  <button onclick="sendToParent('page2-ready')">Send ready</button>
+  <button onclick="sendToParent('page2-ack')">Send ack</button>
+  <button onclick="location.href='iframe.html'">Navigate back to Page 1</button>
+
+  <script>
+    function sendToParent(type) {
+      parent.postMessage({ type, from: 'iframe-page2', timestamp: Date.now() }, '*');
+    }
+
+    window.addEventListener('message', (e) => {
+      if (e.data.type && e.data.type !== 'ack') {
+        setTimeout(() => sendToParent('page2-ack'), 100);
+      }
+    });
+
+    setTimeout(() => sendToParent('page2-ready'), 100);
+  </script>
+</body>
+</html>

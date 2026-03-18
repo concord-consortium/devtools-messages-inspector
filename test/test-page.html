@@ -60,6 +60,11 @@
     <h3>Navigation Testing</h3>
     <button onclick="navigateToSelf()">Navigate to this page (new URL)</button>
     <span>Open Messages panel first, then click to test injection during navigation</span>
+    <br>
+    <button onclick="navigateIframe('iframe1', 'iframe-page2.html')">Navigate Iframe 1 → Page 2</button>
+    <button onclick="navigateIframe('iframe1', 'iframe.html')">Navigate Iframe 1 → Page 1</button>
+    <button onclick="navigateIframe('iframe2', 'iframe-page2.html')">Navigate Iframe 2 → Page 2</button>
+    <button onclick="navigateIframe('iframe2', 'iframe.html')">Navigate Iframe 2 → Page 1</button>
   </div>
 
   <div id="dynamic-iframe-container"></div>
@@ -254,6 +259,11 @@
           status.textContent = 'Delayed iframe loaded, sent init message';
         };
       }, 2000);
+    }
+
+    function navigateIframe(iframeId, page) {
+      const iframe = document.getElementById(iframeId);
+      iframe.src = page;
     }
 
     function navigateToSelf() {
