@@ -843,4 +843,90 @@ describe('Frame model integration', () => {
       expect(store.selectedFrame!.currentDocument?.origin).toBe(FRAME_A.origin);
     });
   });
+
+  // ===================================================================
+  // Navigation — when an iframe navigates, old messages should preserve
+  // the original document's properties (origin, URL) rather than being
+  // mutated by the new document.
+  // ===================================================================
+  describe('navigation preserves old document', () => {
+    const FRAME_B_NAV = {
+      frameId: 1,
+      documentId: 'doc-B2',
+      url: 'https://other.example.com/page2',
+      origin: 'https://other.example.com',
+      title: 'Other Page',
+      sourceId: 'win-B', // same WindowProxy as FRAME_B
+      iframe: {
+        domPath: 'body > iframe:nth-of-type(1)',
+        src: 'https://other.example.com/page2',
+        id: 'iframe-b',
+      },
+    };
+
+    it('registration after navigation preserves old document', () => {
+      // Message from B before navigation — creates doc by sourceId
+      processIncomingMessage(childMsg(FRAME_B, FRAME_A));
+      const oldDoc = frameStore.getDocumentBySourceId(FRAME_B.sourceId);
+      expect(oldDoc).toBeDefined();
+      expect(oldDoc!.origin).toBe(FRAME_B.origin);
+
+      // Registration with new documentId for same sourceId (navigation happened)
+      processIncomingMessage(registrationMsg(FRAME_B_NAV, FRAME_A));
+
+      // Old document should be untouched
+      expect(oldDoc!.origin).toBe(FRAME_B.origin);
+      expect(oldDoc!.documentId).toBeUndefined(); // was never assigned a documentId
+
+      // New document should exist under the new documentId
+      const newDoc = frameStore.getDocumentById(FRAME_B_NAV.documentId);
+      expect(newDoc).toBeDefined();
+      expect(newDoc).not.toBe(oldDoc);
+      expect(newDoc!.documentId).toBe(FRAME_B_NAV.documentId);
+      expect(newDoc!.sourceId).toBe(FRAME_B.sourceId);
+    });
+
+    it('source origin change creates new document instead of mutating old one', () => {
+      // Message from B with origin A
+      processIncomingMessage(childMsg(FRAME_B, FRAME_A));
+      const oldDoc = frameStore.getDocumentBySourceId(FRAME_B.sourceId);
+      expect(oldDoc!.origin).toBe(FRAME_B.origin);
+
+      // Message from same sourceId but different origin (navigation)
+      processIncomingMessage(childMsg(FRAME_B_NAV, FRAME_A));
+      const msg2 = store.messages[1];
+
+      // Old FrameDocument object was NOT mutated — still has original origin
+      expect(oldDoc!.origin).toBe(FRAME_B.origin);
+
+      // New message has a different FrameDocument with the new origin
+      const newDoc = msg2.sourceDocument;
+      expect(newDoc).not.toBe(oldDoc);
+      expect(newDoc!.origin).toBe(FRAME_B_NAV.origin);
+
+      // sourceId mapping now points to the new document
+      expect(frameStore.getDocumentBySourceId(FRAME_B.sourceId)).toBe(newDoc);
+
+      // Note: msg1.sourceDocument will also resolve to newDoc because it uses
+      // the sourceSourceId fallback (known limitation documented in the design)
+    });
+
+    it('new document after navigation gets correct properties from registration', () => {
+      // Pre-navigation message
+      processIncomingMessage(childMsg(FRAME_B, FRAME_A));
+
+      // Registration after navigation
+      processIncomingMessage(registrationMsg(FRAME_B_NAV, FRAME_A));
+
+      // New document is linked to the frame and has correct properties
+      const newDoc = frameStore.getDocumentById(FRAME_B_NAV.documentId);
+      expect(newDoc).toBeDefined();
+      expect(newDoc!.frame).toBeDefined();
+      expect(newDoc!.frame!.frameId).toBe(FRAME_B_NAV.frameId);
+
+      // sourceId mapping now points to new document
+      const docBySourceId = frameStore.getDocumentBySourceId(FRAME_B.sourceId);
+      expect(docBySourceId).toBe(newDoc);
+    });
+  });
 });

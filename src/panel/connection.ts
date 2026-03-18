@@ -68,8 +68,15 @@ function _processIncomingMessage(msg: IMessage): void {
       frameStore.documentsBySourceId.set(msg.source.sourceId, sourceDoc);
     }
   } else if (msg.source.sourceId) {
-    sourceDoc = frameStore.getOrCreateDocumentBySourceId(msg.source.sourceId);
-    sourceDoc.origin = msg.source.origin;
+    const existing = frameStore.getDocumentBySourceId(msg.source.sourceId);
+    if (existing && existing.origin && msg.source.origin && existing.origin !== msg.source.origin) {
+      // Navigation detected — new document for same WindowProxy
+      sourceDoc = new FrameDocument({ sourceId: msg.source.sourceId, origin: msg.source.origin });
+      frameStore.documentsBySourceId.set(msg.source.sourceId, sourceDoc);
+    } else {
+      sourceDoc = frameStore.getOrCreateDocumentBySourceId(msg.source.sourceId);
+      sourceDoc.origin = msg.source.origin;
+    }
   }
 
   // Link source FrameDocument to a Frame when tabId and frameId are available
@@ -160,8 +167,13 @@ function processRegistration(message: Message): void {
     }
     frameStore.documentsBySourceId.set(sourceId, docByDocId);
   } else if (docByWindow && !docByDocId) {
-    docByWindow.documentId = regData.documentId;
-    frameStore.documents.set(regData.documentId, docByWindow);
+    // Navigation: same WindowProxy, new documentId. Create fresh document.
+    const newDoc = new FrameDocument({ documentId: regData.documentId, sourceId: sourceId });
+    if (docByWindow.origin && !newDoc.origin) {
+      newDoc.origin = docByWindow.origin;
+    }
+    frameStore.documents.set(regData.documentId, newDoc);
+    frameStore.documentsBySourceId.set(sourceId, newDoc);
   } else if (!docByWindow && docByDocId) {
     docByDocId.sourceId = sourceId;
     frameStore.documentsBySourceId.set(sourceId, docByDocId);
