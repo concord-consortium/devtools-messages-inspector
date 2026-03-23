@@ -157,27 +157,27 @@ function processRegistration(message: Message): void {
   const regData = message.registrationData!;
   const sourceId = message.sourceSourceId!;
 
-  const docByWindow = frameStore.getDocumentBySourceId(sourceId);
+  const docBySourceId = frameStore.getDocumentBySourceId(sourceId);
   const docByDocId = frameStore.getDocumentById(regData.documentId);
 
-  if (docByWindow && docByDocId && docByWindow !== docByDocId) {
+  if (docBySourceId && docByDocId && docBySourceId !== docByDocId) {
     docByDocId.sourceId = sourceId;
-    if (docByWindow.origin && !docByDocId.origin) {
-      docByDocId.origin = docByWindow.origin;
+    if (docBySourceId.origin && !docByDocId.origin) {
+      docByDocId.origin = docBySourceId.origin;
     }
     frameStore.documentsBySourceId.set(sourceId, docByDocId);
-  } else if (docByWindow && !docByDocId) {
+  } else if (docBySourceId && !docByDocId) {
     // Navigation: same WindowProxy, new documentId. Create fresh document.
     const newDoc = new FrameDocument({ documentId: regData.documentId, sourceId: sourceId });
-    if (docByWindow.origin && !newDoc.origin) {
-      newDoc.origin = docByWindow.origin;
+    if (docBySourceId.origin && !newDoc.origin) {
+      newDoc.origin = docBySourceId.origin;
     }
     frameStore.documents.set(regData.documentId, newDoc);
     frameStore.documentsBySourceId.set(sourceId, newDoc);
-  } else if (!docByWindow && docByDocId) {
+  } else if (!docBySourceId && docByDocId) {
     docByDocId.sourceId = sourceId;
     frameStore.documentsBySourceId.set(sourceId, docByDocId);
-  } else if (!docByWindow && !docByDocId) {
+  } else if (!docBySourceId && !docByDocId) {
     const doc = new FrameDocument({ documentId: regData.documentId, sourceId });
     frameStore.documents.set(regData.documentId, doc);
     frameStore.documentsBySourceId.set(sourceId, doc);

@@ -1,7 +1,5 @@
 # Remaining for Version 1
-- when a frame is navigated a new document is created, the current structure doesn't support this properly it seems. When a frame navigates the document shown in the message view seems to be the most recent instead of the one that existed at the time of the message.
-- The Hierarchy Map should support a mode where the frame is collapsed into its parent node. So this way the Tab represents itself plus its Frame. And the IFrame represents itself plus its Frame. This will reduce the number of containers shown and make it easier for someone to reason about without getting bogged down in the Frame construct the browser is using underneath. It still keeps the Document concept since there can multiple of those.
-- the endpoints pane should be organized by tab/frame/document, in the future we can add workers but they require a more invasive extension. The focused frame should be focused endpoint. And the list should be organized by document. I think we can simplify the view so that we don't need to have un clickable entries for tabs and frames.
+- the endpoints pane should be organized by tab/iframe/document, in the future we can add workers but they require a more invasive extension. The focused frame should be focused endpoint. And the list should be organized by document. I think we can simplify the view so that we don't need to have un clickable entries for tabs and frames.
 - the opener shows up in the endpoints as part of the hierarchy, not in the special "other known frames". It seems it should be in the other known frames section.
 - the endpoints should indicate when a frame is no longer part of the current hierarchy. How we update that information is not obvious. We could poll the frame info for the tabs the current panel knows about. I think we can also monitor "change events" when new frames are created (and perhaps removed too). We could at least get this information when the frame details is opened.
 - it will be useful if we can record a "session" of messages/events between the panel and the background. Then we can setup the panel with specific settings and then replay the session. This might help reproduce issues that only show up in the real extension within the test harness environment. This has a few questions though: when does the session start recording? How is the session recording enabled? Should we also record any settings or other chrome calls made by the panel?
@@ -22,6 +20,7 @@
 - the pane on right of messages that comes out doesn't behave correctly on resize
 - the reload icon on the endpoints page is broken
 - the endpoints page should automatically update when it can. With the test harness actions this should be easier to implement and test now
+- The Hierarchy Map should support a mode where the frame is collapsed into its parent node. So this way the Tab represents itself plus its Frame. And the IFrame represents itself plus its Frame. This will reduce the number of containers shown and make it easier for someone to reason about without getting bogged down in the Frame construct the browser is using underneath. It still keeps the Document concept since there can multiple of those.
 
 - truncate long values in the context pane with some way to see the full value.
 - clean up the left side
