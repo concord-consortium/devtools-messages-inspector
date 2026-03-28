@@ -71,11 +71,11 @@ Unchanged. Stays as immutable snapshot on Message instances.
 ### New methods
 
 - `getOrCreateTab(tabId): Tab` — creates Tab and its root Frame (frameId 0) if they don't exist.
-- `getOrCreateIFrame(parentDocument, sourceId?, iframeInfo?): IFrame` — finds an existing IFrame on the document or creates a new one. Matching: by `sourceId` when available (from child messages — stable across DOM moves), or by child `frameId` (from hierarchy data). `domPath`, `src`, and `id` are updated as mutable properties, not used as match keys.
+- `getOrCreateIFrame(parentDocument, sourceId?, iframeInfo?): IFrame` — finds an existing IFrame on the document or creates a new one. Matching is done by `sourceId` when available (from child messages — stable across DOM moves); hierarchy data (including child `frameId`) is used to populate `childFrame` and update mutable properties, but not as a lookup key. `domPath`, `src`, and `id` are updated as mutable properties, not used as match keys.
 
 ### Modified methods
 
-- `getOrCreateFrame(tabId, frameId, parentFrameId?)` — also calls `getOrCreateTab(tabId)` to ensure the Tab exists.
+- `getOrCreateFrame(tabId, frameId, parentFrameId?)` — creates or retrieves the Frame for the given tab/frameId. It does not call `getOrCreateTab(tabId)` internally; callers are responsible for ensuring the Tab exists (via `getOrCreateTab`) before invoking this.
 - `processHierarchy()` — creates/updates IFrame entities from hierarchy data, linking parent Documents to child Frames through IFrames.
 
 ### Unchanged

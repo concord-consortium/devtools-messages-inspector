@@ -42,7 +42,6 @@ export function processIncomingMessage(msg: IMessage): void {
 
 function _processIncomingMessage(msg: IMessage): void {
   // --- Target ---
-  let targetOwnerElement: OwnerElement | undefined = undefined;
   if (msg.target.documentId) {
     const targetDoc = frameStore.getOrCreateDocumentById(msg.target.documentId);
     targetDoc.url = msg.target.url;
@@ -55,6 +54,16 @@ function _processIncomingMessage(msg: IMessage): void {
       if (!targetFrame.documents.includes(targetDoc)) {
         targetFrame.documents.push(targetDoc);
       }
+    }
+  }
+
+  // Snapshot the target's owner element (iframe hosting the target frame)
+  let targetOwnerElement: OwnerElement | undefined = undefined;
+  const targetFrame = frameStore.getFrame(msg.target.tabId, msg.target.frameId);
+  if (targetFrame) {
+    const ownerIFrame = frameStore.findOwnerIFrame(targetFrame);
+    if (ownerIFrame) {
+      targetOwnerElement = new OwnerElement(ownerIFrame.domPath, ownerIFrame.src, ownerIFrame.id);
     }
   }
 

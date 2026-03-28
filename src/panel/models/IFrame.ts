@@ -9,6 +9,7 @@ export class IFrame {
   sourceId: string | undefined;
   readonly parentDocument: FrameDocument;
   childFrame: Frame | undefined;
+  removedFromHierarchy: boolean;
 
   constructor(
     parentDocument: FrameDocument,
@@ -22,6 +23,7 @@ export class IFrame {
     this.id = id || undefined;
     this.sourceId = undefined;
     this.childFrame = undefined;
+    this.removedFromHierarchy = false;
 
     makeAutoObservable(this, {
       parentDocument: false,

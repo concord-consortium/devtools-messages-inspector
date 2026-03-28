@@ -98,14 +98,26 @@ Message computed properties (`sourceFrame`, `targetFrame`, `sourceDocument`, `ta
 
 Registration messages merge the sourceId-keyed FrameDocument with the documentId-keyed FrameDocument, creating the link between the content-script-assigned sourceId and the browser-assigned documentId/frameId.
 
-### When hierarchy is requested (`processHierarchy` in `FrameStore.ts`)
+### When hierarchy is requested (`getFrameHierarchy` in `background-core.ts`, `processHierarchy` in `FrameStore.ts`)
 
-For each frame returned by `webNavigation.getAllFrames`:
+Each `FrameInfo` entry combines data from two sources:
+1. **`webNavigation.getAllFrames(tabId)`** — provides `frameId`, `parentFrameId`, `documentId`, `url` for each frame in the inspected tab. `documentId` is always present for these frames.
+2. **Content script `get-frame-info` response** — provides `title`, `origin`, and `iframes` (child iframe DOM elements with `sourceId` from `contentWindow` identity, plus `domPath`, `src`, `id`).
+
+For **opener frames** (cross-tab), the background constructs a synthetic `FrameInfo` with data from:
+- The inspected tab's content script (`opener.sourceId`, `opener.origin`)
+- `webNavigation.getFrame()` on the opener's tab (may provide `documentId` and `url`, but can fail if opener tab is closed)
+- The opener's content script (`title`, but can fail if content script isn't injected)
+
+Opener frames always have `sourceId` (from the inspected tab's content script) but may lack `documentId` if the cross-tab `getFrame()` call fails.
+
+`processHierarchy` then processes each `FrameInfo`:
 - Gets or creates a Frame by `tabId:frameId`
 - Gets or creates a FrameDocument by documentId (or sourceId)
 - Updates url, origin, title on the FrameDocument
 - Sets `parentFrameId` from hierarchy data
-- Copies `iframes` and `isOpener` onto the Frame
+- Creates/updates IFrame entities from the content script's iframe list
+- Marks previously-known iframes absent from the current refresh as `removedFromHierarchy`
 
 After processing all frames:
 - Updates `currentHierarchyFrameKeys` to track which frames are in the current hierarchy

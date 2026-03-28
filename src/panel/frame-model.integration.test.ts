@@ -616,8 +616,8 @@ describe('Frame model integration', () => {
   describe('FrameStore hierarchy computeds', () => {
     it('hierarchyRoots returns frames with parentFrameId === -1', () => {
       store.setFrameHierarchy([
-        { frameId: 0, tabId: TAB_ID, url: FRAME_A.url, parentFrameId: -1, title: FRAME_A.title, origin: FRAME_A.origin, iframes: [] },
-        { frameId: 1, tabId: TAB_ID, url: FRAME_B.url, parentFrameId: 0, title: FRAME_B.title, origin: FRAME_B.origin, iframes: [] },
+        { frameId: 0, tabId: TAB_ID, documentId: FRAME_A.documentId, url: FRAME_A.url, parentFrameId: -1, title: FRAME_A.title, origin: FRAME_A.origin, iframes: [] },
+        { frameId: 1, tabId: TAB_ID, documentId: FRAME_B.documentId, url: FRAME_B.url, parentFrameId: 0, title: FRAME_B.title, origin: FRAME_B.origin, iframes: [] },
       ]);
 
       const roots = frameStore.hierarchyRoots;
@@ -651,8 +651,8 @@ describe('Frame model integration', () => {
       expect(frameStore.nonHierarchyFrames).toHaveLength(1);
 
       store.setFrameHierarchy([
-        { frameId: 0, tabId: TAB_ID, url: FRAME_A.url, parentFrameId: -1, title: FRAME_A.title, origin: FRAME_A.origin, iframes: [] },
-        { frameId: 1, tabId: TAB_ID, url: FRAME_B.url, parentFrameId: 0, title: FRAME_B.title, origin: FRAME_B.origin, iframes: [] },
+        { frameId: 0, tabId: TAB_ID, documentId: FRAME_A.documentId, url: FRAME_A.url, parentFrameId: -1, title: FRAME_A.title, origin: FRAME_A.origin, iframes: [] },
+        { frameId: 1, tabId: TAB_ID, documentId: FRAME_B.documentId, url: FRAME_B.url, parentFrameId: 0, title: FRAME_B.title, origin: FRAME_B.origin, iframes: [] },
       ]);
 
       expect(frameStore.nonHierarchyFrames).toHaveLength(0);
@@ -661,10 +661,10 @@ describe('Frame model integration', () => {
     });
 
     it('processHierarchy populates IFrame entities on document and isOpener on Frame', () => {
-      const iframes = [{ src: 'https://child.example.com', id: 'iframe1', domPath: 'body > iframe' }];
+      const iframes = [{ src: 'https://child.example.com', id: 'iframe1', domPath: 'body > iframe', sourceId: 'win-child1' }];
       store.setFrameHierarchy([
-        { frameId: 0, tabId: TAB_ID, url: FRAME_A.url, parentFrameId: -1, title: FRAME_A.title, origin: FRAME_A.origin, iframes },
-        { frameId: 0, tabId: OPENER_TAB_ID, url: OPENER_FRAME.url, parentFrameId: -1, title: OPENER_FRAME.title, origin: OPENER_FRAME.origin, iframes: [], isOpener: true },
+        { frameId: 0, tabId: TAB_ID, documentId: FRAME_A.documentId, url: FRAME_A.url, parentFrameId: -1, title: FRAME_A.title, origin: FRAME_A.origin, iframes },
+        { frameId: 0, tabId: OPENER_TAB_ID, url: OPENER_FRAME.url, parentFrameId: -1, title: OPENER_FRAME.title, origin: OPENER_FRAME.origin, sourceId: 'win-opener', iframes: [], isOpener: true },
       ]);
 
       const frameA = frameStore.getFrame(TAB_ID, 0)!;
@@ -683,8 +683,8 @@ describe('Frame model integration', () => {
       expect(frame1.parentFrameId).toBeUndefined();
 
       store.setFrameHierarchy([
-        { frameId: 0, tabId: TAB_ID, url: FRAME_A.url, parentFrameId: -1, title: FRAME_A.title, origin: FRAME_A.origin, iframes: [] },
-        { frameId: 1, tabId: TAB_ID, url: FRAME_B.url, parentFrameId: 0, title: FRAME_B.title, origin: FRAME_B.origin, iframes: [] },
+        { frameId: 0, tabId: TAB_ID, documentId: FRAME_A.documentId, url: FRAME_A.url, parentFrameId: -1, title: FRAME_A.title, origin: FRAME_A.origin, iframes: [] },
+        { frameId: 1, tabId: TAB_ID, documentId: FRAME_B.documentId, url: FRAME_B.url, parentFrameId: 0, title: FRAME_B.title, origin: FRAME_B.origin, iframes: [] },
       ]);
 
       const frame0 = frameStore.getFrame(TAB_ID, 0)!;
@@ -694,7 +694,7 @@ describe('Frame model integration', () => {
 
     it('currentHierarchyFrameKeys tracks frames from latest hierarchy response', () => {
       store.setFrameHierarchy([
-        { frameId: 0, tabId: TAB_ID, url: FRAME_A.url, parentFrameId: -1, title: FRAME_A.title, origin: FRAME_A.origin, iframes: [] },
+        { frameId: 0, tabId: TAB_ID, documentId: FRAME_A.documentId, url: FRAME_A.url, parentFrameId: -1, title: FRAME_A.title, origin: FRAME_A.origin, iframes: [] },
       ]);
 
       expect(frameStore.currentHierarchyFrameKeys.has(Frame.key(TAB_ID, 0))).toBe(true);
@@ -729,8 +729,8 @@ describe('Frame model integration', () => {
 
     it('does not overwrite parentFrameId already set by hierarchy', () => {
       store.setFrameHierarchy([
-        { frameId: 0, tabId: TAB_ID, url: FRAME_A.url, parentFrameId: -1, title: FRAME_A.title, origin: FRAME_A.origin, iframes: [] },
-        { frameId: 1, tabId: TAB_ID, url: FRAME_B.url, parentFrameId: 0, title: FRAME_B.title, origin: FRAME_B.origin, iframes: [] },
+        { frameId: 0, tabId: TAB_ID, documentId: FRAME_A.documentId, url: FRAME_A.url, parentFrameId: -1, title: FRAME_A.title, origin: FRAME_A.origin, iframes: [] },
+        { frameId: 1, tabId: TAB_ID, documentId: FRAME_B.documentId, url: FRAME_B.url, parentFrameId: 0, title: FRAME_B.title, origin: FRAME_B.origin, iframes: [] },
       ]);
 
       const frameB = frameStore.getFrame(TAB_ID, FRAME_B.frameId)!;
@@ -786,7 +786,7 @@ describe('Frame model integration', () => {
       // Hierarchy only includes opener tab's frames
       store.setFrameHierarchy([
         { frameId: 0, tabId: OPENER_TAB_ID, url: OPENER_FRAME.url, parentFrameId: -1,
-          title: OPENER_FRAME.title, origin: OPENER_FRAME.origin, iframes: [] },
+          documentId: OPENER_FRAME.documentId, title: OPENER_FRAME.title, origin: OPENER_FRAME.origin, iframes: [] },
       ]);
 
       // Opened frame must still be visible — either in hierarchy or nonHierarchy
@@ -807,8 +807,8 @@ describe('Frame model integration', () => {
   describe('buildFrameTree with opener', () => {
     it('includes opener frame even when its frameId matches a regular frame', () => {
       store.setFrameHierarchy([
-        { frameId: 0, tabId: OPENER_TAB_ID, url: OPENER_FRAME.url, parentFrameId: -1, title: OPENER_FRAME.title, origin: OPENER_FRAME.origin, iframes: [], isOpener: true },
-        { frameId: 0, tabId: TAB_ID, url: FRAME_A.url, parentFrameId: -1, title: FRAME_A.title, origin: FRAME_A.origin, iframes: [] },
+        { frameId: 0, tabId: OPENER_TAB_ID, url: OPENER_FRAME.url, parentFrameId: -1, title: OPENER_FRAME.title, origin: OPENER_FRAME.origin, sourceId: 'win-opener', iframes: [], isOpener: true },
+        { frameId: 0, tabId: TAB_ID, documentId: FRAME_A.documentId, url: FRAME_A.url, parentFrameId: -1, title: FRAME_A.title, origin: FRAME_A.origin, iframes: [] },
       ]);
 
       const tree = store.buildFrameTree();
@@ -825,8 +825,8 @@ describe('Frame model integration', () => {
 
     it('can select the regular frame without also selecting opener', () => {
       store.setFrameHierarchy([
-        { frameId: 0, tabId: OPENER_TAB_ID, url: OPENER_FRAME.url, parentFrameId: -1, title: OPENER_FRAME.title, origin: OPENER_FRAME.origin, iframes: [], isOpener: true },
-        { frameId: 0, tabId: TAB_ID, url: FRAME_A.url, parentFrameId: -1, title: FRAME_A.title, origin: FRAME_A.origin, iframes: [] },
+        { frameId: 0, tabId: OPENER_TAB_ID, url: OPENER_FRAME.url, parentFrameId: -1, title: OPENER_FRAME.title, origin: OPENER_FRAME.origin, sourceId: 'win-opener', iframes: [], isOpener: true },
+        { frameId: 0, tabId: TAB_ID, documentId: FRAME_A.documentId, url: FRAME_A.url, parentFrameId: -1, title: FRAME_A.title, origin: FRAME_A.origin, iframes: [] },
       ]);
 
       const tree = store.buildFrameTree();
@@ -837,6 +837,65 @@ describe('Frame model integration', () => {
       expect(store.selectedFrame).toBeDefined();
       expect(store.selectedFrame!.isOpener).toBeFalsy();
       expect(store.selectedFrame!.currentDocument?.origin).toBe(FRAME_A.origin);
+    });
+  });
+
+  // ===================================================================
+  // targetOwnerElement — when the target frame is hosted in an iframe,
+  // the message should snapshot the iframe element's properties at
+  // message creation time.
+  // ===================================================================
+  describe('targetOwnerElement', () => {
+    it('parent→child message captures target owner element from known IFrame', () => {
+      // Step 1: child→parent message creates IFrame on A's doc
+      processIncomingMessage(childMsg(FRAME_B, FRAME_A));
+      // Step 2: registration links the IFrame to B's frame
+      processIncomingMessage(registrationMsg(FRAME_B, FRAME_A));
+
+      // Verify IFrame entity exists with childFrame linked
+      const parentDoc = frameStore.getDocumentById(FRAME_A.documentId)!;
+      const iframe = parentDoc.iframes.find(i => i.sourceId === FRAME_B.sourceId);
+      expect(iframe).toBeDefined();
+      expect(iframe!.childFrame).toBeDefined();
+      expect(iframe!.childFrame!.frameId).toBe(FRAME_B.frameId);
+
+      // Step 3: parent→child message — target is B (hosted in an iframe)
+      processIncomingMessage(parentMsg(FRAME_A, FRAME_B));
+      const msg = store.messages[store.messages.length - 1];
+
+      // targetOwnerElement should be a snapshot of B's iframe properties
+      expect(msg.targetOwnerElement).toBeDefined();
+      expect(msg.targetOwnerElement!.domPath).toBe(FRAME_B.iframe.domPath);
+      expect(msg.targetOwnerElement!.src).toBe(FRAME_B.iframe.src);
+      expect(msg.targetOwnerElement!.id).toBe(FRAME_B.iframe.id);
+    });
+
+    it('targetOwnerElement is undefined when IFrame entity is not yet known', () => {
+      // Parent→child message before any child messages or registration
+      processIncomingMessage(parentMsg(FRAME_A, FRAME_B));
+      const msg = store.messages[0];
+
+      expect(msg.targetOwnerElement).toBeUndefined();
+    });
+
+    it('child→parent message captures target owner element when parent is an iframe', () => {
+      // Set up: B is a child of A, C is a child of B
+      // Register B so its IFrame on A's doc has childFrame linked
+      processIncomingMessage(childMsg(FRAME_B, FRAME_A));
+      processIncomingMessage(registrationMsg(FRAME_B, FRAME_A));
+      // Register C so its IFrame on B's doc has childFrame linked
+      processIncomingMessage(childMsg(FRAME_C, FRAME_B));
+      processIncomingMessage(registrationMsg(FRAME_C, FRAME_B));
+
+      // C→B message: target is B, which is hosted in an iframe on A's doc
+      processIncomingMessage(childMsg(FRAME_C, FRAME_B, { type: 'grandchild-to-child' }));
+      const msg = store.messages[store.messages.length - 1];
+
+      // targetOwnerElement should snapshot B's iframe element (on A's doc)
+      expect(msg.targetOwnerElement).toBeDefined();
+      expect(msg.targetOwnerElement!.domPath).toBe(FRAME_B.iframe.domPath);
+      expect(msg.targetOwnerElement!.src).toBe(FRAME_B.iframe.src);
+      expect(msg.targetOwnerElement!.id).toBe(FRAME_B.iframe.id);
     });
   });
 

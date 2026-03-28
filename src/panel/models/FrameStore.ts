@@ -121,6 +121,21 @@ export class FrameStore implements FrameLookup {
     return iframe;
   }
 
+  /** Find the IFrame entity whose childFrame matches the given frame, if any. */
+  findOwnerIFrame(frame: Frame): IFrame | undefined {
+    for (const doc of this.documents.values()) {
+      for (const iframe of doc.iframes) {
+        if (iframe.childFrame === frame) return iframe;
+      }
+    }
+    for (const doc of this.documentsBySourceId.values()) {
+      for (const iframe of doc.iframes) {
+        if (iframe.childFrame === frame) return iframe;
+      }
+    }
+    return undefined;
+  }
+
   get hierarchyRoots(): Frame[] {
     const roots: Frame[] = [];
     for (const frame of this.frames.values()) {
@@ -178,12 +193,15 @@ export class FrameStore implements FrameLookup {
         doc.origin = frameData.origin;
         doc.title = frameData.title;
         doc.frame = frame;
-      } else if (frameData.url || frameData.origin || frameData.title) {
-        doc = new FrameDocument({
-          url: frameData.url || undefined,
-          origin: frameData.origin || undefined,
-          title: frameData.title || undefined,
-        });
+      } else {
+        // Opener frames should always have sourceId from the content script;
+        // getAllFrames entries always have documentId. If neither is present,
+        // something unexpected happened. See docs/frame-state-analysis.md
+        // "When hierarchy is requested" for the expected data sources.
+        console.warn(
+          `[Messages Inspector] hierarchy frame missing both documentId and sourceId — ` +
+          `frame ${frameData.frameId}, tab ${frameData.tabId}, url: ${frameData.url}`,
+        );
       }
 
       // Add doc to frame.documents if not already present
@@ -191,15 +209,32 @@ export class FrameStore implements FrameLookup {
         frame.documents.push(doc);
       }
 
-      // Create IFrame entities for each iframe element in this frame's document
+      // Create/update IFrame entities for each iframe element in this frame's document
       if (doc) {
+        const incomingSourceIds = new Set<string>();
         for (const iframeData of frameData.iframes) {
-          const childFrame = iframeData.sourceId
-            ? this.getDocumentBySourceId(iframeData.sourceId)?.frame
-            : undefined;
+          if (!iframeData.sourceId) {
+            // sourceId comes from contentWindow identity and should always be
+            // present. See docs/frame-state-analysis.md "When hierarchy is requested".
+            console.warn(
+              `[Messages Inspector] iframe missing sourceId in hierarchy data — ` +
+              `frame ${frameData.frameId}, domPath: ${iframeData.domPath}, src: ${iframeData.src}`,
+            );
+            continue;
+          }
+          incomingSourceIds.add(iframeData.sourceId);
+          const childFrame = this.getDocumentBySourceId(iframeData.sourceId)?.frame;
           const iframe = this.getOrCreateIFrame(doc, iframeData.sourceId, iframeData);
+          iframe.removedFromHierarchy = false;
           if (childFrame) {
             iframe.childFrame = childFrame;
+          }
+        }
+
+        // Mark iframes that were previously known but absent from this hierarchy refresh
+        for (const existing of doc.iframes) {
+          if (existing.sourceId && !incomingSourceIds.has(existing.sourceId)) {
+            existing.removedFromHierarchy = true;
           }
         }
       }
