@@ -38,7 +38,7 @@ class IFrame {
 }
 ```
 
-- Properties (`src`, `id`) update over time as the DOM changes.
+- All DOM-derived properties (`domPath`, `src`, `id`) are mutable and update over time (e.g., iframe moved in DOM changes domPath, `src` attribute changed).
 - `sourceId` is set when a child message arrives from this iframe, enabling later linking to a Frame when registration provides the frameId.
 - Separate from `OwnerElement`, which remains an immutable per-message snapshot.
 
@@ -71,7 +71,7 @@ Unchanged. Stays as immutable snapshot on Message instances.
 ### New methods
 
 - `getOrCreateTab(tabId): Tab` — creates Tab and its root Frame (frameId 0) if they don't exist.
-- `getOrCreateIFrame(parentDocument, ownerElementInfo): IFrame` — finds existing IFrame on the document by domPath match, or creates a new one.
+- `getOrCreateIFrame(parentDocument, sourceId?, iframeInfo?): IFrame` — finds an existing IFrame on the document or creates a new one. Matching: by `sourceId` when available (from child messages — stable across DOM moves), or by child `frameId` (from hierarchy data). `domPath`, `src`, and `id` are updated as mutable properties, not used as match keys.
 
 ### Modified methods
 
