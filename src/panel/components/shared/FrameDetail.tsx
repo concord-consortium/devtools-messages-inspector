@@ -34,9 +34,9 @@ interface FrameDetailProps {
   showAdvanced?: boolean;
 }
 
-export const FrameDetail = observer(({ frame, document: docOverride, ownerElement: ownerOverride, sourceType, showAdvanced }: FrameDetailProps) => {
+export const FrameDetail = observer(({ frame, document: docOverride, ownerElement, sourceType, showAdvanced }: FrameDetailProps) => {
   const doc = docOverride ?? frame?.currentDocument;
-  const owner = ownerOverride;
+  const owner = ownerElement;
 
   return (
     <>
