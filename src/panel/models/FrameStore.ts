@@ -3,6 +3,9 @@
 import { makeAutoObservable, observable } from 'mobx';
 import { Frame, FrameLookup } from './Frame';
 import { FrameDocument } from './FrameDocument';
+import { IFrame } from './IFrame';
+import { Tab } from './Tab';
+import type { IframeElementInfo } from '../../types';
 
 export class FrameStore implements FrameLookup {
   // Primary indices
@@ -11,6 +14,7 @@ export class FrameStore implements FrameLookup {
   // Secondary index for source correlation
   documentsBySourceId = observable.map<string, FrameDocument>();
   currentHierarchyFrameKeys = observable.set<string>();
+  tabs = observable.map<number, Tab>();
 
   constructor() {
     makeAutoObservable(this, {
@@ -18,6 +22,7 @@ export class FrameStore implements FrameLookup {
       documents: false,
       documentsBySourceId: false,
       currentHierarchyFrameKeys: false,
+      tabs: false,
     });
   }
 
@@ -43,6 +48,16 @@ export class FrameStore implements FrameLookup {
       }
     }
     return result;
+  }
+
+  getOrCreateTab(tabId: number): Tab {
+    let tab = this.tabs.get(tabId);
+    if (!tab) {
+      const rootFrame = this.getOrCreateFrame(tabId, 0);
+      tab = new Tab(tabId, rootFrame);
+      this.tabs.set(tabId, tab);
+    }
+    return tab;
   }
 
   getOrCreateFrame(tabId: number, frameId: number, parentFrameId?: number): Frame {
@@ -73,6 +88,54 @@ export class FrameStore implements FrameLookup {
     return doc;
   }
 
+  getOrCreateIFrame(
+    parentDocument: FrameDocument,
+    sourceId: string | undefined,
+    iframeInfo: IframeElementInfo | undefined,
+  ): IFrame {
+    // Match by sourceId if available
+    if (sourceId) {
+      const existing = parentDocument.iframes.find(i => i.sourceId === sourceId);
+      if (existing) {
+        // Update mutable properties
+        if (iframeInfo) {
+          existing.domPath = iframeInfo.domPath;
+          existing.src = iframeInfo.src || undefined;
+          existing.id = iframeInfo.id || undefined;
+        }
+        return existing;
+      }
+    }
+
+    // Create new IFrame
+    const iframe = new IFrame(
+      parentDocument,
+      iframeInfo?.domPath ?? '',
+      iframeInfo?.src,
+      iframeInfo?.id,
+    );
+    if (sourceId) {
+      iframe.sourceId = sourceId;
+    }
+    parentDocument.iframes.push(iframe);
+    return iframe;
+  }
+
+  /** Find the IFrame entity whose childFrame matches the given frame, if any. */
+  findOwnerIFrame(frame: Frame): IFrame | undefined {
+    for (const doc of this.documents.values()) {
+      for (const iframe of doc.iframes) {
+        if (iframe.childFrame === frame) return iframe;
+      }
+    }
+    for (const doc of this.documentsBySourceId.values()) {
+      for (const iframe of doc.iframes) {
+        if (iframe.childFrame === frame) return iframe;
+      }
+    }
+    return undefined;
+  }
+
   get hierarchyRoots(): Frame[] {
     const roots: Frame[] = [];
     for (const frame of this.frames.values()) {
@@ -80,8 +143,6 @@ export class FrameStore implements FrameLookup {
         roots.push(frame);
       } else if (frame.parentFrameId !== undefined
         && !this.frames.has(Frame.key(frame.tabId, frame.parentFrameId))) {
-        // Orphaned frame: has a parent ID but parent doesn't exist in the store.
-        // Treat as root so it remains visible in the UI.
         roots.push(frame);
       }
     }
@@ -111,16 +172,13 @@ export class FrameStore implements FrameLookup {
     iframes: { src: string; id: string; domPath: string; sourceId?: string }[];
     isOpener?: boolean;
   }>): void {
-    // Track which frames are in the current hierarchy
     this.currentHierarchyFrameKeys.clear();
 
-    // Create/update frames and documents
     for (const frameData of frames) {
       this.currentHierarchyFrameKeys.add(Frame.key(frameData.tabId, frameData.frameId));
 
       const frame = this.getOrCreateFrame(frameData.tabId, frameData.frameId, frameData.parentFrameId);
       frame.parentFrameId = frameData.parentFrameId;
-      frame.iframes = frameData.iframes;
       frame.isOpener = frameData.isOpener ?? false;
 
       let doc: FrameDocument | undefined;
@@ -135,14 +193,51 @@ export class FrameStore implements FrameLookup {
         doc.origin = frameData.origin;
         doc.title = frameData.title;
         doc.frame = frame;
-      } else if (frameData.url || frameData.origin || frameData.title) {
-        doc = new FrameDocument({
-          url: frameData.url || undefined,
-          origin: frameData.origin || undefined,
-          title: frameData.title || undefined,
-        });
+      } else {
+        // Opener frames should always have sourceId from the content script;
+        // getAllFrames entries always have documentId. If neither is present,
+        // something unexpected happened. See docs/frame-state-analysis.md
+        // "When hierarchy is requested" for the expected data sources.
+        console.warn(
+          `[Messages Inspector] hierarchy frame missing both documentId and sourceId — ` +
+          `frame ${frameData.frameId}, tab ${frameData.tabId}, url: ${frameData.url}`,
+        );
       }
-      frame.currentDocument = doc;
+
+      // Add doc to frame.documents if not already present
+      if (doc && !frame.documents.includes(doc)) {
+        frame.documents.push(doc);
+      }
+
+      // Create/update IFrame entities for each iframe element in this frame's document
+      if (doc) {
+        const incomingSourceIds = new Set<string>();
+        for (const iframeData of frameData.iframes) {
+          if (!iframeData.sourceId) {
+            // sourceId comes from contentWindow identity and should always be
+            // present. See docs/frame-state-analysis.md "When hierarchy is requested".
+            console.warn(
+              `[Messages Inspector] iframe missing sourceId in hierarchy data — ` +
+              `frame ${frameData.frameId}, domPath: ${iframeData.domPath}, src: ${iframeData.src}`,
+            );
+            continue;
+          }
+          incomingSourceIds.add(iframeData.sourceId);
+          const childFrame = this.getDocumentBySourceId(iframeData.sourceId)?.frame;
+          const iframe = this.getOrCreateIFrame(doc, iframeData.sourceId, iframeData);
+          iframe.removedFromHierarchy = false;
+          if (childFrame) {
+            iframe.childFrame = childFrame;
+          }
+        }
+
+        // Mark iframes that were previously known but absent from this hierarchy refresh
+        for (const existing of doc.iframes) {
+          if (existing.sourceId && !incomingSourceIds.has(existing.sourceId)) {
+            existing.removedFromHierarchy = true;
+          }
+        }
+      }
     }
   }
 
@@ -151,6 +246,7 @@ export class FrameStore implements FrameLookup {
     this.documents.clear();
     this.documentsBySourceId.clear();
     this.currentHierarchyFrameKeys.clear();
+    this.tabs.clear();
   }
 }
 

@@ -1,7 +1,8 @@
 // FrameDocument - A specific document loaded in a frame, keyed by documentId
 
-import { makeAutoObservable } from 'mobx';
+import { makeAutoObservable, observable } from 'mobx';
 import type { Frame } from './Frame';
+import type { IFrame } from './IFrame';
 
 export class FrameDocument {
   documentId: string | undefined;
@@ -10,6 +11,7 @@ export class FrameDocument {
   title: string | undefined;
   sourceId: string | undefined;
   frame: Frame | undefined;
+  iframes: IFrame[] = [];
 
   constructor(init: {
     documentId?: string;
@@ -25,6 +27,8 @@ export class FrameDocument {
     this.sourceId = init.sourceId;
     this.frame = undefined;
 
-    makeAutoObservable(this);
+    makeAutoObservable(this, {
+      iframes: observable.shallow,
+    });
   }
 }

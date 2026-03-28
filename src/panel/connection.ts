@@ -42,7 +42,6 @@ export function processIncomingMessage(msg: IMessage): void {
 
 function _processIncomingMessage(msg: IMessage): void {
   // --- Target ---
-  let targetOwnerElement: OwnerElement | undefined = undefined;
   if (msg.target.documentId) {
     const targetDoc = frameStore.getOrCreateDocumentById(msg.target.documentId);
     targetDoc.url = msg.target.url;
@@ -52,10 +51,20 @@ function _processIncomingMessage(msg: IMessage): void {
     const targetFrame = frameStore.getOrCreateFrame(msg.target.tabId, msg.target.frameId);
     if (!targetDoc.frame) {
       targetDoc.frame = targetFrame;
-      targetFrame.currentDocument = targetDoc;
+      if (!targetFrame.documents.includes(targetDoc)) {
+        targetFrame.documents.push(targetDoc);
+      }
     }
+  }
 
-    targetOwnerElement = targetFrame.currentOwnerElement;
+  // Snapshot the target's owner element (iframe hosting the target frame)
+  let targetOwnerElement: OwnerElement | undefined = undefined;
+  const targetFrame = frameStore.getFrame(msg.target.tabId, msg.target.frameId);
+  if (targetFrame) {
+    const ownerIFrame = frameStore.findOwnerIFrame(targetFrame);
+    if (ownerIFrame) {
+      targetOwnerElement = new OwnerElement(ownerIFrame.domPath, ownerIFrame.src, ownerIFrame.id);
+    }
   }
 
   // --- Source ---
@@ -84,32 +93,57 @@ function _processIncomingMessage(msg: IMessage): void {
   if (sourceDoc && !sourceDoc.frame && msg.source.tabId != null && msg.source.frameId != null) {
     const sourceFrame = frameStore.getOrCreateFrame(msg.source.tabId, msg.source.frameId);
     sourceDoc.frame = sourceFrame;
-    if (!sourceFrame.currentDocument) {
-      sourceFrame.currentDocument = sourceDoc;
+    if (!sourceFrame.documents.includes(sourceDoc)) {
+      sourceFrame.documents.push(sourceDoc);
     }
   }
 
-  // --- Source owner element (child messages) ---
-  let sourceOwnerElement: OwnerElement | undefined = undefined;
-  if (msg.source.type === 'child') {
-    sourceOwnerElement = OwnerElement.fromRaw(msg.source.iframe);
-
-    // Update Frame's currentOwnerElement if it has changed (e.g., due to navigation)
-    if (sourceOwnerElement && msg.source.sourceId) {
-      const sourceDoc = frameStore.getDocumentBySourceId(msg.source.sourceId);
-      if (sourceDoc?.frame) {
-        if (!sourceOwnerElement.equals(sourceDoc.frame.currentOwnerElement)) {
-          sourceDoc.frame.currentOwnerElement = sourceOwnerElement;
+  // --- Link Tab opener/opened relationships ---
+  if (msg.source.tabId != null && msg.target.tabId !== msg.source.tabId) {
+    if (msg.source.type === 'opener' || msg.source.type === 'opened') {
+      const sourceTab = frameStore.getOrCreateTab(msg.source.tabId);
+      const targetTab = frameStore.getOrCreateTab(msg.target.tabId);
+      if (msg.source.type === 'opener') {
+        // Source is opener, target is opened
+        if (!targetTab.openerTab) {
+          targetTab.openerTab = sourceTab;
+          if (!sourceTab.openedTabs.includes(targetTab)) {
+            sourceTab.openedTabs.push(targetTab);
+          }
+        }
+      } else {
+        // Source is opened, target is opener
+        if (!sourceTab.openerTab) {
+          sourceTab.openerTab = targetTab;
+          if (!targetTab.openedTabs.includes(sourceTab)) {
+            targetTab.openedTabs.push(sourceTab);
+          }
         }
       }
     }
   }
 
-  // --- Parent messages: reference source Frame's currentOwnerElement ---
-  if (msg.source.type === 'parent' && msg.source.documentId) {
-    const sourceDoc = frameStore.getDocumentById(msg.source.documentId);
-    if (sourceDoc?.frame) {
-      sourceOwnerElement = sourceDoc.frame.currentOwnerElement;
+  // --- Source owner element ---
+  let sourceOwnerElement: OwnerElement | undefined = undefined;
+  if (msg.source.type === 'child') {
+    sourceOwnerElement = OwnerElement.fromRaw(msg.source.iframe);
+
+    // Create/update IFrame entity on target's current document
+    if (msg.target.documentId && msg.source.sourceId) {
+      const targetDoc = frameStore.getDocumentById(msg.target.documentId);
+      if (targetDoc) {
+        frameStore.getOrCreateIFrame(targetDoc, msg.source.sourceId, msg.source.iframe ?? undefined);
+      }
+    }
+  } else if (msg.source.type === 'parent' && msg.source.frameId != null) {
+    // Parent is itself hosted in an iframe — look up its owner element
+    const sourceTabId = msg.source.tabId ?? msg.target.tabId;
+    const sourceFrame = frameStore.getFrame(sourceTabId, msg.source.frameId);
+    if (sourceFrame) {
+      const ownerIFrame = frameStore.findOwnerIFrame(sourceFrame);
+      if (ownerIFrame) {
+        sourceOwnerElement = new OwnerElement(ownerIFrame.domPath, ownerIFrame.src, ownerIFrame.id);
+      }
     }
   }
 
@@ -186,12 +220,19 @@ function processRegistration(message: Message): void {
   const frame = frameStore.getOrCreateFrame(regData.tabId, regData.frameId);
   const doc = frameStore.documents.get(regData.documentId)!;
   doc.frame = frame;
-  frame.currentDocument = doc;
+  if (!frame.documents.includes(doc)) {
+    frame.documents.push(doc);
+  }
 
-  const newOwner = message.sourceOwnerElement;
-  if (newOwner) {
-    if (!newOwner.equals(frame.currentOwnerElement)) {
-      frame.currentOwnerElement = newOwner;
+  // Link IFrame entity to this child frame
+  // Find IFrame on parent document that has matching sourceId
+  if (message.target.documentId) {
+    const parentDoc = frameStore.getDocumentById(message.target.documentId);
+    if (parentDoc) {
+      const iframe = parentDoc.iframes.find(i => i.sourceId === sourceId);
+      if (iframe) {
+        iframe.childFrame = frame;
+      }
     }
   }
 

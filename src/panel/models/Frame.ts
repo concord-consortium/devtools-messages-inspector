@@ -1,8 +1,7 @@
 // Frame - Stable identity for an iframe, keyed by (tabId, frameId)
 
-import { makeAutoObservable } from 'mobx';
+import { makeAutoObservable, observable } from 'mobx';
 import { FrameDocument } from './FrameDocument';
-import { OwnerElement } from './OwnerElement';
 
 export interface FrameLookup {
   getFramesByParent(tabId: number, parentFrameId: number): Frame[];
@@ -12,9 +11,7 @@ export class Frame {
   readonly tabId: number;
   readonly frameId: number;
   parentFrameId: number | undefined;
-  currentDocument: FrameDocument | undefined;
-  currentOwnerElement: OwnerElement | undefined;
-  iframes: Array<{src: string; id: string; domPath: string; sourceId?: string}> = [];
+  documents: FrameDocument[] = [];
   isOpener = false;
   private readonly frameLookup: FrameLookup;
 
@@ -23,14 +20,17 @@ export class Frame {
     this.tabId = tabId;
     this.frameId = frameId;
     this.parentFrameId = parentFrameId;
-    this.currentDocument = undefined;
-    this.currentOwnerElement = undefined;
 
     makeAutoObservable<this, 'frameLookup'>(this, {
       tabId: false,
       frameId: false,
       frameLookup: false,
+      documents: observable.shallow,
     });
+  }
+
+  get currentDocument(): FrameDocument | undefined {
+    return this.documents.length > 0 ? this.documents[this.documents.length - 1] : undefined;
   }
 
   get children(): Frame[] {

@@ -125,11 +125,11 @@ const FrameDetailPane = observer(() => {
           </table>
         </div>
         <div className="frame-iframes">
-          <h4>Child iframes ({frame.iframes.length})</h4>
-          {frame.iframes.length === 0 ? (
+          <h4>Child iframes ({frame.currentDocument?.iframes.length ?? 0})</h4>
+          {!frame.currentDocument?.iframes.length ? (
             <p className="placeholder">No iframes in this frame</p>
           ) : (
-            frame.iframes.map((iframe, index) => (
+            frame.currentDocument.iframes.map((iframe, index) => (
               <div key={index} className="iframe-item">
                 <div><strong>src:</strong> {iframe.src || '(empty)'}</div>
                 <div><strong>id:</strong> {iframe.id || '(none)'}</div>
