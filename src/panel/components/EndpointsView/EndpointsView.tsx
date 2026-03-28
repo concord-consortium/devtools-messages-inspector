@@ -98,13 +98,14 @@ const IFrameNode = observer(({ iframe, depth }: { iframe: IFrame; depth: number 
   return (
     <div className="tree-node-group">
       <div
-        className={`tree-node ${isSelected ? 'tree-node--selected' : ''}`}
+        className={`tree-node ${isSelected ? 'tree-node--selected' : ''} ${iframe.removedFromHierarchy ? 'tree-node--dimmed' : ''}`}
         style={{ paddingLeft: depth * 16 + 8 }}
         onClick={() => nodeId && store.selectNode(nodeId)}
       >
         {hasChildren ? <ExpandToggle expanded={expanded} onToggle={() => setExpanded(!expanded)} /> : <span className="tree-node-expand-spacer" />}
         <span className="tree-node-type tree-node-type--iframe">IFrame</span>
         <span className="tree-node-label" title={label}>{label}</span>
+        {iframe.removedFromHierarchy && <span className="tree-node-suffix">(removed)</span>}
       </div>
       {expanded && childFrame && (
         <FrameDocuments frame={childFrame} depth={depth + 1} />
@@ -304,6 +305,7 @@ const IFrameDetail = observer(({ tabId, frameId, isUnknown }: { tabId: number; f
       <tbody>
         {!isUnknown && iframeModel && (
           <>
+            {iframeModel.removedFromHierarchy && <Field label="Status">Removed from page</Field>}
             {iframeModel.domPath && <Field label="domPath">{iframeModel.domPath}</Field>}
             {iframeModel.src && <Field label="src">{iframeModel.src}</Field>}
             {iframeModel.id && <Field label="id">{iframeModel.id}</Field>}

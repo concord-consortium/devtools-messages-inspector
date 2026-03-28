@@ -635,4 +635,48 @@ test.describe('endpoints tree after navigation', () => {
     const iframesUnderNewDoc = newDocGroup.locator('.tree-node-type--iframe');
     await expect(iframesUnderNewDoc).toHaveCount(0);
   });
+
+  test('removed iframe is dimmed and shows removed status in details', async ({ page }) => {
+    // Send a message to establish the hierarchy (parent has child iframe)
+    await sendAndWait(page, 'window.harness.sendChildToParent({ type: "before-remove" })');
+
+    // Wait for registration to complete
+    await page.evaluate('new Promise(r => setTimeout(r, 800))');
+    await page.evaluate('window.harness.flushPromises()');
+
+    // Remove the iframe via the harness sidebar "Remove" button
+    const iframeNode = page.locator('.harness-sidebar .node-box').filter({
+      has: page.locator('> .node-header > .node-type-badge', { hasText: 'iframe' }),
+    });
+    await iframeNode.locator('.node-action-btn', { hasText: 'Remove' }).click();
+    await page.evaluate('window.harness.flushPromises()');
+
+    // Switch to Endpoints view
+    await page.locator('.sidebar-item', { hasText: 'Endpoints' }).click();
+    await page.evaluate('window.harness.flushPromises()');
+
+    // Click refresh to get updated hierarchy
+    await page.locator('.refresh-icon').click();
+    await page.evaluate('window.harness.flushPromises()');
+
+    // Wait for tree nodes to appear
+    await expect(page.locator('.tree-node').first()).toBeVisible();
+
+    // The IFrame node should be dimmed
+    const iframeTreeNode = page.locator('.tree-node').filter({
+      has: page.locator('.tree-node-type--iframe'),
+    });
+    await expect(iframeTreeNode).toHaveClass(/tree-node--dimmed/);
+
+    // The IFrame node should show "(removed)" suffix
+    await expect(iframeTreeNode.locator('.tree-node-suffix')).toHaveText('(removed)');
+
+    // Click the iframe node to select it and see details
+    await iframeTreeNode.click();
+    await page.evaluate('window.harness.flushPromises()');
+
+    // The detail pane should show "Removed from page" status
+    const detailPane = page.locator('.detail-pane');
+    await expect(detailPane.locator('td', { hasText: 'Removed from page' })).toBeVisible();
+  });
 });

@@ -1108,8 +1108,8 @@ describe('Frame model integration', () => {
   describe('getUnknownChildFrames', () => {
     it('returns child frames not matched by any IFrame on the document', () => {
       store.setFrameHierarchy([
-        { frameId: 0, tabId: TAB_ID, url: FRAME_A.url, parentFrameId: -1, title: FRAME_A.title, origin: FRAME_A.origin, iframes: [] },
-        { frameId: 1, tabId: TAB_ID, url: FRAME_B.url, parentFrameId: 0, title: FRAME_B.title, origin: FRAME_B.origin, iframes: [] },
+        { frameId: 0, tabId: TAB_ID, documentId: FRAME_A.documentId, url: FRAME_A.url, parentFrameId: -1, title: FRAME_A.title, origin: FRAME_A.origin, iframes: [] },
+        { frameId: 1, tabId: TAB_ID, documentId: FRAME_B.documentId, url: FRAME_B.url, parentFrameId: 0, title: FRAME_B.title, origin: FRAME_B.origin, iframes: [] },
       ]);
 
       const parentFrame = frameStore.getFrame(TAB_ID, 0)!;
@@ -1139,9 +1139,9 @@ describe('Frame model integration', () => {
 
       // Add frame 2 as child of frame 0 via hierarchy
       store.setFrameHierarchy([
-        { frameId: 0, tabId: TAB_ID, url: FRAME_A.url, parentFrameId: -1, title: FRAME_A.title, origin: FRAME_A.origin, iframes: [{ ...FRAME_B.iframe, sourceId: FRAME_B.sourceId }] },
-        { frameId: 1, tabId: TAB_ID, url: FRAME_B.url, parentFrameId: 0, title: FRAME_B.title, origin: FRAME_B.origin, iframes: [] },
-        { frameId: 2, tabId: TAB_ID, url: FRAME_C.url, parentFrameId: 0, title: FRAME_C.title, origin: FRAME_C.origin, iframes: [] },
+        { frameId: 0, tabId: TAB_ID, documentId: FRAME_A.documentId, url: FRAME_A.url, parentFrameId: -1, title: FRAME_A.title, origin: FRAME_A.origin, iframes: [{ ...FRAME_B.iframe, sourceId: FRAME_B.sourceId }] },
+        { frameId: 1, tabId: TAB_ID, documentId: FRAME_B.documentId, url: FRAME_B.url, parentFrameId: 0, title: FRAME_B.title, origin: FRAME_B.origin, iframes: [] },
+        { frameId: 2, tabId: TAB_ID, documentId: FRAME_C.documentId, url: FRAME_C.url, parentFrameId: 0, title: FRAME_C.title, origin: FRAME_C.origin, iframes: [] },
       ]);
 
       const parentFrame = frameStore.getFrame(TAB_ID, 0)!;
