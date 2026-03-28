@@ -494,10 +494,9 @@ test.describe('cross-pane navigation', () => {
     // Endpoints view should now be active
     await expect(page.locator('.endpoints-view')).toHaveClass(/active/);
 
-    // The correct frame should be selected in the frame table
-    const selectedRow = page.locator('#frame-table tbody tr.selected');
-    await expect(selectedRow).toHaveCount(1);
-    await expect(selectedRow.locator('td').first()).toHaveText('frame[1]');
+    // A node should be selected in the tree view
+    const selectedNode = page.locator('.tree-node--selected');
+    await expect(selectedNode).toHaveCount(1);
   });
 
   test('show messages button in endpoints navigates to log with filter', async ({ page }) => {
@@ -508,14 +507,14 @@ test.describe('cross-pane navigation', () => {
     await page.locator('.sidebar-item', { hasText: 'Endpoints' }).click();
     await page.evaluate('window.harness.flushPromises()');
 
-    // Wait for frame table to have rows
-    await expect(page.locator('#frame-table tbody tr').first()).toBeVisible();
+    // Wait for tree to have nodes
+    await expect(page.locator('.tree-node').first()).toBeVisible();
 
-    // Click a frame row to select it (frame[0] is the first row)
-    await page.locator('#frame-table tbody tr').first().click();
+    // Click the first Tab node to select it
+    await page.locator('.tree-node').first().click();
 
-    // Verify the row is selected
-    await expect(page.locator('#frame-table tbody tr.selected')).toHaveCount(1);
+    // Verify a node is selected
+    await expect(page.locator('.tree-node--selected')).toHaveCount(1);
 
     // Click "Show messages" button
     await page.locator('.show-messages-btn').click();
@@ -524,7 +523,7 @@ test.describe('cross-pane navigation', () => {
     // Should switch to Log view
     await expect(page.locator('.log-view')).toHaveClass(/active/);
 
-    // Filter should be set for the selected frame
+    // Filter should be set for the selected tab (frame[0])
     const filterInput = page.locator('.filter-input');
     await expect(filterInput).toHaveValue('frames:"tab[1].frame[0]"');
 
@@ -585,5 +584,55 @@ test.describe('late registration reactivity', () => {
 
     // Wait for registration to arrive (500ms delay + routing) — should reactively update
     await page.waitForFunction(sourceSectionHasField, 'Frame', { timeout: 3000 });
+  });
+});
+
+test.describe('endpoints tree after navigation', () => {
+  test('navigated-away document does not show child iframes from old page under new document', async ({ page }) => {
+    // Send a message to establish the hierarchy (parent has child iframe)
+    await sendAndWait(page, 'window.harness.sendChildToParent({ type: "before-nav" })');
+
+    // Wait for registration to complete
+    await page.evaluate('new Promise(r => setTimeout(r, 800))');
+    await page.evaluate('window.harness.flushPromises()');
+
+    // Navigate the top frame to a new URL (no iframes in new page)
+    await page.evaluate(`
+      window.harness.actions.navigate(window.harness.topFrame, {
+        url: 'https://parent.example.com/new-page',
+        title: 'New Page'
+      });
+    `);
+    await page.evaluate('window.harness.flushPromises()');
+
+    // Switch to Endpoints view
+    await page.locator('.sidebar-item', { hasText: 'Endpoints' }).click();
+    await page.evaluate('window.harness.flushPromises()');
+
+    // Wait for tree nodes to appear
+    await expect(page.locator('.tree-node').first()).toBeVisible();
+
+    // The new document (most recent, rendered first) should NOT have any IFrame children.
+    // Bug: after navigation, old child frames still have parentFrameId=0, so
+    // getUnknownChildFrames incorrectly finds them under the new document.
+    //
+    // Expected tree:
+    //   Tab [1]
+    //     Doc  https://parent.example.com/new-page        ← new doc (no iframes)
+    //     Doc  https://parent.example.com/ (navigated away) ← old doc (has iframes)
+    //       IFrame ...
+    //         Doc  https://child.example.com/
+    //
+    // With the bug, an IFrame node incorrectly appears under the new document too.
+
+    // Find the new document's tree-node-group (contains "new-page" in label)
+    const newDocGroup = page.locator('.tree-node-group').filter({
+      has: page.locator('> .tree-node .tree-node-label', { hasText: 'new-page' }),
+    });
+    await expect(newDocGroup).toHaveCount(1);
+
+    // The new document's group should contain NO iframe children
+    const iframesUnderNewDoc = newDocGroup.locator('.tree-node-type--iframe');
+    await expect(iframesUnderNewDoc).toHaveCount(0);
   });
 });

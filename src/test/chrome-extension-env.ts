@@ -37,6 +37,8 @@ export class ChromeExtensionEnv {
 
   // Content script onMessage events, keyed by "tabId:frameId"
   private contentOnMessage = new Map<string, ChromeEvent<(msg: any, sender: any, sendResponse: any) => any>>();
+  // Track which window each content script was injected for, to detect navigation
+  private contentInjectedWindow = new Map<string, any>();
 
   /** Content script init function — called by the executeScript mock to inject content scripts. */
   private _initContentScript?: (win: ContentWindow, chrome: ContentChrome) => void;
@@ -164,10 +166,19 @@ export class ChromeExtensionEnv {
     };
 
     const key = `${tabId}:${frameId}`;
-    // Reuse existing event if already created (content script guards against
-    // double-injection, so the listener is still on the original event).
-    const onMessage = env.contentOnMessage.get(key) ?? new ChromeEvent<(msg: any, sender: any, sendResponse: any) => any>();
+    const currentWindow = frame.window;
+    const previousWindow = env.contentInjectedWindow.get(key);
+    // If the frame navigated (new window), create a fresh event to discard old
+    // listeners — mirrors Chrome destroying execution contexts on navigation.
+    // Otherwise reuse (content script guards against double-injection).
+    let onMessage: ChromeEvent<(msg: any, sender: any, sendResponse: any) => any>;
+    if (previousWindow && previousWindow !== currentWindow) {
+      onMessage = new ChromeEvent<(msg: any, sender: any, sendResponse: any) => any>();
+    } else {
+      onMessage = env.contentOnMessage.get(key) ?? new ChromeEvent<(msg: any, sender: any, sendResponse: any) => any>();
+    }
     env.contentOnMessage.set(key, onMessage);
+    env.contentInjectedWindow.set(key, currentWindow);
 
     return {
       runtime: {
