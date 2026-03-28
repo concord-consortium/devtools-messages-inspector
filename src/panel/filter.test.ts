@@ -43,12 +43,12 @@ describe('Message.frames', () => {
     const targetFrame = frameStore.getOrCreateFrame(TAB_ID, 0);
     const targetDoc = frameStore.getOrCreateDocumentById('doc-target');
     targetDoc.frame = targetFrame;
-    targetFrame.currentDocument = targetDoc;
+    targetFrame.documents.push(targetDoc);
 
     const sourceFrame = frameStore.getOrCreateFrame(TAB_ID, 1);
     const sourceDoc = frameStore.getOrCreateDocumentById('doc-source');
     sourceDoc.frame = sourceFrame;
-    sourceFrame.currentDocument = sourceDoc;
+    sourceFrame.documents.push(sourceDoc);
     sourceDoc.sourceId = 'win-1';
     frameStore.documentsBySourceId.set('win-1', sourceDoc);
 
@@ -64,7 +64,7 @@ describe('Message.frames', () => {
     const sourceFrame = frameStore.getOrCreateFrame(otherTabId, 0);
     const sourceDoc = frameStore.getOrCreateDocumentById('doc-source');
     sourceDoc.frame = sourceFrame;
-    sourceFrame.currentDocument = sourceDoc;
+    sourceFrame.documents.push(sourceDoc);
     sourceDoc.sourceId = 'win-1';
     frameStore.documentsBySourceId.set('win-1', sourceDoc);
 
