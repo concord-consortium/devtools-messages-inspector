@@ -13,7 +13,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { autorun } from 'mobx';
 import { store } from './store';
 import { processIncomingMessage } from './connection';
-import { frameStore, Frame } from './models';
+import { frameStore, Frame, FrameDocument } from './models';
 import type { IMessage } from '../types';
 
 const TAB_ID = 42;
@@ -507,23 +507,15 @@ describe('Frame model integration', () => {
       dispose();
     });
 
-    it('updated iframe info triggers MobX reaction for Frame.currentOwnerElement', () => {
-      // Registration creates frame B with an owner element
-      processIncomingMessage(registrationMsg(FRAME_B, FRAME_A));
-      const frameB = frameStore.getFrame(TAB_ID, FRAME_B.frameId)!;
+    it('updated iframe info updates IFrame entity properties', () => {
+      processIncomingMessage(childMsg(FRAME_B, FRAME_A));
 
-      // Track currentOwnerElement changes via autorun (simulates observer component)
-      const owners: (typeof frameB.currentOwnerElement)[] = [];
-      const dispose = autorun(() => {
-        owners.push(frameB.currentOwnerElement);
-      });
+      const parentDoc = frameStore.getDocumentById(FRAME_A.documentId);
+      const iframe = parentDoc!.iframes.find(i => i.sourceId === FRAME_B.sourceId);
+      expect(iframe).toBeDefined();
+      expect(iframe!.domPath).toBe(FRAME_B.iframe.domPath);
 
-      // autorun fires immediately with owner element from registration
-      expect(owners).toHaveLength(1);
-      expect(owners[0]).toBeDefined();
-      expect(owners[0]!.domPath).toBe(FRAME_B.iframe.domPath);
-
-      // Child message from B with different iframe info — triggers update
+      // Child message from B with different iframe info — updates IFrame
       const FRAME_B_UPDATED_IFRAME = {
         ...FRAME_B,
         iframe: {
@@ -534,22 +526,23 @@ describe('Frame model integration', () => {
       };
       processIncomingMessage(childMsg(FRAME_B_UPDATED_IFRAME, FRAME_A));
 
-      expect(owners).toHaveLength(2);
-      expect(owners[1]).toBeDefined();
-      expect(owners[1]!.domPath).toBe('body > div > iframe:nth-of-type(2)');
-
-      dispose();
+      expect(iframe!.domPath).toBe('body > div > iframe:nth-of-type(2)');
+      expect(iframe!.src).toBe('https://child-b.example.com/iframe-v2');
+      expect(iframe!.id).toBe('iframe-b-updated');
     });
 
-    it('registration sets owner element on Frame', () => {
+    it('registration creates IFrame entity on parent document', () => {
       processIncomingMessage(registrationMsg(FRAME_B, FRAME_A));
 
-      const frameB = frameStore.getFrame(TAB_ID, FRAME_B.frameId);
-      expect(frameB).toBeDefined();
-      expect(frameB!.currentOwnerElement).toBeDefined();
-      expect(frameB!.currentOwnerElement!.domPath).toBe(FRAME_B.iframe.domPath);
-      expect(frameB!.currentOwnerElement!.src).toBe(FRAME_B.iframe.src);
-      expect(frameB!.currentOwnerElement!.id).toBe(FRAME_B.iframe.id);
+      const parentDoc = frameStore.getDocumentById(FRAME_A.documentId);
+      expect(parentDoc).toBeDefined();
+      const iframe = parentDoc!.iframes.find(i => i.sourceId === FRAME_B.sourceId);
+      expect(iframe).toBeDefined();
+      expect(iframe!.domPath).toBe(FRAME_B.iframe.domPath);
+      expect(iframe!.src).toBe(FRAME_B.iframe.src);
+      expect(iframe!.id).toBe(FRAME_B.iframe.id);
+      expect(iframe!.childFrame).toBeDefined();
+      expect(iframe!.childFrame!.frameId).toBe(FRAME_B.frameId);
     });
   });
 
@@ -667,7 +660,7 @@ describe('Frame model integration', () => {
       expect(frameStore.hierarchyRoots[0].children).toHaveLength(1);
     });
 
-    it('processHierarchy populates iframes and isOpener on Frame', () => {
+    it('processHierarchy populates IFrame entities on document and isOpener on Frame', () => {
       const iframes = [{ src: 'https://child.example.com', id: 'iframe1', domPath: 'body > iframe' }];
       store.setFrameHierarchy([
         { frameId: 0, tabId: TAB_ID, url: FRAME_A.url, parentFrameId: -1, title: FRAME_A.title, origin: FRAME_A.origin, iframes },
@@ -675,7 +668,10 @@ describe('Frame model integration', () => {
       ]);
 
       const frameA = frameStore.getFrame(TAB_ID, 0)!;
-      expect(frameA.iframes).toEqual(iframes);
+      expect(frameA.currentDocument).toBeDefined();
+      expect(frameA.currentDocument!.iframes).toHaveLength(1);
+      expect(frameA.currentDocument!.iframes[0].domPath).toBe('body > iframe');
+      expect(frameA.currentDocument!.iframes[0].src).toBe('https://child.example.com');
       expect(frameA.isOpener).toBe(false);
 
       const openerFrame = frameStore.getFrame(OPENER_TAB_ID, 0)!;
@@ -927,6 +923,92 @@ describe('Frame model integration', () => {
       // sourceId mapping now points to new document
       const docBySourceId = frameStore.getDocumentBySourceId(FRAME_B.sourceId);
       expect(docBySourceId).toBe(newDoc);
+    });
+  });
+
+  // ===================================================================
+  // Frame.documents array
+  // ===================================================================
+  describe('Frame.documents array', () => {
+    it('currentDocument returns the last document in the array', () => {
+      const frame = frameStore.getOrCreateFrame(TAB_ID, 5);
+      expect(frame.currentDocument).toBeUndefined();
+      expect(frame.documents).toHaveLength(0);
+
+      const doc1 = new FrameDocument({ documentId: 'doc-first' });
+      frame.documents.push(doc1);
+      expect(frame.currentDocument).toBe(doc1);
+
+      const doc2 = new FrameDocument({ documentId: 'doc-second' });
+      frame.documents.push(doc2);
+      expect(frame.currentDocument).toBe(doc2);
+      expect(frame.documents).toHaveLength(2);
+    });
+  });
+
+  // ===================================================================
+  // FrameStore Tab and IFrame management
+  // ===================================================================
+  describe('FrameStore Tab and IFrame management', () => {
+    it('getOrCreateTab creates Tab with root frame', () => {
+      const tab = frameStore.getOrCreateTab(TAB_ID);
+      expect(tab.tabId).toBe(TAB_ID);
+      expect(tab.rootFrame).toBeDefined();
+      expect(tab.rootFrame.tabId).toBe(TAB_ID);
+      expect(tab.rootFrame.frameId).toBe(0);
+      // Root frame is also in frames map
+      expect(frameStore.getFrame(TAB_ID, 0)).toBe(tab.rootFrame);
+    });
+
+    it('getOrCreateTab returns existing Tab on second call', () => {
+      const tab1 = frameStore.getOrCreateTab(TAB_ID);
+      const tab2 = frameStore.getOrCreateTab(TAB_ID);
+      expect(tab1).toBe(tab2);
+    });
+
+    it('getOrCreateFrame does not create Tab automatically', () => {
+      frameStore.getOrCreateFrame(TAB_ID, 3);
+      expect(frameStore.tabs.has(TAB_ID)).toBe(false);
+    });
+
+    it('getOrCreateIFrame creates IFrame on document matched by sourceId', () => {
+      const doc = new FrameDocument({ documentId: 'doc-parent' });
+      const iframe = frameStore.getOrCreateIFrame(doc, 'win-child', {
+        domPath: 'body > iframe',
+        src: 'https://child.example.com',
+        id: 'child-iframe',
+      });
+
+      expect(iframe.parentDocument).toBe(doc);
+      expect(iframe.sourceId).toBe('win-child');
+      expect(iframe.domPath).toBe('body > iframe');
+      expect(doc.iframes).toContain(iframe);
+    });
+
+    it('getOrCreateIFrame returns existing IFrame when sourceId matches', () => {
+      const doc = new FrameDocument({ documentId: 'doc-parent' });
+      const iframe1 = frameStore.getOrCreateIFrame(doc, 'win-child', {
+        domPath: 'body > iframe',
+        src: 'https://child.example.com/v1',
+        id: 'child-iframe',
+      });
+      const iframe2 = frameStore.getOrCreateIFrame(doc, 'win-child', {
+        domPath: 'body > div > iframe',
+        src: 'https://child.example.com/v2',
+        id: 'child-iframe',
+      });
+
+      expect(iframe1).toBe(iframe2);
+      // Properties updated to latest
+      expect(iframe1.domPath).toBe('body > div > iframe');
+      expect(iframe1.src).toBe('https://child.example.com/v2');
+    });
+
+    it('clear() also clears tabs map', () => {
+      frameStore.getOrCreateTab(TAB_ID);
+      expect(frameStore.tabs.size).toBe(1);
+      frameStore.clear();
+      expect(frameStore.tabs.size).toBe(0);
     });
   });
 });
