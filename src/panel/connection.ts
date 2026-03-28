@@ -170,6 +170,9 @@ function inferParentFrameId(msg: IMessage): void {
     const sourceFrame = frameStore.getOrCreateFrame(sourceTabId, msg.source.frameId);
     if (targetFrame && targetFrame.parentFrameId === undefined) {
       targetFrame.parentFrameId = sourceFrame.frameId;
+      if (msg.source.documentId) {
+        targetFrame.parentDocumentId = msg.source.documentId;
+      }
     }
   }
 
@@ -183,6 +186,9 @@ function inferParentFrameId(msg: IMessage): void {
     const targetFrame = frameStore.getFrame(msg.target.tabId, msg.target.frameId);
     if (sourceFrame && targetFrame && sourceFrame.parentFrameId === undefined) {
       sourceFrame.parentFrameId = targetFrame.frameId;
+      if (msg.target.documentId) {
+        sourceFrame.parentDocumentId = msg.target.documentId;
+      }
     }
   }
 }
@@ -243,6 +249,11 @@ function processRegistration(message: Message): void {
     if (targetFrame) {
       frame.parentFrameId = targetFrame.frameId;
     }
+  }
+
+  // Track which parent document this child frame belongs to
+  if (message.target.documentId) {
+    frame.parentDocumentId = message.target.documentId;
   }
 }
 

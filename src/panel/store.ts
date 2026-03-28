@@ -9,6 +9,7 @@ import {
   DetailTabType,
   SortDirection,
   FocusPosition,
+  SelectedNode,
   ALL_COLUMNS
 } from './types';
 import { FrameInfo } from '../types';
@@ -38,6 +39,7 @@ class PanelStore {
 
   // Hierarchy
   selectedFrameKey: string | null = null;
+  selectedNode: SelectedNode | null = null;
 
   // Focused frame (tabId + frameId to distinguish frames across tabs)
   focusedFrame: { tabId: number; frameId: number } | null = null;
@@ -232,6 +234,12 @@ class PanelStore {
   // Navigate to endpoints view and select a specific frame
   viewFrameInEndpoints(tabId: number, frameId: number): void {
     this.selectFrame(`${tabId}:${frameId}`);
+    // Also select as a tree node — use 'tab' for root frames, 'iframe' for children
+    if (frameId === 0) {
+      this.selectNode({ type: 'tab', tabId });
+    } else {
+      this.selectNode({ type: 'iframe', tabId, frameId });
+    }
     this.setCurrentView('endpoints');
   }
 
@@ -343,6 +351,41 @@ class PanelStore {
 
   selectFrame(key: string | null): void {
     this.selectedFrameKey = key;
+  }
+
+  selectNode(node: SelectedNode | null): void {
+    this.selectedNode = node;
+  }
+
+  // Build filter string for a selected node type
+  buildNodeFilter(node: SelectedNode): string {
+    switch (node.type) {
+      case 'tab':
+        return this.buildFrameFilter(node.tabId, 0);
+      case 'iframe':
+      case 'unknown-iframe':
+        return this.buildFrameFilter(node.tabId, node.frameId);
+      case 'document':
+        return `source.documentId:${node.documentId} OR target.documentId:${node.documentId}`;
+      case 'document-by-sourceId':
+        return `source.sourceId:${node.sourceId}`;
+      case 'unknown-document':
+        return `source.sourceId:${node.sourceId}`;
+    }
+  }
+
+  // Navigate to log view filtered to a selected node's messages
+  navigateToNodeMessages(node: SelectedNode): void {
+    // Set focused frame for frame-based nodes
+    if (node.type === 'tab') {
+      this.setFocusedFrame({ tabId: node.tabId, frameId: 0 });
+    } else if (node.type === 'iframe' || node.type === 'unknown-iframe') {
+      this.setFocusedFrame({ tabId: node.tabId, frameId: node.frameId });
+    } else {
+      this.setFocusedFrame(null);
+    }
+    this.setFilter(this.buildNodeFilter(node));
+    this.setCurrentView('log');
   }
 
   updateSettings(partial: Partial<Settings>): void {

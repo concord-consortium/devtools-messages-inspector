@@ -1070,4 +1070,85 @@ describe('Frame model integration', () => {
       expect(frameStore.tabs.size).toBe(0);
     });
   });
+
+  // ===================================================================
+  // unknownDocuments — documents with sourceId but no frame link
+  // ===================================================================
+  describe('unknownDocuments', () => {
+    it('returns documents from documentsBySourceId with no frame link', () => {
+      const doc = frameStore.getOrCreateDocumentBySourceId('win-orphan');
+      doc.origin = 'https://orphan.example.com';
+
+      expect(frameStore.unknownDocuments).toContain(doc);
+    });
+
+    it('excludes documents that have a frame link', () => {
+      const doc = frameStore.getOrCreateDocumentBySourceId('win-linked');
+      doc.origin = 'https://linked.example.com';
+      doc.frame = frameStore.getOrCreateFrame(TAB_ID, 5);
+
+      expect(frameStore.unknownDocuments).not.toContain(doc);
+    });
+
+    it('returns empty when all sourceId documents have frames', () => {
+      const doc = frameStore.getOrCreateDocumentBySourceId('win-known');
+      doc.frame = frameStore.getOrCreateFrame(TAB_ID, 3);
+
+      expect(frameStore.unknownDocuments).toHaveLength(0);
+    });
+
+    it('returns empty when no sourceId documents exist', () => {
+      expect(frameStore.unknownDocuments).toHaveLength(0);
+    });
+  });
+
+  // ===================================================================
+  // getUnknownChildFrames — child frames not matched by any IFrame
+  // ===================================================================
+  describe('getUnknownChildFrames', () => {
+    it('returns child frames not matched by any IFrame on the document', () => {
+      store.setFrameHierarchy([
+        { frameId: 0, tabId: TAB_ID, url: FRAME_A.url, parentFrameId: -1, title: FRAME_A.title, origin: FRAME_A.origin, iframes: [] },
+        { frameId: 1, tabId: TAB_ID, url: FRAME_B.url, parentFrameId: 0, title: FRAME_B.title, origin: FRAME_B.origin, iframes: [] },
+      ]);
+
+      const parentFrame = frameStore.getFrame(TAB_ID, 0)!;
+      const parentDoc = parentFrame.currentDocument!;
+      // No IFrame entries on parentDoc, but frame 1 is a child
+      const unknowns = frameStore.getUnknownChildFrames(parentFrame, parentDoc);
+      expect(unknowns).toHaveLength(1);
+      expect(unknowns[0].frameId).toBe(1);
+    });
+
+    it('returns empty when all children are matched by IFrame entries', () => {
+      // B sends child message to A — creates IFrame with childFrame link after registration
+      processIncomingMessage(childMsg(FRAME_B, FRAME_A));
+      processIncomingMessage(registrationMsg(FRAME_B, FRAME_A));
+
+      const parentFrame = frameStore.getFrame(TAB_ID, 0)!;
+      const parentDoc = parentFrame.currentDocument!;
+      const unknowns = frameStore.getUnknownChildFrames(parentFrame, parentDoc);
+      expect(unknowns).toHaveLength(0);
+    });
+
+    it('returns only unmatched children when some are matched', () => {
+      // Set up: frame 0 has children 1 and 2
+      // Frame 1 has an IFrame entry (matched), frame 2 does not (unknown)
+      processIncomingMessage(childMsg(FRAME_B, FRAME_A));
+      processIncomingMessage(registrationMsg(FRAME_B, FRAME_A));
+
+      // Add frame 2 as child of frame 0 via hierarchy
+      store.setFrameHierarchy([
+        { frameId: 0, tabId: TAB_ID, url: FRAME_A.url, parentFrameId: -1, title: FRAME_A.title, origin: FRAME_A.origin, iframes: [{ ...FRAME_B.iframe, sourceId: FRAME_B.sourceId }] },
+        { frameId: 1, tabId: TAB_ID, url: FRAME_B.url, parentFrameId: 0, title: FRAME_B.title, origin: FRAME_B.origin, iframes: [] },
+        { frameId: 2, tabId: TAB_ID, url: FRAME_C.url, parentFrameId: 0, title: FRAME_C.title, origin: FRAME_C.origin, iframes: [] },
+      ]);
+
+      const parentFrame = frameStore.getFrame(TAB_ID, 0)!;
+      const parentDoc = parentFrame.currentDocument!;
+      const unknowns = frameStore.getUnknownChildFrames(parentFrame, parentDoc);
+      expect(unknowns).toHaveLength(1);
+      expect(unknowns[0].frameId).toBe(2);
+    });
+  });
 });

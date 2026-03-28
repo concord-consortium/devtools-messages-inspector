@@ -23,6 +23,15 @@ export type DetailTabType = 'data' | 'context';
 export type SortDirection = 'asc' | 'desc';
 export type FocusPosition = 'source' | 'target' | 'both' | 'none';
 
+// Discriminated union for selecting any node type in the endpoints tree
+export type SelectedNode =
+  | { type: 'tab'; tabId: number }
+  | { type: 'document'; documentId: string }
+  | { type: 'document-by-sourceId'; sourceId: string }
+  | { type: 'iframe'; tabId: number; frameId: number }
+  | { type: 'unknown-iframe'; tabId: number; frameId: number }
+  | { type: 'unknown-document'; sourceId: string };
+
 // Column definitions
 export const ALL_COLUMNS: ColumnDef[] = [
   { id: 'timestamp', defaultVisible: true, width: 90 },
