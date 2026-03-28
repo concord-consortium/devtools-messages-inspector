@@ -123,7 +123,7 @@ function _processIncomingMessage(msg: IMessage): void {
     }
   }
 
-  // --- Source owner element (child messages) ---
+  // --- Source owner element ---
   let sourceOwnerElement: OwnerElement | undefined = undefined;
   if (msg.source.type === 'child') {
     sourceOwnerElement = OwnerElement.fromRaw(msg.source.iframe);
@@ -133,6 +133,16 @@ function _processIncomingMessage(msg: IMessage): void {
       const targetDoc = frameStore.getDocumentById(msg.target.documentId);
       if (targetDoc) {
         frameStore.getOrCreateIFrame(targetDoc, msg.source.sourceId, msg.source.iframe ?? undefined);
+      }
+    }
+  } else if (msg.source.type === 'parent' && msg.source.frameId != null) {
+    // Parent is itself hosted in an iframe — look up its owner element
+    const sourceTabId = msg.source.tabId ?? msg.target.tabId;
+    const sourceFrame = frameStore.getFrame(sourceTabId, msg.source.frameId);
+    if (sourceFrame) {
+      const ownerIFrame = frameStore.findOwnerIFrame(sourceFrame);
+      if (ownerIFrame) {
+        sourceOwnerElement = new OwnerElement(ownerIFrame.domPath, ownerIFrame.src, ownerIFrame.id);
       }
     }
   }
