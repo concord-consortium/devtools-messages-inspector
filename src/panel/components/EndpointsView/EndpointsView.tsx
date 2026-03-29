@@ -55,7 +55,8 @@ const DocumentNode = observer(({ doc, frame, depth, isNavigatedAway }: {
   const nodeId = documentNodeId(doc);
   const isSelected = nodesEqual(store.selectedNode, nodeId);
   const label = doc.url || doc.origin || doc.sourceId || '(unknown)';
-  const hasChildren = doc.iframes.length > 0 || frameStore.getUnknownChildFrames(frame, doc).length > 0;
+  const unknownChildren = frameStore.getUnknownChildFrames(frame, doc);
+  const hasChildren = doc.iframes.length > 0 || unknownChildren.length > 0;
 
   return (
     <div className="tree-node-group">
@@ -74,7 +75,7 @@ const DocumentNode = observer(({ doc, frame, depth, isNavigatedAway }: {
           {doc.iframes.map((iframe, i) => (
             <IFrameNode key={iframe.sourceId || `iframe-${i}`} iframe={iframe} depth={depth + 1} />
           ))}
-          {frameStore.getUnknownChildFrames(frame, doc).map(childFrame => (
+          {unknownChildren.map(childFrame => (
             <UnknownIFrameNode key={childFrame.key} frame={childFrame} depth={depth + 1} />
           ))}
         </>
@@ -90,7 +91,7 @@ const IFrameNode = observer(({ iframe, depth }: { iframe: IFrame; depth: number 
 
   // Use child frame's identity if available
   const nodeId: SelectedNode | null = childFrame
-    ? { type: 'iframe', tabId: childFrame.tabId, frameId: childFrame.frameId }
+    ? { type: 'iframe', tabId: childFrame.tabId, frameId: childFrame.frameId, iframeRef: iframe }
     : null;
   const isSelected = nodeId ? nodesEqual(store.selectedNode, nodeId) : false;
   const hasChildren = childFrame && childFrame.documents.length > 0;
@@ -160,7 +161,8 @@ const FrameDocuments = observer(({ frame, depth }: { frame: Frame; depth: number
 
 const TabNode = observer(({ tabId, rootFrame, depth }: { tabId: number; rootFrame: Frame; depth: number }) => {
   const [expanded, setExpanded] = useState(true);
-  const nodeId: SelectedNode = { type: 'tab', tabId };
+  const tab = frameStore.tabs.get(tabId);
+  const nodeId: SelectedNode = { type: 'tab', tabId, tabRef: tab };
   const isSelected = nodesEqual(store.selectedNode, nodeId);
 
   return (
@@ -223,7 +225,9 @@ const TreeView = observer(() => {
         <>
           <div className="tree-section-separator">Other known frames</div>
           {nonHierarchy.map(frame => (
-            <TabNode key={frame.key} tabId={frame.tabId} rootFrame={frame} depth={0} />
+            frame.frameId === 0
+              ? <TabNode key={frame.key} tabId={frame.tabId} rootFrame={frame} depth={0} />
+              : <UnknownIFrameNode key={frame.key} frame={frame} depth={0} />
           ))}
         </>
       )}
@@ -247,9 +251,9 @@ const SeparatorRow = () => (
   <tr><td colSpan={2} className="context-separator"></td></tr>
 );
 
-const TabDetail = observer(({ tabId }: { tabId: number }) => {
-  const tab = frameStore.tabs.get(tabId);
-  const rootFrame = frameStore.getFrame(tabId, 0);
+const TabDetail = observer(({ tabId, tabRef }: { tabId: number; tabRef?: import('../../models/Tab').Tab }) => {
+  const tab = tabRef ?? frameStore.tabs.get(tabId);
+  const rootFrame = tab?.rootFrame ?? frameStore.getFrame(tabId, 0);
   const doc = rootFrame?.currentDocument;
 
   return (
@@ -327,28 +331,18 @@ const DocumentDetail = observer(({ doc }: { doc: FrameDocument }) => {
   );
 });
 
-const IFrameDetail = observer(({ tabId, frameId, isUnknown }: { tabId: number; frameId: number; isUnknown: boolean }) => {
+const IFrameDetail = observer(({ tabId, frameId, isUnknown, iframeRef }: { tabId: number; frameId: number; isUnknown: boolean; iframeRef?: IFrame }) => {
   const frame = frameStore.getFrame(tabId, frameId);
-  // Find the IFrame model by looking for an IFrame whose childFrame matches
-  let iframeModel: IFrame | undefined;
-  if (frame && frame.parentFrameId !== undefined && frame.parentFrameId >= 0) {
-    const parentFrame = frameStore.getFrame(tabId, frame.parentFrameId);
-    if (parentFrame?.currentDocument) {
-      iframeModel = parentFrame.currentDocument.iframes.find(
-        i => i.childFrame === frame
-      );
-    }
-  }
 
   return (
     <table className="context-table">
       <tbody>
-        {!isUnknown && iframeModel && (
+        {!isUnknown && iframeRef && (
           <>
-            {iframeModel.removedFromHierarchy && <Field label="Status">Removed from page</Field>}
-            {iframeModel.domPath && <Field label="domPath">{iframeModel.domPath}</Field>}
-            {iframeModel.src && <Field label="src">{iframeModel.src}</Field>}
-            {iframeModel.id && <Field label="id">{iframeModel.id}</Field>}
+            {iframeRef.removedFromHierarchy && <Field label="Status">Removed from page</Field>}
+            {iframeRef.domPath && <Field label="domPath">{iframeRef.domPath}</Field>}
+            {iframeRef.src && <Field label="src">{iframeRef.src}</Field>}
+            {iframeRef.id && <Field label="id">{iframeRef.id}</Field>}
           </>
         )}
         <Field label="frameId">frame[{frameId}]</Field>
@@ -424,12 +418,12 @@ const NodeDetailPane = observer(() => {
       </div>
       <div className="tab-content">
         <div className="frame-properties">
-          {node.type === 'tab' && <TabDetail tabId={node.tabId} />}
+          {node.type === 'tab' && <TabDetail tabId={node.tabId} tabRef={node.tabRef} />}
           {(node.type === 'document' || node.type === 'document-by-sourceId') && (() => {
             const doc = resolveDocument(node);
             return doc ? <DocumentDetail doc={doc} /> : <div className="placeholder">Document not found</div>;
           })()}
-          {node.type === 'iframe' && <IFrameDetail tabId={node.tabId} frameId={node.frameId} isUnknown={false} />}
+          {node.type === 'iframe' && <IFrameDetail tabId={node.tabId} frameId={node.frameId} isUnknown={false} iframeRef={node.iframeRef} />}
           {node.type === 'unknown-iframe' && <IFrameDetail tabId={node.tabId} frameId={node.frameId} isUnknown={true} />}
           {node.type === 'unknown-document' && <UnknownDocumentDetail sourceId={node.sourceId} />}
         </div>

@@ -273,7 +273,7 @@ export class HarnessWindow {
   removeIframeElement(contentWindow: CrossOriginWindowProxy): void {
     const iframes = this._iframeContainer.querySelectorAll('iframe');
     for (const el of iframes) {
-      if (el.contentWindow === contentWindow) {
+      if ((el.contentWindow as unknown) === contentWindow) {
         el.remove();
         return;
       }

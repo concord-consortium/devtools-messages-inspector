@@ -25,10 +25,10 @@ export type FocusPosition = 'source' | 'target' | 'both' | 'none';
 
 // Discriminated union for selecting any node type in the endpoints tree
 export type SelectedNode =
-  | { type: 'tab'; tabId: number }
+  | { type: 'tab'; tabId: number; tabRef?: import('./models/Tab').Tab }
   | { type: 'document'; documentId: string; docRef?: import('./models/FrameDocument').FrameDocument }
   | { type: 'document-by-sourceId'; sourceId: string; docRef?: import('./models/FrameDocument').FrameDocument }
-  | { type: 'iframe'; tabId: number; frameId: number }
+  | { type: 'iframe'; tabId: number; frameId: number; iframeRef?: import('./models/IFrame').IFrame }
   | { type: 'unknown-iframe'; tabId: number; frameId: number }
   | { type: 'unknown-document'; sourceId: string };
 
