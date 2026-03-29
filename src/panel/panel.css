@@ -664,7 +664,8 @@ body {
 /* Endpoints tree view */
 .tree-view {
   overflow-y: auto;
-  height: 100%;
+  flex: 1;
+  min-width: 0;
   font-size: 12px;
 }
 
@@ -768,6 +769,7 @@ body {
 /* Settings view */
 .settings-content {
   padding: 16px;
+  flex: 1;
 }
 
 .settings-content h3 {

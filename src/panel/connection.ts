@@ -225,6 +225,11 @@ function processRegistration(message: Message): void {
       docByDocId.origin = docBySourceId.origin;
     }
     docByDocId.mergeSourceIdRecords(docBySourceId);
+    docByDocId.changes.push({
+      time: Date.now(),
+      type: 'merge',
+      createdAtOfMerged: docBySourceId.createdAt,
+    });
     frameStore.documentsBySourceId.set(sourceId, docByDocId);
     // Remove the superseded sourceId-only doc from its frame's documents array
     if (docBySourceId.frame) {
@@ -234,6 +239,7 @@ function processRegistration(message: Message): void {
   } else if (docBySourceId && !docByDocId) {
     docBySourceId.documentId = regData.documentId;
     frameStore.documents.set(regData.documentId, docBySourceId);
+    docBySourceId.changes.push({ time: Date.now(), type: 'promotion' });
   } else if (!docBySourceId && docByDocId) {
     docByDocId.sourceId = sourceId;
     frameStore.documentsBySourceId.set(sourceId, docByDocId);

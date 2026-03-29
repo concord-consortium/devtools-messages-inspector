@@ -12,6 +12,12 @@ export interface SourceIdRecord {
   targetDocumentId: string | undefined;
 }
 
+export interface ChangeRecord {
+  time: number;
+  type: 'merge' | 'promotion';
+  createdAtOfMerged?: number;
+}
+
 export class FrameDocument {
   documentId: string | undefined;
   url: string | undefined;
@@ -21,6 +27,8 @@ export class FrameDocument {
   frame: Frame | undefined;
   iframes: IFrame[] = [];
   sourceIdRecords: SourceIdRecord[] = [];
+  createdAt: number;
+  changes: ChangeRecord[] = [];
 
   constructor(init: {
     documentId?: string;
@@ -35,10 +43,12 @@ export class FrameDocument {
     this.title = init.title;
     this.sourceId = init.sourceId;
     this.frame = undefined;
+    this.createdAt = Date.now();
 
     makeAutoObservable(this, {
       iframes: observable.shallow,
       sourceIdRecords: observable.shallow,
+      changes: observable.shallow,
     });
   }
 

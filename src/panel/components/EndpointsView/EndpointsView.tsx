@@ -278,6 +278,7 @@ const DocumentDetail = observer(({ doc }: { doc: FrameDocument }) => {
       <tbody>
         {showInternal && doc.documentId && <Field label="documentId">{doc.documentId}</Field>}
         {showInternal && doc.sourceId && <Field label="sourceId">{doc.sourceId}</Field>}
+        {showInternal && <Field label="createdAt">{new Date(doc.createdAt).toISOString()}</Field>}
         {doc.url && <Field label="URL">{doc.url}</Field>}
         {doc.origin && <Field label="Origin">{doc.origin}</Field>}
         {doc.title && <Field label="Title">{doc.title}</Field>}
@@ -299,6 +300,23 @@ const DocumentDetail = observer(({ doc }: { doc: FrameDocument }) => {
                   <span className="source-id-target"> from tab[{rec.targetTabId}].frame[{rec.targetFrameId}]
                     {rec.targetDocumentId && ` (${rec.targetDocumentId})`}
                   </span>
+                </td>
+              </tr>
+            ))}
+          </>
+        )}
+        {showInternal && doc.changes.length > 0 && (
+          <>
+            <SeparatorRow />
+            <tr><th colSpan={2} className="section-heading">Changes</th></tr>
+            {doc.changes.map((rec, i) => (
+              <tr key={i}>
+                <td className="field-label">{rec.type}</td>
+                <td className="field-value">
+                  {new Date(rec.time).toISOString()}
+                  {rec.createdAtOfMerged != null && (
+                    <span className="source-id-target"> (other created at {new Date(rec.createdAtOfMerged).toISOString()})</span>
+                  )}
                 </td>
               </tr>
             ))}
