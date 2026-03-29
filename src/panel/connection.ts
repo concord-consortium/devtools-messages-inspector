@@ -211,7 +211,12 @@ function processRegistration(message: Message): void {
   const regData = message.registrationData!;
   const sourceId = message.sourceSourceId!;
 
-  const docBySourceId = frameStore.getDocumentBySourceId(sourceId);
+  // If the existing doc for this sourceId already has a different documentId,
+  // it represents a previously navigated-away document — don't touch it.
+  let docBySourceId = frameStore.getDocumentBySourceId(sourceId);
+  if (docBySourceId?.documentId && docBySourceId.documentId !== regData.documentId) {
+    docBySourceId = undefined;
+  }
   const docByDocId = frameStore.getDocumentById(regData.documentId);
 
   if (docBySourceId && docByDocId && docBySourceId !== docByDocId) {
@@ -227,19 +232,8 @@ function processRegistration(message: Message): void {
       if (idx !== -1) docBySourceId.frame.documents.splice(idx, 1);
     }
   } else if (docBySourceId && !docByDocId) {
-    // Navigation: same WindowProxy, new documentId. Create fresh document.
-    const newDoc = new FrameDocument({ documentId: regData.documentId, sourceId: sourceId });
-    if (docBySourceId.origin && !newDoc.origin) {
-      newDoc.origin = docBySourceId.origin;
-    }
-    newDoc.mergeSourceIdRecords(docBySourceId);
-    frameStore.documents.set(regData.documentId, newDoc);
-    frameStore.documentsBySourceId.set(sourceId, newDoc);
-    // Remove the superseded sourceId-only doc from its frame's documents array
-    if (docBySourceId.frame) {
-      const idx = docBySourceId.frame.documents.indexOf(docBySourceId);
-      if (idx !== -1) docBySourceId.frame.documents.splice(idx, 1);
-    }
+    docBySourceId.documentId = regData.documentId;
+    frameStore.documents.set(regData.documentId, docBySourceId);
   } else if (!docBySourceId && docByDocId) {
     docByDocId.sourceId = sourceId;
     frameStore.documentsBySourceId.set(sourceId, docByDocId);

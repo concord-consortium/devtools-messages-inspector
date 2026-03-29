@@ -1043,6 +1043,61 @@ describe('Frame model integration', () => {
       const docBySourceId = frameStore.getDocumentBySourceId(FRAME_B.sourceId);
       expect(docBySourceId).toBe(newDoc);
     });
+
+    it('navigation after registration preserves old document in frame.documents', () => {
+      // Register B — creates doc by sourceId, then merges with doc by documentId
+      processIncomingMessage(childMsg(FRAME_B, FRAME_A));
+      processIncomingMessage(registrationMsg(FRAME_B, FRAME_A));
+
+      const frameB = frameStore.getFrame(TAB_ID, FRAME_B.frameId)!;
+      expect(frameB.documents).toHaveLength(1);
+      const oldDoc = frameB.currentDocument!;
+      expect(oldDoc.documentId).toBe(FRAME_B.documentId);
+
+      // Navigation: new registration with different documentId, same sourceId
+      processIncomingMessage(registrationMsg(FRAME_B_NAV, FRAME_A));
+
+      // Old doc should be preserved, new doc added
+      expect(frameB.documents).toContain(oldDoc);
+      expect(oldDoc.documentId).toBe(FRAME_B.documentId);
+      const newDoc = frameB.currentDocument!;
+      expect(newDoc.documentId).toBe(FRAME_B_NAV.documentId);
+      expect(newDoc).not.toBe(oldDoc);
+      // Both documents should be in the array
+      expect(frameB.documents).toHaveLength(2);
+    });
+
+    it('same-origin navigation after registration preserves old document in frame.documents', () => {
+      // Same-origin variant: origin doesn't change, so the origin-change
+      // detection in _processIncomingMessage doesn't fire
+      const FRAME_B_SAME_ORIGIN_NAV = {
+        ...FRAME_B_NAV,
+        documentId: 'doc-B3',
+        url: 'https://child-b.example.com/page2',  // same origin as FRAME_B
+        origin: FRAME_B.origin,                      // same origin
+        iframe: { ...FRAME_B_NAV.iframe, src: 'https://child-b.example.com/page2' },
+      };
+
+      // Register B
+      processIncomingMessage(childMsg(FRAME_B, FRAME_A));
+      processIncomingMessage(registrationMsg(FRAME_B, FRAME_A));
+
+      const frameB = frameStore.getFrame(TAB_ID, FRAME_B.frameId)!;
+      expect(frameB.documents).toHaveLength(1);
+      const oldDoc = frameB.currentDocument!;
+      expect(oldDoc.documentId).toBe(FRAME_B.documentId);
+
+      // Same-origin navigation: new registration with different documentId
+      processIncomingMessage(registrationMsg(FRAME_B_SAME_ORIGIN_NAV, FRAME_A));
+
+      // Old doc should be preserved, new doc added
+      expect(frameB.documents).toContain(oldDoc);
+      expect(oldDoc.documentId).toBe(FRAME_B.documentId);
+      const newDoc = frameB.currentDocument!;
+      expect(newDoc.documentId).toBe('doc-B3');
+      expect(newDoc).not.toBe(oldDoc);
+      expect(frameB.documents).toHaveLength(2);
+    });
   });
 
   // ===================================================================
