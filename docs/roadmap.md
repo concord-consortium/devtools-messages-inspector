@@ -1,10 +1,6 @@
 # Remaining for Version 1
-- the endpoints pane should be organized by tab/iframe/document, in the future we can add workers but they require a more invasive extension. The focused frame should be focused endpoint. And the list should be organized by document. I think we can simplify the view so that we don't need to have un clickable entries for tabs and frames.
-- the opener shows up in the endpoints as part of the hierarchy, not in the special "other known frames". It seems it should be in the other known frames section.
-- the endpoints should indicate when a frame is no longer part of the current hierarchy. How we update that information is not obvious. We could poll the frame info for the tabs the current panel knows about. I think we can also monitor "change events" when new frames are created (and perhaps removed too). We could at least get this information when the frame details is opened.
+- review the details of the endpoints, they don't seem consistent between the different types.
 - it will be useful if we can record a "session" of messages/events between the panel and the background. Then we can setup the panel with specific settings and then replay the session. This might help reproduce issues that only show up in the real extension within the test harness environment. This has a few questions though: when does the session start recording? How is the session recording enabled? Should we also record any settings or other chrome calls made by the panel?
-- add indentation to show hierarchy level in table
-- add lines showing hierarchy in table
 - see if we can add iframe elements to console when clicked on in hierarchy
 - see if we can show the iframe element in the elements tab from the hierarchy
   - Use `chrome.devtools.inspectedWindow.eval('inspect(element)')` where `inspect()` is a DevTools console helper that switches to Elements panel and selects the element
@@ -14,7 +10,6 @@
 - figure out how to make the hierarchy table more advanced:
   - resizable columns
   - sortable columns (how do we deal with hierarchy view)
-- add opened tabs to the hierarchy
 - fix table column resize handles they are hard to select
 - update details pane in messages view, probably details should be default and first and content second
 - the pane on right of messages that comes out doesn't behave correctly on resize

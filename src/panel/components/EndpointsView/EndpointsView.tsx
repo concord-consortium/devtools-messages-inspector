@@ -221,16 +221,11 @@ const TreeView = observer(() => {
       {Array.from(tabIds.entries()).map(([tabId, rootFrame]) => (
         <TabNode key={tabId} tabId={tabId} rootFrame={rootFrame} depth={0} />
       ))}
-      {nonHierarchy.length > 0 && (
-        <>
-          <div className="tree-section-separator">Other known frames</div>
-          {nonHierarchy.map(frame => (
-            frame.frameId === 0
-              ? <TabNode key={frame.key} tabId={frame.tabId} rootFrame={frame} depth={0} />
-              : <UnknownIFrameNode key={frame.key} frame={frame} depth={0} />
-          ))}
-        </>
-      )}
+      {nonHierarchy.map(frame => (
+        frame.frameId === 0
+          ? <TabNode key={frame.key} tabId={frame.tabId} rootFrame={frame} depth={0} />
+          : <UnknownIFrameNode key={frame.key} frame={frame} depth={0} />
+      ))}
       {unknownDocs.map(doc => (
         <UnknownDocumentNode key={doc.sourceId} doc={doc} />
       ))}

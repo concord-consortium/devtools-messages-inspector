@@ -752,14 +752,6 @@ body {
   margin-left: 4px;
 }
 
-.tree-section-separator {
-  padding: 8px 8px 4px 8px;
-  font-size: 11px;
-  color: #5f6368;
-  font-weight: 500;
-  border-top: 1px solid #e8eaed;
-  margin-top: 4px;
-}
 
 /* Frame detail styles */
 .frame-properties {
