@@ -221,6 +221,11 @@ function processRegistration(message: Message): void {
     }
     docByDocId.mergeSourceIdRecords(docBySourceId);
     frameStore.documentsBySourceId.set(sourceId, docByDocId);
+    // Remove the superseded sourceId-only doc from its frame's documents array
+    if (docBySourceId.frame) {
+      const idx = docBySourceId.frame.documents.indexOf(docBySourceId);
+      if (idx !== -1) docBySourceId.frame.documents.splice(idx, 1);
+    }
   } else if (docBySourceId && !docByDocId) {
     // Navigation: same WindowProxy, new documentId. Create fresh document.
     const newDoc = new FrameDocument({ documentId: regData.documentId, sourceId: sourceId });
@@ -230,6 +235,11 @@ function processRegistration(message: Message): void {
     newDoc.mergeSourceIdRecords(docBySourceId);
     frameStore.documents.set(regData.documentId, newDoc);
     frameStore.documentsBySourceId.set(sourceId, newDoc);
+    // Remove the superseded sourceId-only doc from its frame's documents array
+    if (docBySourceId.frame) {
+      const idx = docBySourceId.frame.documents.indexOf(docBySourceId);
+      if (idx !== -1) docBySourceId.frame.documents.splice(idx, 1);
+    }
   } else if (!docBySourceId && docByDocId) {
     docByDocId.sourceId = sourceId;
     frameStore.documentsBySourceId.set(sourceId, docByDocId);

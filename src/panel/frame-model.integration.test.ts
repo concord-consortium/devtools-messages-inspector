@@ -164,6 +164,7 @@ function crossTabOpenedToOpenerMsg(
       sourceId: 'win-opened',
       iframe: null,
       tabId: TAB_ID,
+      frameId: FRAME_A.frameId,
     },
     data,
   };
@@ -173,9 +174,9 @@ function crossTabOpenedToOpenerMsg(
  * Opener sends postMessage to opened window (popup).
  *
  * Captured by the popup's content script. Background enriches source with the
- * opener's tabId and frameId from the openedTabs mapping. No documentId is
- * available for the source (cross-tab, no webNavigation lookup for opener).
- * This message is routed to the popup's panel (TAB_ID = popup tab).
+ * opener's tabId, frameId, and documentId (looked up via webNavigation.getFrame
+ * on the opener's tab/frame). This message is routed to the popup's panel
+ * (TAB_ID = popup tab).
  */
 function openerToOpenedMsg(
   data: Record<string, unknown> = { type: 'init-from-opener' },
@@ -198,6 +199,7 @@ function openerToOpenedMsg(
       iframe: null,
       tabId: OPENER_TAB_ID,
       frameId: OPENER_FRAME.frameId,
+      documentId: OPENER_FRAME.documentId,
     },
     data,
   };
@@ -248,6 +250,7 @@ function crossTabRegistrationMsg(): IMessage {
       sourceId: 'win-opened',
       iframe: null,
       tabId: TAB_ID,
+      frameId: FRAME_A.frameId,
     },
     data: {
       type: '__messages_inspector_register__',
@@ -802,6 +805,58 @@ describe('Frame model integration', () => {
         f => f.tabId === TAB_ID && f.frameId === FRAME_A.frameId
       );
       expect(inHierarchy || inNonHierarchy).toBe(true);
+    });
+  });
+
+  // ===================================================================
+  // Cross-tab document deduplication — when both opener→opened and
+  // opened→opener messages are processed, each frame should have
+  // exactly one document, not duplicates created from different paths.
+  // ===================================================================
+  describe('cross-tab document deduplication', () => {
+    it('opened tab: opener message then cross-tab message produces one document on opened frame', () => {
+      // Panel is viewing the opened tab
+      store.setTabId(TAB_ID);
+
+      // Step 1: opener→opened — creates target doc for FRAME_A by documentId
+      processIncomingMessage(openerToOpenedMsg());
+
+      const openedFrame = frameStore.getFrame(TAB_ID, FRAME_A.frameId)!;
+      expect(openedFrame).toBeDefined();
+      expect(openedFrame.documents).toHaveLength(1);
+
+      // Step 2: opened→opener (routed back to opened panel) — source has
+      // sourceId 'win-opened' for the opened window but no documentId
+      processIncomingMessage(crossTabOpenedToOpenerMsg());
+
+      // Step 3: cross-tab registration — links sourceId to FRAME_A's documentId
+      processIncomingMessage(crossTabRegistrationMsg());
+
+      // The opened frame should have exactly one document, not two
+      expect(openedFrame.documents).toHaveLength(1);
+      const doc = openedFrame.currentDocument!;
+      expect(doc.documentId).toBe(FRAME_A.documentId);
+      expect(doc.sourceId).toBe('win-opened');
+    });
+
+    it('opener tab: cross-tab message then registration produces one document on opened frame', () => {
+      // Panel is viewing the opener tab
+      store.setTabId(OPENER_TAB_ID);
+
+      // Step 1: opened→opener — source has sourceId 'win-opened', creates
+      // source doc by sourceId. Target is opener frame (different tab).
+      processIncomingMessage(crossTabOpenedToOpenerMsg());
+
+      // Step 2: cross-tab registration — creates doc by documentId, should merge
+      processIncomingMessage(crossTabRegistrationMsg());
+
+      // The opened frame (in the opener's panel) should have exactly one document
+      const openedFrame = frameStore.getFrame(TAB_ID, FRAME_A.frameId)!;
+      expect(openedFrame).toBeDefined();
+      expect(openedFrame.documents).toHaveLength(1);
+      const doc = openedFrame.currentDocument!;
+      expect(doc.documentId).toBe(FRAME_A.documentId);
+      expect(doc.sourceId).toBe('win-opened');
     });
   });
 
