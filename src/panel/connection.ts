@@ -75,6 +75,13 @@ function _processIncomingMessage(msg: IMessage): void {
     if (msg.source.sourceId) {
       sourceDoc.sourceId = msg.source.sourceId;
       frameStore.documentsBySourceId.set(msg.source.sourceId, sourceDoc);
+      sourceDoc.addSourceIdRecord({
+        sourceId: msg.source.sourceId,
+        sourceType: msg.source.type,
+        targetTabId: msg.target.tabId,
+        targetFrameId: msg.target.frameId,
+        targetDocumentId: msg.target.documentId,
+      });
     }
   } else if (msg.source.sourceId) {
     const existing = frameStore.getDocumentBySourceId(msg.source.sourceId);
@@ -86,6 +93,13 @@ function _processIncomingMessage(msg: IMessage): void {
       sourceDoc = frameStore.getOrCreateDocumentBySourceId(msg.source.sourceId);
       sourceDoc.origin = msg.source.origin;
     }
+    sourceDoc.addSourceIdRecord({
+      sourceId: msg.source.sourceId,
+      sourceType: msg.source.type,
+      targetTabId: msg.target.tabId,
+      targetFrameId: msg.target.frameId,
+      targetDocumentId: msg.target.documentId,
+    });
   }
 
   // Link source FrameDocument to a Frame when tabId and frameId are available
@@ -205,6 +219,7 @@ function processRegistration(message: Message): void {
     if (docBySourceId.origin && !docByDocId.origin) {
       docByDocId.origin = docBySourceId.origin;
     }
+    docByDocId.mergeSourceIdRecords(docBySourceId);
     frameStore.documentsBySourceId.set(sourceId, docByDocId);
   } else if (docBySourceId && !docByDocId) {
     // Navigation: same WindowProxy, new documentId. Create fresh document.
@@ -212,6 +227,7 @@ function processRegistration(message: Message): void {
     if (docBySourceId.origin && !newDoc.origin) {
       newDoc.origin = docBySourceId.origin;
     }
+    newDoc.mergeSourceIdRecords(docBySourceId);
     frameStore.documents.set(regData.documentId, newDoc);
     frameStore.documentsBySourceId.set(sourceId, newDoc);
   } else if (!docBySourceId && docByDocId) {

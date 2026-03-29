@@ -461,6 +461,11 @@ describe('Frame model integration', () => {
         expect(merged.frame).toBeDefined();
         expect(merged.frame!.frameId).toBe(FRAME_B.frameId);
 
+        // B's frame.documents contains merged doc exactly once (no duplicates)
+        const frameB = frameStore.getFrame(TAB_ID, FRAME_B.frameId)!;
+        expect(frameB.documents).toHaveLength(1);
+        expect(frameB.documents[0]).toBe(merged);
+
         // B→A message's sourceFrame now resolves
         expect(store.messages[0].sourceFrame!.frameId).toBe(FRAME_B.frameId);
       });

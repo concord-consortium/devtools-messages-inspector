@@ -10,7 +10,7 @@ export interface ColumnDef {
 }
 
 export interface Settings {
-  showExtraMessageInfo: boolean;
+  showInternalFields: boolean;
   enableFrameRegistration: boolean;
   showRegistrationMessages: boolean;
   globalFilter: string;
@@ -26,8 +26,8 @@ export type FocusPosition = 'source' | 'target' | 'both' | 'none';
 // Discriminated union for selecting any node type in the endpoints tree
 export type SelectedNode =
   | { type: 'tab'; tabId: number }
-  | { type: 'document'; documentId: string }
-  | { type: 'document-by-sourceId'; sourceId: string }
+  | { type: 'document'; documentId: string; docRef?: import('./models/FrameDocument').FrameDocument }
+  | { type: 'document-by-sourceId'; sourceId: string; docRef?: import('./models/FrameDocument').FrameDocument }
   | { type: 'iframe'; tabId: number; frameId: number }
   | { type: 'unknown-iframe'; tabId: number; frameId: number }
   | { type: 'unknown-document'; sourceId: string };

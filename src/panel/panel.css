@@ -499,6 +499,11 @@ body {
   border: none;
 }
 
+.source-id-target {
+  opacity: 0.7;
+  margin-left: 4px;
+}
+
 .context-table th.section-heading {
   text-align: left;
   font-weight: 700;

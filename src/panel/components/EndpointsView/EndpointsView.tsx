@@ -26,10 +26,10 @@ function nodesEqual(a: SelectedNode | null, b: SelectedNode): boolean {
 }
 
 function documentNodeId(doc: FrameDocument): SelectedNode {
-  if (doc.documentId) return { type: 'document', documentId: doc.documentId };
-  if (doc.sourceId) return { type: 'document-by-sourceId', sourceId: doc.sourceId };
+  if (doc.documentId) return { type: 'document', documentId: doc.documentId, docRef: doc };
+  if (doc.sourceId) return { type: 'document-by-sourceId', sourceId: doc.sourceId, docRef: doc };
   // Fallback — shouldn't happen in practice
-  return { type: 'document-by-sourceId', sourceId: '' };
+  return { type: 'document-by-sourceId', sourceId: '', docRef: doc };
 }
 
 // --- Expand/Collapse Toggle ---
@@ -243,6 +243,10 @@ const Field = ({ label, children }: { label: string; children: React.ReactNode }
   </tr>
 );
 
+const SeparatorRow = () => (
+  <tr><td colSpan={2} className="context-separator"></td></tr>
+);
+
 const TabDetail = observer(({ tabId }: { tabId: number }) => {
   const tab = frameStore.tabs.get(tabId);
   const rootFrame = frameStore.getFrame(tabId, 0);
@@ -268,11 +272,12 @@ const TabDetail = observer(({ tabId }: { tabId: number }) => {
 });
 
 const DocumentDetail = observer(({ doc }: { doc: FrameDocument }) => {
+  const showInternal = store.settings.showInternalFields;
   return (
     <table className="context-table">
       <tbody>
-        {doc.documentId && <Field label="documentId">{doc.documentId}</Field>}
-        {doc.sourceId && <Field label="sourceId">{doc.sourceId}</Field>}
+        {showInternal && doc.documentId && <Field label="documentId">{doc.documentId}</Field>}
+        {showInternal && doc.sourceId && <Field label="sourceId">{doc.sourceId}</Field>}
         {doc.url && <Field label="URL">{doc.url}</Field>}
         {doc.origin && <Field label="Origin">{doc.origin}</Field>}
         {doc.title && <Field label="Title">{doc.title}</Field>}
@@ -280,6 +285,23 @@ const DocumentDetail = observer(({ doc }: { doc: FrameDocument }) => {
           <>
             <Field label="Tab">tab[{doc.frame.tabId}]</Field>
             <Field label="Frame">frame[{doc.frame.frameId}]</Field>
+          </>
+        )}
+        {showInternal && doc.sourceIdRecords.length > 0 && (
+          <>
+            <SeparatorRow />
+            <tr><th colSpan={2} className="section-heading">Source ID Records</th></tr>
+            {doc.sourceIdRecords.map((rec, i) => (
+              <tr key={i}>
+                <td className="field-label">{rec.sourceType}</td>
+                <td className="field-value">
+                  {rec.sourceId}
+                  <span className="source-id-target"> from tab[{rec.targetTabId}].frame[{rec.targetFrameId}]
+                    {rec.targetDocumentId && ` (${rec.targetDocumentId})`}
+                  </span>
+                </td>
+              </tr>
+            ))}
           </>
         )}
       </tbody>
@@ -343,6 +365,7 @@ function getDetailTitle(node: SelectedNode): string {
 }
 
 function resolveDocument(node: SelectedNode & { type: 'document' | 'document-by-sourceId' }): FrameDocument | undefined {
+  if (node.docRef) return node.docRef;
   if (node.type === 'document') return frameStore.getDocumentById(node.documentId);
   return frameStore.getDocumentBySourceId(node.sourceId);
 }

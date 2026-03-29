@@ -46,7 +46,7 @@ class PanelStore {
 
   // Settings
   settings: Settings = {
-    showExtraMessageInfo: false,
+    showInternalFields: false,
     enableFrameRegistration: true,
     showRegistrationMessages: false,
     globalFilter: '',

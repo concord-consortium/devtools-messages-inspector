@@ -44,7 +44,7 @@ describe('buildCellFilter', () => {
     store.messages = [];
     store.filterText = '';
     store.settings = {
-      showExtraMessageInfo: false,
+      showInternalFields: false,
       enableFrameRegistration: true,
       showRegistrationMessages: false,
       globalFilter: '',

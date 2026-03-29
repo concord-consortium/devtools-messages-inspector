@@ -4,6 +4,14 @@ import { makeAutoObservable, observable } from 'mobx';
 import type { Frame } from './Frame';
 import type { IFrame } from './IFrame';
 
+export interface SourceIdRecord {
+  sourceId: string;
+  sourceType: string;
+  targetTabId: number;
+  targetFrameId: number;
+  targetDocumentId: string | undefined;
+}
+
 export class FrameDocument {
   documentId: string | undefined;
   url: string | undefined;
@@ -12,6 +20,7 @@ export class FrameDocument {
   sourceId: string | undefined;
   frame: Frame | undefined;
   iframes: IFrame[] = [];
+  sourceIdRecords: SourceIdRecord[] = [];
 
   constructor(init: {
     documentId?: string;
@@ -29,6 +38,25 @@ export class FrameDocument {
 
     makeAutoObservable(this, {
       iframes: observable.shallow,
+      sourceIdRecords: observable.shallow,
     });
+  }
+
+  addSourceIdRecord(record: SourceIdRecord): void {
+    const isDuplicate = this.sourceIdRecords.some(
+      r => r.sourceId === record.sourceId
+        && r.targetTabId === record.targetTabId
+        && r.targetFrameId === record.targetFrameId
+        && r.targetDocumentId === record.targetDocumentId,
+    );
+    if (!isDuplicate) {
+      this.sourceIdRecords.push(record);
+    }
+  }
+
+  mergeSourceIdRecords(other: FrameDocument): void {
+    for (const record of other.sourceIdRecords) {
+      this.addSourceIdRecord(record);
+    }
   }
 }
