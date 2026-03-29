@@ -159,6 +159,35 @@ export class FrameStore implements FrameLookup {
     return result;
   }
 
+  // Documents in documentsBySourceId that have no frame link — unplaced message sources
+  get unknownDocuments(): FrameDocument[] {
+    const result: FrameDocument[] = [];
+    for (const doc of this.documentsBySourceId.values()) {
+      if (!doc.frame) {
+        result.push(doc);
+      }
+    }
+    return result;
+  }
+
+  // Child frames of parentFrame that don't appear as childFrame on any IFrame in parentDocument.
+  // Only includes children whose parentDocumentId matches (or is unknown).
+  getUnknownChildFrames(parentFrame: Frame, parentDocument: FrameDocument): Frame[] {
+    const knownChildFrames = new Set<Frame>();
+    for (const iframe of parentDocument.iframes) {
+      if (iframe.childFrame) {
+        knownChildFrames.add(iframe.childFrame);
+      }
+    }
+    const parentDocId = parentDocument.documentId;
+    return parentFrame.children.filter(child => {
+      if (knownChildFrames.has(child)) return false;
+      // If we know the child's parent document, only include it under the matching document
+      if (child.parentDocumentId && parentDocId && child.parentDocumentId !== parentDocId) return false;
+      return true;
+    });
+  }
+
   // Called when hierarchy data arrives from webNavigation.getAllFrames()
   processHierarchy(frames: Array<{
     frameId: number;
@@ -180,6 +209,15 @@ export class FrameStore implements FrameLookup {
       const frame = this.getOrCreateFrame(frameData.tabId, frameData.frameId, frameData.parentFrameId);
       frame.parentFrameId = frameData.parentFrameId;
       frame.isOpener = frameData.isOpener ?? false;
+
+      // Derive parentDocumentId from the parent frame's current document
+      if (frameData.parentFrameId >= 0 && !frame.parentDocumentId) {
+        const parentFrame = this.getFrame(frameData.tabId, frameData.parentFrameId);
+        const parentDoc = parentFrame?.currentDocument;
+        if (parentDoc?.documentId) {
+          frame.parentDocumentId = parentDoc.documentId;
+        }
+      }
 
       let doc: FrameDocument | undefined;
       if (frameData.documentId) {

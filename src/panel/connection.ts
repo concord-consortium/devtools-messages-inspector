@@ -75,6 +75,13 @@ function _processIncomingMessage(msg: IMessage): void {
     if (msg.source.sourceId) {
       sourceDoc.sourceId = msg.source.sourceId;
       frameStore.documentsBySourceId.set(msg.source.sourceId, sourceDoc);
+      sourceDoc.addSourceIdRecord({
+        sourceId: msg.source.sourceId,
+        sourceType: msg.source.type,
+        targetTabId: msg.target.tabId,
+        targetFrameId: msg.target.frameId,
+        targetDocumentId: msg.target.documentId,
+      });
     }
   } else if (msg.source.sourceId) {
     const existing = frameStore.getDocumentBySourceId(msg.source.sourceId);
@@ -86,6 +93,13 @@ function _processIncomingMessage(msg: IMessage): void {
       sourceDoc = frameStore.getOrCreateDocumentBySourceId(msg.source.sourceId);
       sourceDoc.origin = msg.source.origin;
     }
+    sourceDoc.addSourceIdRecord({
+      sourceId: msg.source.sourceId,
+      sourceType: msg.source.type,
+      targetTabId: msg.target.tabId,
+      targetFrameId: msg.target.frameId,
+      targetDocumentId: msg.target.documentId,
+    });
   }
 
   // Link source FrameDocument to a Frame when tabId and frameId are available
@@ -170,6 +184,9 @@ function inferParentFrameId(msg: IMessage): void {
     const sourceFrame = frameStore.getOrCreateFrame(sourceTabId, msg.source.frameId);
     if (targetFrame && targetFrame.parentFrameId === undefined) {
       targetFrame.parentFrameId = sourceFrame.frameId;
+      if (msg.source.documentId) {
+        targetFrame.parentDocumentId = msg.source.documentId;
+      }
     }
   }
 
@@ -183,6 +200,9 @@ function inferParentFrameId(msg: IMessage): void {
     const targetFrame = frameStore.getFrame(msg.target.tabId, msg.target.frameId);
     if (sourceFrame && targetFrame && sourceFrame.parentFrameId === undefined) {
       sourceFrame.parentFrameId = targetFrame.frameId;
+      if (msg.target.documentId) {
+        sourceFrame.parentDocumentId = msg.target.documentId;
+      }
     }
   }
 }
@@ -191,7 +211,12 @@ function processRegistration(message: Message): void {
   const regData = message.registrationData!;
   const sourceId = message.sourceSourceId!;
 
-  const docBySourceId = frameStore.getDocumentBySourceId(sourceId);
+  // If the existing doc for this sourceId already has a different documentId,
+  // it represents a previously navigated-away document — don't touch it.
+  let docBySourceId = frameStore.getDocumentBySourceId(sourceId);
+  if (docBySourceId?.documentId && docBySourceId.documentId !== regData.documentId) {
+    docBySourceId = undefined;
+  }
   const docByDocId = frameStore.getDocumentById(regData.documentId);
 
   if (docBySourceId && docByDocId && docBySourceId !== docByDocId) {
@@ -199,15 +224,22 @@ function processRegistration(message: Message): void {
     if (docBySourceId.origin && !docByDocId.origin) {
       docByDocId.origin = docBySourceId.origin;
     }
+    docByDocId.mergeSourceIdRecords(docBySourceId);
+    docByDocId.changes.push({
+      time: Date.now(),
+      type: 'merge',
+      createdAtOfMerged: docBySourceId.createdAt,
+    });
     frameStore.documentsBySourceId.set(sourceId, docByDocId);
-  } else if (docBySourceId && !docByDocId) {
-    // Navigation: same WindowProxy, new documentId. Create fresh document.
-    const newDoc = new FrameDocument({ documentId: regData.documentId, sourceId: sourceId });
-    if (docBySourceId.origin && !newDoc.origin) {
-      newDoc.origin = docBySourceId.origin;
+    // Remove the superseded sourceId-only doc from its frame's documents array
+    if (docBySourceId.frame) {
+      const idx = docBySourceId.frame.documents.indexOf(docBySourceId);
+      if (idx !== -1) docBySourceId.frame.documents.splice(idx, 1);
     }
-    frameStore.documents.set(regData.documentId, newDoc);
-    frameStore.documentsBySourceId.set(sourceId, newDoc);
+  } else if (docBySourceId && !docByDocId) {
+    docBySourceId.documentId = regData.documentId;
+    frameStore.documents.set(regData.documentId, docBySourceId);
+    docBySourceId.changes.push({ time: Date.now(), type: 'promotion' });
   } else if (!docBySourceId && docByDocId) {
     docByDocId.sourceId = sourceId;
     frameStore.documentsBySourceId.set(sourceId, docByDocId);
@@ -243,6 +275,11 @@ function processRegistration(message: Message): void {
     if (targetFrame) {
       frame.parentFrameId = targetFrame.frameId;
     }
+  }
+
+  // Track which parent document this child frame belongs to
+  if (message.target.documentId) {
+    frame.parentDocumentId = message.target.documentId;
   }
 }
 

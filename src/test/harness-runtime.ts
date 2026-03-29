@@ -230,7 +230,7 @@ export class HarnessRuntime {
         this.env.bgOnTabRemoved.fire(event.tabId);
         break;
       case 'iframeRemoved':
-        // No-op for now
+        this.materializeIframeRemoved(event);
         break;
       case 'message':
         this.materializeMessage(event);
@@ -262,6 +262,25 @@ export class HarnessRuntime {
 
     tab.addFrame(childFrame);
     this.storeFrame(tabId, frameId, childFrame);
+  }
+
+  private materializeIframeRemoved(event: Extract<HierarchyEvent, { type: 'iframeRemoved' }>): void {
+    const { tabId, parentFrameId, iframeId } = event;
+    const parentFrame = this.lookupFrame(tabId, parentFrameId);
+    if (!parentFrame?.window) return;
+
+    // The iframe is still in the hierarchy state (marked stale). Find its child frameId.
+    const iframeNode = this.findIframeInHierarchyState(iframeId);
+    if (!iframeNode?.frame) return;
+
+    const childFrame = this.lookupFrame(tabId, iframeNode.frame.frameId);
+    if (!childFrame) return;
+
+    // Find the proxy that the parent window uses for this child frame
+    const proxy = parentFrame.window.getChildProxy(childFrame);
+    if (proxy) {
+      parentFrame.window.removeIframeElement(proxy);
+    }
   }
 
   private materializeOnCommitted(event: Extract<HierarchyEvent, { type: 'onCommitted' }>): void {
@@ -371,6 +390,38 @@ export class HarnessRuntime {
     for (const frame of tab.frames) {
       const found = this.findFrameRecursive(frame, frameId);
       if (found) return found;
+    }
+    return undefined;
+  }
+
+  private findIframeInHierarchyState(iframeId: number): IframeNode | undefined {
+    for (const tab of this.hierarchyState.root) {
+      const found = this.findIframeInTabNode(tab, iframeId);
+      if (found) return found;
+    }
+    return undefined;
+  }
+
+  private findIframeInTabNode(tab: TabNode, iframeId: number): IframeNode | undefined {
+    if (!tab.frames) return undefined;
+    for (const frame of tab.frames) {
+      const found = this.findIframeRecursive(frame, iframeId);
+      if (found) return found;
+    }
+    return undefined;
+  }
+
+  private findIframeRecursive(frame: FrameNode, iframeId: number): IframeNode | undefined {
+    if (!frame.documents) return undefined;
+    for (const doc of frame.documents) {
+      if (!doc.iframes) continue;
+      for (const iframe of doc.iframes) {
+        if (iframe.iframeId === iframeId) return iframe;
+        if (iframe.frame) {
+          const found = this.findIframeRecursive(iframe.frame, iframeId);
+          if (found) return found;
+        }
+      }
     }
     return undefined;
   }

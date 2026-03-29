@@ -269,6 +269,22 @@ export class HarnessWindow {
     this._iframeContainer.appendChild(el);
   }
 
+  /** Remove an iframe element whose contentWindow matches the given proxy. */
+  removeIframeElement(contentWindow: CrossOriginWindowProxy): void {
+    const iframes = this._iframeContainer.querySelectorAll('iframe');
+    for (const el of iframes) {
+      if ((el.contentWindow as unknown) === contentWindow) {
+        el.remove();
+        return;
+      }
+    }
+  }
+
+  /** Get the proxy for a child frame (if registered). */
+  getChildProxy(childFrame: HarnessFrame): CrossOriginWindowProxy | undefined {
+    return this._childProxies.get(childFrame);
+  }
+
   /** Register a proxy for a child frame (for dispatchMessage source resolution). */
   registerChildProxy(childFrame: HarnessFrame, proxy: CrossOriginWindowProxy): void {
     this._childProxies.set(childFrame, proxy);

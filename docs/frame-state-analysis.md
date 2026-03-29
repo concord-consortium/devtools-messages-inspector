@@ -20,6 +20,7 @@ MobX-observable `Frame`, `FrameDocument`, `Tab`, `IFrame`, and `OwnerElement` in
 - **Updated by:** Every incoming message (`processIncomingMessage`) and registration messages (`processRegistration`)
 - **Also updated by:** Hierarchy data (via `frameStore.processHierarchy()`)
 - **Stored in:** `frameStore.frames` (by `tabId:frameId`), `frameStore.documents` (by documentId), `frameStore.documentsBySourceId` (by sourceId), `frameStore.tabs` (by tabId)
+- **SourceId tracking:** Each FrameDocument maintains `sourceIdRecords: SourceIdRecord[]` — a log of every sourceId that has referred to the document, including the sourceType and target frame info from the message that established the reference. Records are added in `processIncomingMessage` and merged during `processRegistration`.
 
 ## Unified Frame Access
 
@@ -82,10 +83,16 @@ Message computed properties (`sourceFrame`, `targetFrame`, `sourceDocument`, `ta
 - Links them bidirectionally
 
 **Source side:**
-- If `documentId` is available (parent messages): creates FrameDocument by documentId
-- If only `sourceId` is available (child messages): creates FrameDocument by sourceId
+- If `documentId` is available (parent messages, opener messages): creates FrameDocument by documentId
+- If only `sourceId` is available (child messages, opened messages): creates FrameDocument by sourceId
 - If `tabId` and `frameId` are available: creates Frame and links to FrameDocument
 - For child messages, `frameId` is usually unknown until registration
+
+**Origin-change detection (sourceId-only path):**
+When a message arrives with only a `sourceId` (no `documentId`), the code checks whether the existing document for that sourceId has a different origin. If so, a new FrameDocument is created for the same sourceId, replacing the old one in `documentsBySourceId`. This handles cross-origin iframe navigations where the sourceId (tied to the WindowProxy) stays the same but the loaded document changes. Same-origin navigations are NOT detected here — they are handled later during registration.
+
+**SourceId records:**
+Each time a source document is created or updated from a message, a `SourceIdRecord` is added to the document. This tracks which sourceIds have referred to the document, along with the sourceType and the target frame info from the message that established the reference. This helps debug cases where multiple sourceIds map to the same document (e.g., a frame seen as both "child" and "opened").
 
 **Parent inference:**
 - After processing source and target, `inferParentFrameId()` checks the message's `sourceType` to set parent-child relationships on frames whose `parentFrameId` is still `undefined`
@@ -94,9 +101,33 @@ Message computed properties (`sourceFrame`, `targetFrame`, `sourceDocument`, `ta
 - `sourceOwnerElement`: For child messages, snapshot from `msg.source.iframe` (the iframe element properties as seen by the parent). For parent messages, derived via `frameStore.findOwnerIFrame(sourceFrame)` when the parent frame is itself hosted in an iframe. Not set for other source types.
 - `targetOwnerElement`: For any message where the target frame is hosted in an iframe, derived by looking up the IFrame entity via `frameStore.findOwnerIFrame(targetFrame)` and snapshotting its properties. Only available if the IFrame entity and its `childFrame` link have been established (via prior child messages, registration, or hierarchy).
 
+### Cross-tab document creation (opener/opened messages)
+
+Opener and opened messages involve frames in different tabs. The background enriches these messages differently:
+
+| Message direction | Source enrichment | Result |
+|---|---|---|
+| Opener → opened | Background does `webNavigation.getFrame()` on opener tab → source gets `tabId`, `frameId`, `documentId` | Source doc created via documentId path |
+| Opened → opener | Background looks up `openedWindowToTab` map → source gets `tabId`, `frameId` but NOT `documentId` | Source doc created via sourceId path |
+
+This means the same logical document (e.g., the opened tab's main frame) can initially exist as two FrameDocument instances: one keyed by documentId (from messages it receives) and one keyed by sourceId (from messages it sends). Registration merges these.
+
 ### When registration arrives (`processRegistration` in `connection.ts`)
 
 Registration messages merge the sourceId-keyed FrameDocument with the documentId-keyed FrameDocument, creating the link between the content-script-assigned sourceId and the browser-assigned documentId/frameId.
+
+**Navigation guard:** Before looking up the existing document by sourceId, `processRegistration` checks whether that document already has a *different* `documentId`. If so, the existing document represents a previously navigated-away page that happened to use the same WindowProxy (and thus the same sourceId). In this case, the old document is left untouched — `docBySourceId` is treated as `undefined`, and registration proceeds as if no sourceId document existed. This prevents the merge logic from incorrectly combining two distinct browser documents.
+
+**Merge branches:**
+
+| `docBySourceId` | `docByDocId` | Action |
+|---|---|---|
+| exists | exists (different object) | Merge into `docByDocId`: copy origin, sourceIdRecords; update `documentsBySourceId` to point to `docByDocId`; remove superseded sourceId-only doc from `frame.documents` |
+| exists | not found | Assign documentId to `docBySourceId` and add it to `frameStore.documents` |
+| not found | exists | Set sourceId on `docByDocId`; add to `documentsBySourceId` |
+| not found | not found | Create new doc with both keys; add to both maps |
+
+After merging, the registration links the final document to the frame and infers parent-child relationships from the registration target.
 
 ### When hierarchy is requested (`getFrameHierarchy` in `background-core.ts`, `processHierarchy` in `FrameStore.ts`)
 
@@ -135,6 +166,10 @@ After processing all frames:
 | Messages arrive before any hierarchy request | Frames appear in "Other known frames"; FrameFocusDropdown auto-triggers hierarchy request |
 | Hierarchy frame missing both documentId and sourceId | Frame is created but no FrameDocument is linked. Logs a warning. This shouldn't happen: `getAllFrames` entries always have `documentId`, and opener frames always have `sourceId` from the content script. |
 | Iframe element missing sourceId in hierarchy data | The iframe is skipped (no IFrame entity created). Logs a warning. This shouldn't happen: all iframe elements have a `contentWindow`, so the content script should always be able to assign a `sourceId`. |
+| Cross-tab opener/opened messages create duplicate docs | The same document can be created twice: once by documentId (as a message target or enriched opener source) and once by sourceId (as an opened source). Registration merges these into a single FrameDocument and removes the superseded placeholder from `frame.documents`. |
+| Cross-origin iframe navigation (same sourceId) | Origin-change detection in `processIncomingMessage` creates a fresh FrameDocument for the new origin when a sourceId-only message arrives with a different origin than the existing doc. The old doc remains in `frameStore` as a navigated-away document. |
+| Same-origin iframe navigation (same sourceId) | Origin-change detection does NOT fire (origins match). The old sourceId doc persists until registration arrives with a new documentId. The navigation guard in `processRegistration` detects that `docBySourceId` already has a different documentId and ignores it, preventing the old document from being incorrectly merged or removed. |
+| Registration for a sourceId whose doc already has a different documentId | The navigation guard in `processRegistration` treats `docBySourceId` as `undefined`, so the old document is completely untouched. Registration proceeds as if no sourceId document existed (creating a new doc or just updating `docByDocId`). |
 
 ## Key Files
 
@@ -144,7 +179,7 @@ After processing all frames:
 | [connection.ts](../src/panel/connection.ts) | `processIncomingMessage()`, `processRegistration()`, `inferParentFrameId()`, `requestFrameHierarchy()` |
 | [FrameStore.ts](../src/panel/models/FrameStore.ts) | `frames`, `documents`, `hierarchyRoots`, `nonHierarchyFrames`, `getFramesByParent()`, `currentHierarchyFrameKeys`, `processHierarchy()` |
 | [Frame.ts](../src/panel/models/Frame.ts) | Frame model (`parentFrameId?: number`, `documents`, `isOpener`, computed `children`, `currentDocument`) |
-| [FrameDocument.ts](../src/panel/models/FrameDocument.ts) | FrameDocument model (documentId, sourceId, url, origin, title, `iframes: IFrame[]`) |
+| [FrameDocument.ts](../src/panel/models/FrameDocument.ts) | FrameDocument model (documentId, sourceId, url, origin, title, `iframes: IFrame[]`, `sourceIdRecords: SourceIdRecord[]`) |
 | [Tab.ts](../src/panel/models/Tab.ts) | Tab model (tabId, rootFrame, opener/opened tab relationships) |
 | [IFrame.ts](../src/panel/models/IFrame.ts) | IFrame model (DOM element info: domPath, src, id, sourceId; links parentDocument ↔ childFrame; `removedFromHierarchy` flag) |
 | [Message.ts](../src/panel/Message.ts) | Computed: `sourceFrame`, `targetFrame`, `sourceDocument`, `targetDocument`; snapshots: `sourceOwnerElement`, `targetOwnerElement` |

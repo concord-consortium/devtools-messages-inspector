@@ -11,6 +11,7 @@ export class Frame {
   readonly tabId: number;
   readonly frameId: number;
   parentFrameId: number | undefined;
+  parentDocumentId: string | undefined;
   documents: FrameDocument[] = [];
   isOpener = false;
   private readonly frameLookup: FrameLookup;

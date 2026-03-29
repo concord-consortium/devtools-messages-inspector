@@ -35,6 +35,7 @@ describe('store.navigateToFrameMessages', () => {
 describe('store.viewFrameInEndpoints', () => {
   beforeEach(() => {
     store.selectFrame(null);
+    store.selectNode(null);
     store.setCurrentView('log');
   });
 
@@ -42,6 +43,51 @@ describe('store.viewFrameInEndpoints', () => {
     store.viewFrameInEndpoints(TAB_ID, 3);
 
     expect(store.selectedFrameKey).toBe(`${TAB_ID}:3`);
+    expect(store.selectedNode).toEqual({ type: 'iframe', tabId: TAB_ID, frameId: 3 });
     expect(store.currentView).toBe('endpoints');
+  });
+
+  it('selects root frame as tab node', () => {
+    store.viewFrameInEndpoints(TAB_ID, 0);
+
+    expect(store.selectedNode).toEqual({ type: 'tab', tabId: TAB_ID });
+    expect(store.currentView).toBe('endpoints');
+  });
+});
+
+describe('store.navigateToNodeMessages', () => {
+  beforeEach(() => {
+    store.setFilter('');
+    store.setFocusedFrame(null);
+    store.setCurrentView('endpoints');
+  });
+
+  it('tab node sets frame filter for frame[0]', () => {
+    store.navigateToNodeMessages({ type: 'tab', tabId: TAB_ID });
+
+    expect(store.focusedFrame).toEqual({ tabId: TAB_ID, frameId: 0 });
+    expect(store.filterText).toBe('frames:"tab[42].frame[0]"');
+    expect(store.currentView).toBe('log');
+  });
+
+  it('iframe node sets frame filter for that frame', () => {
+    store.navigateToNodeMessages({ type: 'iframe', tabId: TAB_ID, frameId: 5 });
+
+    expect(store.focusedFrame).toEqual({ tabId: TAB_ID, frameId: 5 });
+    expect(store.filterText).toBe('frames:"tab[42].frame[5]"');
+  });
+
+  it('document node sets documentId filter', () => {
+    store.navigateToNodeMessages({ type: 'document', documentId: 'doc-123' });
+
+    expect(store.focusedFrame).toBeNull();
+    expect(store.filterText).toBe('source.documentId:doc-123 OR target.documentId:doc-123');
+  });
+
+  it('unknown-document node sets sourceId filter', () => {
+    store.navigateToNodeMessages({ type: 'unknown-document', sourceId: 'win-abc' });
+
+    expect(store.focusedFrame).toBeNull();
+    expect(store.filterText).toBe('source.sourceId:win-abc');
   });
 });
