@@ -208,7 +208,7 @@ body {
 .table-pane {
   flex: 1;
   overflow: auto;
-  min-width: 200px;
+  min-width: 0;
 }
 
 #message-table {
@@ -342,24 +342,25 @@ body {
   cursor: col-resize;
   background: #cacdd1;
   flex-shrink: 0;
+  transition: background 0.15s;
 }
 
-.resize-handle:hover {
+.resize-handle:hover,
+.resize-handle[data-resize-handle-active] {
   background: #1a73e8;
+}
+
+.resize-handle.hidden {
+  display: none;
 }
 
 /* Detail pane */
 .detail-pane {
-  width: 40%;
-  min-width: 200px;
   display: flex;
   flex-direction: column;
   border-left: 1px solid #cacdd1;
   overflow: hidden;
-}
-
-.detail-pane.hidden {
-  display: none;
+  height: 100%;
 }
 
 .detail-tabs {

@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { copyFileSync, mkdirSync, existsSync } from 'fs';
+import { execSync } from 'child_process';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -63,8 +64,45 @@ function bundleContentScript() {
   };
 }
 
+// Virtual module that returns the current git branch on each request (dev only)
+function gitBranchPlugin(): Plugin {
+  const virtualId = 'virtual:git-branch';
+  const resolvedId = '\0' + virtualId;
+  return {
+    name: 'git-branch',
+    resolveId(id) {
+      if (id === virtualId) return resolvedId;
+    },
+    load(id) {
+      if (id === resolvedId) {
+        try {
+          const branch = execSync('git branch --show-current', { encoding: 'utf-8' }).trim();
+          return `export default ${JSON.stringify(branch)};`;
+        } catch {
+          return `export default "";`;
+        }
+      }
+    },
+    handleHotUpdate({ file, server }) {
+      // When HEAD changes (branch switch), invalidate the virtual module
+      if (file.endsWith('.git/HEAD') || file.endsWith('HEAD')) {
+        const mod = server.moduleGraph.getModuleById(resolvedId);
+        if (mod) {
+          server.moduleGraph.invalidateModule(mod);
+          return [mod];
+        }
+      }
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => ({
-  plugins: [react(), copyStaticFiles(), bundleContentScript()],
+  plugins: [
+    react(),
+    copyStaticFiles(),
+    bundleContentScript(),
+    ...(mode !== 'production' ? [gitBranchPlugin()] : []),
+  ],
 
   build: {
     outDir: 'dist',

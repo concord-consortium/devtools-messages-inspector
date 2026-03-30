@@ -2,6 +2,7 @@
 
 import { observer } from 'mobx-react-lite';
 import { useEffect, useState } from 'react';
+import { Group, Panel, Separator, usePanelRef } from 'react-resizable-panels';
 import { store } from '../../store';
 import { requestFrameHierarchy } from '../../connection';
 import { frameStore } from '../../models';
@@ -407,17 +408,7 @@ const NodeDetailPane = observer(() => {
   };
 
   if (!node) {
-    return (
-      <div className="detail-pane hidden">
-        <div className="detail-tabs">
-          <span className="detail-title">Details</span>
-          <button className="close-detail-btn" title="Close">×</button>
-        </div>
-        <div className="tab-content">
-          <div className="placeholder">Select a node to view details</div>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   return (
@@ -450,60 +441,6 @@ const NodeDetailPane = observer(() => {
   );
 });
 
-// --- Pane resize handle ---
-
-const ResizeHandle = () => {
-  const [isResizing, setIsResizing] = useState(false);
-
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isResizing) return;
-
-      const container = document.querySelector('#endpoints-view .main-content') as HTMLElement;
-      if (!container) return;
-
-      const containerWidth = container.offsetWidth;
-      const newDetailWidth = containerWidth - e.clientX;
-      const pct = Math.max(20, Math.min(70, (newDetailWidth / containerWidth) * 100));
-
-      const detailPane = container.querySelector('.detail-pane') as HTMLElement;
-      if (detailPane) {
-        detailPane.style.width = pct + '%';
-      }
-    };
-
-    const handleMouseUp = () => {
-      if (isResizing) {
-        setIsResizing(false);
-        document.body.style.cursor = '';
-      }
-    };
-
-    if (isResizing) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-    }
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isResizing]);
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsResizing(true);
-    document.body.style.cursor = 'col-resize';
-  };
-
-  return (
-    <div
-      className="resize-handle"
-      onMouseDown={handleMouseDown}
-    />
-  );
-};
-
 // --- Top bar ---
 
 const EndpointsTopBar = () => {
@@ -524,6 +461,8 @@ const EndpointsTopBar = () => {
 
 export const EndpointsView = observer(() => {
   const isActive = store.currentView === 'endpoints';
+  const showDetail = !!store.selectedNode;
+  const detailPanelRef = usePanelRef();
 
   // Request hierarchy when view becomes active
   useEffect(() => {
@@ -532,13 +471,34 @@ export const EndpointsView = observer(() => {
     }
   }, [isActive]);
 
+  useEffect(() => {
+    if (showDetail) {
+      detailPanelRef.current?.expand();
+    } else {
+      detailPanelRef.current?.collapse();
+    }
+  }, [showDetail, detailPanelRef]);
+
   return (
     <div id="endpoints-view" className={`view endpoints-view ${isActive ? 'active' : ''}`}>
       <EndpointsTopBar />
       <div className="main-content">
-        <TreeView />
-        <ResizeHandle />
-        <NodeDetailPane />
+        <Group>
+          <Panel minSize="30%">
+            <TreeView />
+          </Panel>
+          <Separator className={`resize-handle${showDetail ? '' : ' hidden'}`} disabled={!showDetail} />
+          <Panel
+            panelRef={detailPanelRef}
+            defaultSize="40%"
+            minSize="20%"
+            maxSize="70%"
+            collapsible
+            collapsedSize={0}
+          >
+            <NodeDetailPane />
+          </Panel>
+        </Group>
       </div>
     </div>
   );

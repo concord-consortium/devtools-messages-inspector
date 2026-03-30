@@ -66,17 +66,16 @@ test.describe('detail panel', () => {
     await sendAndWait(page, 'window.harness.sendChildToParent({ type: "detail-test", payload: [1, 2, 3] })');
 
     const view = page.locator(logView);
-
     const detailPane = view.locator('.detail-pane');
 
-    // Detail pane should be hidden initially
-    await expect(detailPane).toHaveClass(/hidden/);
+    // Detail pane panel should be collapsed initially
+    await expect(detailPane).not.toBeVisible();
 
     // Click the row
     await page.locator('#message-table tbody tr').first().click();
 
     // Detail pane should now be visible
-    await expect(detailPane).not.toHaveClass(/hidden/);
+    await expect(detailPane).toBeVisible();
 
     // Should show the JSON data
     await expect(view.locator('.json-tree')).toContainText('detail-test');
@@ -84,15 +83,14 @@ test.describe('detail panel', () => {
 
   test('close button hides the detail panel', async ({ page }) => {
     const view = page.locator(logView);
-
     const detailPane = view.locator('.detail-pane');
 
     await sendAndWait(page, 'window.harness.sendChildToParent({ type: "close-test" })');
     await page.locator('#message-table tbody tr').first().click();
-    await expect(detailPane).not.toHaveClass(/hidden/);
+    await expect(detailPane).toBeVisible();
 
     await view.locator('.close-detail-btn').click();
-    await expect(detailPane).toHaveClass(/hidden/);
+    await expect(detailPane).not.toBeVisible();
   });
 });
 
@@ -549,6 +547,41 @@ function sourceSectionHasField(label: string): boolean {
   }
   return false;
 }
+
+test.describe('detail pane resize', () => {
+  test('resize handle tracks mouse position during drag', async ({ page }) => {
+    // Open the detail pane by clicking a row
+    await sendAndWait(page, 'window.harness.sendChildToParent({ type: "resize-test" })');
+    await page.locator('#message-table tbody tr').first().click();
+
+    const view = page.locator(logView);
+    await expect(view.locator('.detail-pane')).toBeVisible();
+
+    const handle = view.locator('.resize-handle');
+    const handleBox = (await handle.boundingBox())!;
+
+    // Start dragging from the center of the handle
+    const startX = handleBox.x + handleBox.width / 2;
+    const startY = handleBox.y + handleBox.height / 2;
+
+    // Move the handle 100px to the left (making detail pane wider)
+    const dragDeltaX = -100;
+    const targetX = startX + dragDeltaX;
+
+    await page.mouse.move(startX, startY);
+    await page.mouse.down();
+    await page.mouse.move(targetX, startY, { steps: 10 });
+
+    // The resize handle should now be near the mouse position.
+    const handleBoxAfter = (await handle.boundingBox())!;
+    const handleCenterAfter = handleBoxAfter.x + handleBoxAfter.width / 2;
+
+    // Allow 10px tolerance for rounding, but large offsets (e.g. sidebar width) should fail
+    expect(Math.abs(handleCenterAfter - targetX)).toBeLessThan(10);
+
+    await page.mouse.up();
+  });
+});
 
 test.describe('late registration reactivity', () => {
   test('source frame info visible in context pane after registration', async ({ page }) => {
