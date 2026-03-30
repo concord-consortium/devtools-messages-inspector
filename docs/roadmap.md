@@ -1,4 +1,13 @@
 # Remaining for Version 1
+- the extension is crashing sometimes, it goes completely blank, there is what looks like a separate error described below.
+- the extension has errors on this line:
+```
+ Pn.postMessage({
+        type: "get-frame-hierarchy",
+        tabId: T.tabId
+    })
+```
+With the message Attempting to use a disconnected port object. This is a message sent to the background. So somehow the background is getting disconnected. It looks like this can happen often since we have some automatic reconnecting logic in connection.ts. So it seems like the messages connecting the background should retry.
 - review the details of the endpoints, they don't seem consistent between the different types.
 - it will be useful if we can record a "session" of messages/events between the panel and the background. Then we can setup the panel with specific settings and then replay the session. This might help reproduce issues that only show up in the real extension within the test harness environment. This has a few questions though: when does the session start recording? How is the session recording enabled? Should we also record any settings or other chrome calls made by the panel?
 - see if we can add iframe elements to console when clicked on in hierarchy
@@ -19,14 +28,12 @@
 
 - truncate long values in the context pane with some way to see the full value.
 - clean up the left side
-- show opened windows in the hierarchy
 - unknown openers (no openedTabs mapping) don't get a Frame in FrameStore because Frame requires numeric tabId/frameId. To support them, Frame would need to work without tab/frame IDs.
 
 - update documentation on matching up iframes with frameIds, the issue linked in the doc is nuanced. It sounds like it will not be fixed for a while, but perhaps a new issue that provides the documentId would be something better.
 - improve UI to better match the rest of the dev tools styling
 - show a banner when the extension is reloaded/updated while the panel is open, telling the user to reopen DevTools
 - update frame id syntax so it is more liqe friendly, perhaps just tX.fY
-- in an opened tab, the registration messages sent to the opener, should identify that tab/frame as the opener. We don't really have a target type, but this might be a reason for one. When we look at the endpoints this endpoint seems to be identified as an opener and is labeled with a "source type" of "opener". I'm not sure what the point is here, but it seems there is something missing, perhaps just adding a target type.
 - create a website for the extension, could just be github.io
 - deploy test harness page, and manual testing page to this website
 

@@ -1266,4 +1266,113 @@ describe('Frame model integration', () => {
       expect(unknowns[0].frameId).toBe(2);
     });
   });
+
+  // ===================================================================
+  // iframesBySourceId — linking documents to frames via IFrame sourceId
+  // ===================================================================
+  describe('iframesBySourceId linking', () => {
+    it('populates iframesBySourceId when hierarchy includes iframe with sourceId', () => {
+      store.setFrameHierarchy([
+        { frameId: 0, tabId: TAB_ID, documentId: FRAME_A.documentId, url: FRAME_A.url, parentFrameId: -1, title: FRAME_A.title, origin: FRAME_A.origin, iframes: [{ ...FRAME_B.iframe, sourceId: FRAME_B.sourceId }] },
+        { frameId: 1, tabId: TAB_ID, documentId: FRAME_B.documentId, url: FRAME_B.url, parentFrameId: 0, title: FRAME_B.title, origin: FRAME_B.origin, iframes: [] },
+      ]);
+
+      const iframe = frameStore.iframesBySourceId.get(FRAME_B.sourceId);
+      expect(iframe).toBeDefined();
+      expect(iframe!.sourceId).toBe(FRAME_B.sourceId);
+    });
+
+    it('links orphaned document to child frame when registration establishes IFrame.childFrame', () => {
+      // Step 1: A child message arrives (no registration), creating a sourceId-only document
+      processIncomingMessage(childMsg(FRAME_B, FRAME_A));
+      const doc = frameStore.getDocumentBySourceId(FRAME_B.sourceId);
+      expect(doc).toBeDefined();
+      expect(doc!.frame).toBeUndefined();
+
+      // Step 2: Registration arrives, establishing the IFrame.childFrame link
+      processIncomingMessage(registrationMsg(FRAME_B, FRAME_A));
+
+      // Step 3: Hierarchy arrives — IFrame has childFrame, orphan doc gets linked
+      store.setFrameHierarchy([
+        { frameId: 0, tabId: TAB_ID, documentId: FRAME_A.documentId, url: FRAME_A.url, parentFrameId: -1, title: FRAME_A.title, origin: FRAME_A.origin, iframes: [{ ...FRAME_B.iframe, sourceId: FRAME_B.sourceId }] },
+        { frameId: 1, tabId: TAB_ID, documentId: FRAME_B.documentId, url: FRAME_B.url, parentFrameId: 0, title: FRAME_B.title, origin: FRAME_B.origin, iframes: [] },
+      ]);
+
+      // The IFrame should have a childFrame link
+      const iframe = frameStore.iframesBySourceId.get(FRAME_B.sourceId)!;
+      expect(iframe.childFrame).toBeDefined();
+      expect(iframe.childFrame!.frameId).toBe(1);
+    });
+
+    it('links new document to child frame when IFrame.childFrame already exists', () => {
+      // Set up: registration establishes IFrame→childFrame link
+      processIncomingMessage(childMsg(FRAME_B, FRAME_A));
+      processIncomingMessage(registrationMsg(FRAME_B, FRAME_A));
+      store.setFrameHierarchy([
+        { frameId: 0, tabId: TAB_ID, documentId: FRAME_A.documentId, url: FRAME_A.url, parentFrameId: -1, title: FRAME_A.title, origin: FRAME_A.origin, iframes: [{ ...FRAME_B.iframe, sourceId: FRAME_B.sourceId }] },
+        { frameId: 1, tabId: TAB_ID, documentId: FRAME_B.documentId, url: FRAME_B.url, parentFrameId: 0, title: FRAME_B.title, origin: FRAME_B.origin, iframes: [] },
+      ]);
+
+      const iframe = frameStore.iframesBySourceId.get(FRAME_B.sourceId)!;
+      expect(iframe.childFrame).toBeDefined();
+
+      // Create a new IFrame with a known childFrame (simulating a second iframe)
+      const newSourceId = 'win-B-new';
+      const parentDoc = frameStore.getFrame(TAB_ID, 0)!.currentDocument!;
+      const newIframe = frameStore.getOrCreateIFrame(parentDoc, newSourceId, FRAME_B.iframe);
+      newIframe.childFrame = frameStore.getFrame(TAB_ID, 1);
+
+      // Now create a document by this sourceId — should auto-link to childFrame
+      const doc = frameStore.getOrCreateDocumentBySourceId(newSourceId);
+      expect(doc.frame).toBeDefined();
+      expect(doc.frame!.frameId).toBe(1);
+    });
+
+    it('without registration, orphaned doc is accessible via IFrame.orphanedDocument', () => {
+      // Hierarchy first — IFrame created but no childFrame (can't match without registration)
+      store.setFrameHierarchy([
+        { frameId: 0, tabId: TAB_ID, documentId: FRAME_A.documentId, url: FRAME_A.url, parentFrameId: -1, title: FRAME_A.title, origin: FRAME_A.origin, iframes: [{ ...FRAME_B.iframe, sourceId: FRAME_B.sourceId }] },
+        { frameId: 1, tabId: TAB_ID, documentId: FRAME_B.documentId, url: FRAME_B.url, parentFrameId: 0, title: FRAME_B.title, origin: FRAME_B.origin, iframes: [] },
+      ]);
+
+      // Child message without registration — IFrame has no childFrame
+      processIncomingMessage(childMsg(FRAME_B, FRAME_A));
+
+      const iframe = frameStore.iframesBySourceId.get(FRAME_B.sourceId)!;
+      expect(iframe.childFrame).toBeUndefined();
+
+      // The orphaned doc should be accessible via the IFrame
+      expect(iframe.orphanedDocument).toBeDefined();
+      expect(iframe.orphanedDocument!.sourceId).toBe(FRAME_B.sourceId);
+
+      // It should NOT appear in unknownDocuments since it's claimed by an IFrame
+      expect(frameStore.unknownDocuments).toHaveLength(0);
+    });
+
+    it('orphanedDocument is undefined when IFrame has a childFrame', () => {
+      // Full setup with registration — IFrame gets childFrame
+      processIncomingMessage(childMsg(FRAME_B, FRAME_A));
+      processIncomingMessage(registrationMsg(FRAME_B, FRAME_A));
+      store.setFrameHierarchy([
+        { frameId: 0, tabId: TAB_ID, documentId: FRAME_A.documentId, url: FRAME_A.url, parentFrameId: -1, title: FRAME_A.title, origin: FRAME_A.origin, iframes: [{ ...FRAME_B.iframe, sourceId: FRAME_B.sourceId }] },
+        { frameId: 1, tabId: TAB_ID, documentId: FRAME_B.documentId, url: FRAME_B.url, parentFrameId: 0, title: FRAME_B.title, origin: FRAME_B.origin, iframes: [] },
+      ]);
+
+      const iframe = frameStore.iframesBySourceId.get(FRAME_B.sourceId)!;
+      expect(iframe.childFrame).toBeDefined();
+      // When childFrame exists, documents are on the frame — no orphan
+      expect(iframe.orphanedDocument).toBeUndefined();
+    });
+
+    it('orphanedDocument is undefined when no document exists for sourceId', () => {
+      // Hierarchy only, no messages — IFrame exists but no document for its sourceId
+      store.setFrameHierarchy([
+        { frameId: 0, tabId: TAB_ID, documentId: FRAME_A.documentId, url: FRAME_A.url, parentFrameId: -1, title: FRAME_A.title, origin: FRAME_A.origin, iframes: [{ ...FRAME_B.iframe, sourceId: FRAME_B.sourceId }] },
+        { frameId: 1, tabId: TAB_ID, documentId: FRAME_B.documentId, url: FRAME_B.url, parentFrameId: 0, title: FRAME_B.title, origin: FRAME_B.origin, iframes: [] },
+      ]);
+
+      const iframe = frameStore.iframesBySourceId.get(FRAME_B.sourceId)!;
+      expect(iframe.orphanedDocument).toBeUndefined();
+    });
+  });
 });

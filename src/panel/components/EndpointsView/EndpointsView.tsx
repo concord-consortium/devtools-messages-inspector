@@ -47,15 +47,15 @@ const ExpandToggle = ({ expanded, onToggle }: { expanded: boolean; onToggle: () 
 
 const DocumentNode = observer(({ doc, frame, depth, isNavigatedAway }: {
   doc: FrameDocument;
-  frame: Frame;
+  frame?: Frame;
   depth: number;
-  isNavigatedAway: boolean;
+  isNavigatedAway?: boolean;
 }) => {
   const [expanded, setExpanded] = useState(true);
   const nodeId = documentNodeId(doc);
   const isSelected = nodesEqual(store.selectedNode, nodeId);
   const label = doc.url || doc.origin || doc.sourceId || '(unknown)';
-  const unknownChildren = frameStore.getUnknownChildFrames(frame, doc);
+  const unknownChildren = frame ? frameStore.getUnknownChildFrames(frame, doc) : [];
   const hasChildren = doc.iframes.length > 0 || unknownChildren.length > 0;
 
   return (
@@ -94,7 +94,8 @@ const IFrameNode = observer(({ iframe, depth }: { iframe: IFrame; depth: number 
     ? { type: 'iframe', tabId: childFrame.tabId, frameId: childFrame.frameId, iframeRef: iframe }
     : null;
   const isSelected = nodeId ? nodesEqual(store.selectedNode, nodeId) : false;
-  const hasChildren = childFrame && childFrame.documents.length > 0;
+  const orphanDoc = iframe.orphanedDocument;
+  const hasChildren = (childFrame && childFrame.documents.length > 0) || orphanDoc;
 
   return (
     <div className="tree-node-group">
@@ -110,6 +111,9 @@ const IFrameNode = observer(({ iframe, depth }: { iframe: IFrame; depth: number 
       </div>
       {expanded && childFrame && (
         <FrameDocuments frame={childFrame} depth={depth + 1} />
+      )}
+      {expanded && !childFrame && orphanDoc && (
+        <DocumentNode doc={orphanDoc} depth={depth + 1} />
       )}
     </div>
   );

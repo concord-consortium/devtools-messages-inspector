@@ -13,6 +13,8 @@ export class FrameStore implements FrameLookup {
   documents = observable.map<string, FrameDocument>();
   // Secondary index for source correlation
   documentsBySourceId = observable.map<string, FrameDocument>();
+  // Index from iframe contentWindow sourceId to IFrame entity
+  iframesBySourceId = observable.map<string, IFrame>();
   currentHierarchyFrameKeys = observable.set<string>();
   tabs = observable.map<number, Tab>();
 
@@ -21,6 +23,7 @@ export class FrameStore implements FrameLookup {
       frames: false,
       documents: false,
       documentsBySourceId: false,
+      iframesBySourceId: false,
       currentHierarchyFrameKeys: false,
       tabs: false,
     });
@@ -84,6 +87,14 @@ export class FrameStore implements FrameLookup {
     if (!doc) {
       doc = new FrameDocument({ sourceId });
       this.documentsBySourceId.set(sourceId, doc);
+      // If an IFrame with this sourceId has a linked child frame, place the doc there
+      const iframe = this.iframesBySourceId.get(sourceId);
+      if (iframe?.childFrame && !doc.frame) {
+        doc.frame = iframe.childFrame;
+        if (!iframe.childFrame.documents.includes(doc)) {
+          iframe.childFrame.documents.push(doc);
+        }
+      }
     }
     return doc;
   }
@@ -113,9 +124,11 @@ export class FrameStore implements FrameLookup {
       iframeInfo?.domPath ?? '',
       iframeInfo?.src,
       iframeInfo?.id,
+      this,
     );
     if (sourceId) {
       iframe.sourceId = sourceId;
+      this.iframesBySourceId.set(sourceId, iframe);
     }
     parentDocument.iframes.push(iframe);
     return iframe;
@@ -159,11 +172,11 @@ export class FrameStore implements FrameLookup {
     return result;
   }
 
-  // Documents in documentsBySourceId that have no frame link — unplaced message sources
+  // Documents in documentsBySourceId that have no frame link and no owning IFrame
   get unknownDocuments(): FrameDocument[] {
     const result: FrameDocument[] = [];
-    for (const doc of this.documentsBySourceId.values()) {
-      if (!doc.frame) {
+    for (const [sourceId, doc] of this.documentsBySourceId.entries()) {
+      if (!doc.frame && !this.iframesBySourceId.has(sourceId)) {
         result.push(doc);
       }
     }
@@ -267,6 +280,16 @@ export class FrameStore implements FrameLookup {
           if (childFrame) {
             iframe.childFrame = childFrame;
           }
+          // If a document exists for this sourceId but has no frame, link it to the child frame
+          if (iframe.childFrame) {
+            const orphanDoc = this.documentsBySourceId.get(iframeData.sourceId);
+            if (orphanDoc && !orphanDoc.frame) {
+              orphanDoc.frame = iframe.childFrame;
+              if (!iframe.childFrame.documents.includes(orphanDoc)) {
+                iframe.childFrame.documents.push(orphanDoc);
+              }
+            }
+          }
         }
 
         // Mark iframes that were previously known but absent from this hierarchy refresh
@@ -283,6 +306,7 @@ export class FrameStore implements FrameLookup {
     this.frames.clear();
     this.documents.clear();
     this.documentsBySourceId.clear();
+    this.iframesBySourceId.clear();
     this.currentHierarchyFrameKeys.clear();
     this.tabs.clear();
   }
