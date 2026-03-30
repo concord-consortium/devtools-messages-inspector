@@ -13,6 +13,7 @@ export interface Settings {
   showInternalFields: boolean;
   enableFrameRegistration: boolean;
   showRegistrationMessages: boolean;
+  registrationDelayMs: number;
   globalFilter: string;
   globalFilterEnabled: boolean;
 }

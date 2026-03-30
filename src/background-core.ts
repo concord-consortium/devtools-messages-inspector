@@ -121,8 +121,9 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
 
   async function sendRegistrationMessages(tabId: number, frameId: number): Promise<void> {
     try {
-      const result = await chrome.storage.local.get(['enableFrameRegistration']);
+      const result = await chrome.storage.local.get(['enableFrameRegistration', 'registrationDelayMs']);
       const enabled = result.enableFrameRegistration !== false;
+      const delayMs = typeof result.registrationDelayMs === 'number' ? result.registrationDelayMs : 500;
 
       if (enabled) {
         let documentId: string | undefined;
@@ -141,7 +142,7 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
           documentId,
         };
 
-        setTimeout(async () => {
+        const sendMessages = async () => {
           try {
             const parentMsg: SendMessageMessage = {
               type: 'send-message',
@@ -159,7 +160,12 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
           } catch (e) {
             console.debug('[Messages] sendRegistrationMessages failed for', { tabId, frameId }, e);
           }
-        }, 500);
+        };
+        if (delayMs > 0) {
+          setTimeout(sendMessages, delayMs);
+        } else {
+          sendMessages();
+        }
       }
     } catch (e) {
       console.warn('[Messages] sendRegistrationMessages failed for', { tabId, frameId }, e);

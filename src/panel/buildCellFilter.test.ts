@@ -47,6 +47,7 @@ describe('buildCellFilter', () => {
       showInternalFields: false,
       enableFrameRegistration: true,
       showRegistrationMessages: false,
+      registrationDelayMs: 500,
       globalFilter: '',
       globalFilterEnabled: true,
     };

@@ -49,6 +49,7 @@ class PanelStore {
     showInternalFields: false,
     enableFrameRegistration: true,
     showRegistrationMessages: false,
+    registrationDelayMs: 500,
     globalFilter: '',
     globalFilterEnabled: true,
   };

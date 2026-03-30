@@ -74,6 +74,22 @@ const SettingsView = observer(() => (
         />
         Show registration messages in table
       </label>
+      <label className="settings-item nested">
+        Registration delay (ms):
+        <input
+          type="number"
+          min={0}
+          step={10}
+          value={store.settings.registrationDelayMs}
+          disabled={!store.settings.enableFrameRegistration}
+          onChange={(e) => {
+            const value = Math.max(0, parseInt(e.target.value, 10) || 0);
+            store.updateSettings({ registrationDelayMs: value });
+            chrome.storage.local.set({ registrationDelayMs: value });
+          }}
+          style={{ width: '60px', marginLeft: '6px' }}
+        />
+      </label>
       <div className="settings-section">
         <h4>Global Filter</h4>
         <p className="settings-description">
