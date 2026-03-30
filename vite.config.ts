@@ -97,7 +97,12 @@ function gitBranchPlugin(): Plugin {
 }
 
 export default defineConfig(({ mode }) => ({
-  plugins: [react(), copyStaticFiles(), bundleContentScript(), gitBranchPlugin()],
+  plugins: [
+    react(),
+    copyStaticFiles(),
+    bundleContentScript(),
+    ...(mode !== 'production' ? [gitBranchPlugin()] : []),
+  ],
 
   build: {
     outDir: 'dist',

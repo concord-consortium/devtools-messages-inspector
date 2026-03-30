@@ -1,5 +1,4 @@
 import React from 'react';
-// @ts-ignore — virtual module provided by vite plugin
 import gitBranch from 'virtual:git-branch';
 
 export const HARNESS_EXAMPLES = [
