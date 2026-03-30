@@ -350,6 +350,10 @@ body {
   background: #1a73e8;
 }
 
+.resize-handle.hidden {
+  display: none;
+}
+
 /* Detail pane */
 .detail-pane {
   display: flex;
