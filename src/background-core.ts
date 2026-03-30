@@ -33,7 +33,7 @@ export interface BackgroundChrome {
   webNavigation: {
     getAllFrames(details: { tabId: number }): Promise<Array<{ frameId: number; parentFrameId: number; documentId?: string; url: string }> | null>;
     getFrame(details: { tabId: number; frameId: number }): Promise<{ documentId?: string; parentFrameId?: number; url?: string } | null>;
-    onCommitted: { addListener(cb: (details: { tabId: number; frameId: number; url: string }) => void): void };
+    onCommitted: { addListener(cb: (details: { tabId: number; frameId: number; url: string; transitionType: string; transitionQualifiers: string[] }) => void): void };
     onCreatedNavigationTarget: { addListener(cb: (details: { sourceTabId: number; sourceFrameId: number; tabId: number; url: string }) => void): void };
   };
   storage: { local: { get(keys: string | string[]): Promise<Record<string, any>> } };
@@ -492,7 +492,8 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
 
   // Handle navigation events
   chrome.webNavigation.onCommitted.addListener((details) => {
-    const { tabId, frameId } = details;
+    const { tabId, frameId, transitionType, transitionQualifiers } = details;
+    console.debug(`[Messages] onCommitted tab=${tabId} frame=${frameId} type=${transitionType} qualifiers=${transitionQualifiers.join(',')} url=${details.url}`);
     const isMonitored = panelConnections.has(tabId);
     const needsBuffering = bufferingEnabledTabs.has(tabId);
 

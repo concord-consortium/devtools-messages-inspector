@@ -10,7 +10,7 @@ import { App } from './components/App';
 (window as any).frameStore = frameStore;
 (window as any).store = store;
 
-console.debug('[Frames] panel loaded');
+console.debug('[Messages] panel loaded');
 
 // Initialize panel
 async function init(): Promise<void> {

@@ -25,7 +25,7 @@ export class ChromeExtensionEnv {
   // Events for the background service worker's listener registrations
   readonly bgOnConnect = new ChromeEvent<(port: any) => void>();
   readonly bgRuntimeOnMessage = new ChromeEvent<(msg: any, sender: any, sendResponse: any) => void>();
-  readonly bgOnCommitted = new ChromeEvent<(details: any) => void>();
+  readonly bgOnCommitted = new ChromeEvent<(details: { tabId: number; frameId: number; url: string; transitionType: string; transitionQualifiers: string[] }) => void>();
   readonly bgOnCreatedNavTarget = new ChromeEvent<(details: any) => void>();
   readonly bgOnTabRemoved = new ChromeEvent<(tabId: number) => void>();
 

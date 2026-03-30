@@ -146,7 +146,7 @@ export class HarnessRuntime {
     this.storeFrame(tab.id, frameNode.frameId, frame);
 
     // Fire onCommitted for the initial load
-    this.env.bgOnCommitted.fire({ tabId: tab.id, frameId: frameNode.frameId, url });
+    this.env.bgOnCommitted.fire({ tabId: tab.id, frameId: frameNode.frameId, url, transitionType: 'link', transitionQualifiers: [] });
 
     // Materialize iframes in the active document
     if (doc?.iframes) {
@@ -196,7 +196,7 @@ export class HarnessRuntime {
     this.storeFrame(tab.id, childFrameNode.frameId, childFrame);
 
     // Fire onCommitted
-    this.env.bgOnCommitted.fire({ tabId: tab.id, frameId: childFrameNode.frameId, url });
+    this.env.bgOnCommitted.fire({ tabId: tab.id, frameId: childFrameNode.frameId, url, transitionType: 'auto_subframe', transitionQualifiers: [] });
 
     // Recurse into nested iframes
     if (childDoc?.iframes) {
@@ -331,7 +331,7 @@ export class HarnessRuntime {
       frame.window = newWin;
     }
 
-    this.env.bgOnCommitted.fire({ tabId, frameId, url });
+    this.env.bgOnCommitted.fire({ tabId, frameId, url, transitionType: 'link', transitionQualifiers: [] });
   }
 
   private materializeOnTabCreated(event: Extract<HierarchyEvent, { type: 'onTabCreated' }>): void {

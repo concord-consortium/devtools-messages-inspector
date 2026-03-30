@@ -12,7 +12,7 @@ export class HarnessTab {
   readonly frames = new Map<number, HarnessFrame>();
 
   /** Fired when a frame in this tab navigates or loads. Assigned by ChromeExtensionEnv to bgOnCommitted. */
-  onCommitted: ChromeEvent<(details: { tabId: number; frameId: number; url: string }) => void> =
+  onCommitted: ChromeEvent<(details: { tabId: number; frameId: number; url: string; transitionType: string; transitionQualifiers: string[] }) => void> =
     new ChromeEvent();
 
   constructor(id: number) {
