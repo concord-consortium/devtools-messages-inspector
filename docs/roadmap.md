@@ -1,6 +1,5 @@
 # Remaining for Version 1
-- find a more precise way to know when we can send the registration messages we could try sending them every 10ms as a test and also record various event times to see if we can figure out which event has to fire before the registration message goes through.
-- the extension is crashing sometimes, it goes completely blank, there is what looks like a separate error described below.
+- the extension is crashing sometimes, it goes completely blank, I have seen the error below when this happens, but I'm not sure it is related.
 - the extension has errors on this line:
 ```
  Pn.postMessage({
@@ -17,12 +16,8 @@ With the message Attempting to use a disconnected port object. This is a message
   - Challenge: need to get a reference to the iframe element; could use a selector or store references in injected.js
   - For cross-origin: the iframe element itself is in the parent frame, so this should work even though iframe contents are cross-origin
 - see if we can add an option to a context menu in the elements tab to hierarchy view
-- figure out how to make the hierarchy table more advanced:
-  - resizable columns
-  - sortable columns (how do we deal with hierarchy view)
 - fix table column resize handles they are hard to select
 - update details pane in messages view, probably details should be default and first and content second
-- the pane on right of messages that comes out doesn't behave correctly on resize
 - the reload icon on the endpoints page is broken
 - the endpoints page should automatically update when it can. With the test harness actions this should be easier to implement and test now
 - The Hierarchy Map should support a mode where the frame is collapsed into its parent node. So this way the Tab represents itself plus its Frame. And the IFrame represents itself plus its Frame. This will reduce the number of containers shown and make it easier for someone to reason about without getting bogged down in the Frame construct the browser is using underneath. It still keeps the Document concept since there can multiple of those.
@@ -33,6 +28,7 @@ With the message Attempting to use a disconnected port object. This is a message
 
 - update documentation on matching up iframes with frameIds, the issue linked in the doc is nuanced. It sounds like it will not be fixed for a while, but perhaps a new issue that provides the documentId would be something better.
 - improve UI to better match the rest of the dev tools styling
+- revise the icon buttons on the message details pane, the current icons aren't clear. Perhaps they should be regular buttons.
 - show a banner when the extension is reloaded/updated while the panel is open, telling the user to reopen DevTools
 - update frame id syntax so it is more liqe friendly, perhaps just tX.fY
 - create a website for the extension, could just be github.io
@@ -44,6 +40,8 @@ With the message Attempting to use a disconnected port object. This is a message
 
 # Version 1.1
 - import button
+- find a more precise way to know when we can send the registration messages we could try sending them every 10ms as a test and also record various event times to see if we can figure out which event has to fire before the registration message goes through.
+- consider a mixed tree and table hierarchy view. This would let us show more info about each iframe and document. However with the different types it isn't clear how to do this.
 
 # Version 2
 - add timing view: a sequence diagram with one row per frame, x axis can be based on time, we'll need scaling.
