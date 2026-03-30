@@ -369,6 +369,8 @@ class PanelStore {
         return `source.documentId:${node.documentId} OR target.documentId:${node.documentId}`;
       case 'document-by-sourceId':
         return `source.sourceId:${node.sourceId}`;
+      case 'iframe-element':
+        return `source.sourceId:${node.sourceId}`;
       case 'unknown-document':
         return `source.sourceId:${node.sourceId}`;
     }

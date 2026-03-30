@@ -387,6 +387,7 @@ function getDetailTitle(node: SelectedNode): string {
     case 'document':
     case 'document-by-sourceId': return 'Document Details';
     case 'iframe': return 'IFrame Details';
+    case 'iframe-element': return 'IFrame Details';
     case 'unknown-iframe': return 'Unknown IFrame Details';
     case 'unknown-document': return 'Unknown Document Details';
   }
