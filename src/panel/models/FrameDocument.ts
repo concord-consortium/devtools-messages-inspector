@@ -53,12 +53,7 @@ export class FrameDocument {
   }
 
   addSourceIdRecord(record: SourceIdRecord): void {
-    const isDuplicate = this.sourceIdRecords.some(
-      r => r.sourceId === record.sourceId
-        && r.targetTabId === record.targetTabId
-        && r.targetFrameId === record.targetFrameId
-        && r.targetDocumentId === record.targetDocumentId,
-    );
+    const isDuplicate = this.sourceIdRecords.some(r => r.sourceId === record.sourceId);
     if (!isDuplicate) {
       this.sourceIdRecords.push(record);
     }

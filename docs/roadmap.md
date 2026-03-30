@@ -1,4 +1,5 @@
 # Remaining for Version 1
+- find a more precise way to know when we can send the registration messages we could try sending them every 10ms as a test and also record various event times to see if we can figure out which event has to fire before the registration message goes through.
 - the extension is crashing sometimes, it goes completely blank, there is what looks like a separate error described below.
 - the extension has errors on this line:
 ```

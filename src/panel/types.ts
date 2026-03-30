@@ -29,6 +29,7 @@ export type SelectedNode =
   | { type: 'document'; documentId: string; docRef?: import('./models/FrameDocument').FrameDocument }
   | { type: 'document-by-sourceId'; sourceId: string; docRef?: import('./models/FrameDocument').FrameDocument }
   | { type: 'iframe'; tabId: number; frameId: number; iframeRef?: import('./models/IFrame').IFrame }
+  | { type: 'iframe-element'; sourceId: string; iframeRef: import('./models/IFrame').IFrame }
   | { type: 'unknown-iframe'; tabId: number; frameId: number }
   | { type: 'unknown-document'; sourceId: string };
 

@@ -20,6 +20,7 @@ function nodesEqual(a: SelectedNode | null, b: SelectedNode): boolean {
     case 'document': return (b as typeof a).documentId === a.documentId;
     case 'document-by-sourceId': return (b as typeof a).sourceId === a.sourceId;
     case 'iframe': return (b as typeof a).tabId === a.tabId && (b as typeof a).frameId === a.frameId;
+    case 'iframe-element': return (b as typeof a).sourceId === a.sourceId;
     case 'unknown-iframe': return (b as typeof a).tabId === a.tabId && (b as typeof a).frameId === a.frameId;
     case 'unknown-document': return (b as typeof a).sourceId === a.sourceId;
   }
@@ -89,10 +90,12 @@ const IFrameNode = observer(({ iframe, depth }: { iframe: IFrame; depth: number 
   const childFrame = iframe.childFrame;
   const label = iframe.domPath || iframe.src || '(unknown iframe)';
 
-  // Use child frame's identity if available
+  // Use child frame's identity if available; fall back to sourceId for unlinked iframes
   const nodeId: SelectedNode | null = childFrame
     ? { type: 'iframe', tabId: childFrame.tabId, frameId: childFrame.frameId, iframeRef: iframe }
-    : null;
+    : iframe.sourceId
+      ? { type: 'iframe-element', sourceId: iframe.sourceId, iframeRef: iframe }
+      : null;
   const isSelected = nodeId ? nodesEqual(store.selectedNode, nodeId) : false;
   const orphanDoc = iframe.orphanedDocument;
   const hasChildren = (childFrame && childFrame.documents.length > 0) || orphanDoc;
@@ -354,6 +357,20 @@ const IFrameDetail = observer(({ tabId, frameId, isUnknown, iframeRef }: { tabId
   );
 });
 
+const IFrameElementDetail = observer(({ iframeRef }: { iframeRef: IFrame }) => {
+  return (
+    <table className="context-table">
+      <tbody>
+        {iframeRef.removedFromHierarchy && <Field label="Status">Removed from page</Field>}
+        {iframeRef.domPath && <Field label="domPath">{iframeRef.domPath}</Field>}
+        {iframeRef.src && <Field label="src">{iframeRef.src}</Field>}
+        {iframeRef.id && <Field label="id">{iframeRef.id}</Field>}
+        {iframeRef.sourceId && <Field label="sourceId">{iframeRef.sourceId}</Field>}
+      </tbody>
+    </table>
+  );
+});
+
 const UnknownDocumentDetail = observer(({ sourceId }: { sourceId: string }) => {
   return (
     <table className="context-table">
@@ -423,6 +440,7 @@ const NodeDetailPane = observer(() => {
             return doc ? <DocumentDetail doc={doc} /> : <div className="placeholder">Document not found</div>;
           })()}
           {node.type === 'iframe' && <IFrameDetail tabId={node.tabId} frameId={node.frameId} isUnknown={false} iframeRef={node.iframeRef} />}
+          {node.type === 'iframe-element' && <IFrameElementDetail iframeRef={node.iframeRef} />}
           {node.type === 'unknown-iframe' && <IFrameDetail tabId={node.tabId} frameId={node.frameId} isUnknown={true} />}
           {node.type === 'unknown-document' && <UnknownDocumentDetail sourceId={node.sourceId} />}
         </div>
