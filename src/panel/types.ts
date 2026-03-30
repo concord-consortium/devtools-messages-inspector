@@ -10,7 +10,7 @@ export interface ColumnDef {
 }
 
 export interface Settings {
-  showExtraMessageInfo: boolean;
+  showInternalFields: boolean;
   enableFrameRegistration: boolean;
   showRegistrationMessages: boolean;
   globalFilter: string;
@@ -22,6 +22,16 @@ export type ViewType = (typeof VIEW_TYPES)[number];
 export type DetailTabType = 'data' | 'context';
 export type SortDirection = 'asc' | 'desc';
 export type FocusPosition = 'source' | 'target' | 'both' | 'none';
+
+// Discriminated union for selecting any node type in the endpoints tree
+export type SelectedNode =
+  | { type: 'tab'; tabId: number; tabRef?: import('./models/Tab').Tab }
+  | { type: 'document'; documentId: string; docRef?: import('./models/FrameDocument').FrameDocument }
+  | { type: 'document-by-sourceId'; sourceId: string; docRef?: import('./models/FrameDocument').FrameDocument }
+  | { type: 'iframe'; tabId: number; frameId: number; iframeRef?: import('./models/IFrame').IFrame }
+  | { type: 'iframe-element'; sourceId: string; iframeRef: import('./models/IFrame').IFrame }
+  | { type: 'unknown-iframe'; tabId: number; frameId: number }
+  | { type: 'unknown-document'; sourceId: string };
 
 // Column definitions
 export const ALL_COLUMNS: ColumnDef[] = [

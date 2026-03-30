@@ -49,10 +49,10 @@ const SettingsView = observer(() => (
       <label className="settings-item">
         <input
           type="checkbox"
-          checked={store.settings.showExtraMessageInfo}
-          onChange={(e) => store.updateSettings({ showExtraMessageInfo: e.target.checked })}
+          checked={store.settings.showInternalFields}
+          onChange={(e) => store.updateSettings({ showInternalFields: e.target.checked })}
         />
-        Show extra message info (message ID and buffered status)
+        Show internal fields
       </label>
       <label className="settings-item">
         <input

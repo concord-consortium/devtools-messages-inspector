@@ -63,13 +63,13 @@ const ContextTab = observer(({ message }: { message: Message }) => {
   return (
     <table className="context-table">
       <tbody>
-        {store.settings.showExtraMessageInfo && (
+        {store.settings.showInternalFields && (
           <Field id="messageId">{message.id}</Field>
         )}
         <Field id="timestamp">{new Date(message.timestamp).toISOString()}</Field>
         <Field id="messageType">{message.messageType || '(none)'}</Field>
         <Field id="dataSize">{store.formatSize(message.dataSize)}</Field>
-        {store.settings.showExtraMessageInfo && (
+        {store.settings.showInternalFields && (
           <Field id="buffered">{message.buffered ? 'Yes' : 'No'}</Field>
         )}
 
@@ -84,7 +84,7 @@ const ContextTab = observer(({ message }: { message: Message }) => {
           frame={message.targetFrame}
           document={message.targetDocument}
           ownerElement={message.targetOwnerElement}
-          showAdvanced={store.settings.showExtraMessageInfo}
+          showAdvanced={store.settings.showInternalFields}
         />
         {message.target.frameInfoError && (
           <Field id="frameError">{message.target.frameInfoError}</Field>
@@ -102,7 +102,7 @@ const ContextTab = observer(({ message }: { message: Message }) => {
           document={message.sourceDocument}
           ownerElement={message.sourceOwnerElement}
           sourceType={message.sourceType}
-          showAdvanced={store.settings.showExtraMessageInfo}
+          showAdvanced={store.settings.showInternalFields}
         />
       </tbody>
     </table>
