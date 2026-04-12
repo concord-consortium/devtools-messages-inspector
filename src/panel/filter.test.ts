@@ -49,7 +49,13 @@ describe('Message.frames', () => {
     const sourceDoc = frameStore.getOrCreateDocumentById('doc-source');
     sourceDoc.frame = sourceFrame;
     sourceFrame.documents.push(sourceDoc);
-    sourceDoc.sourceId = 'win-1';
+    sourceDoc.addSourceIdRecord({
+      sourceId: 'win-1',
+      sourceType: 'child',
+      targetTabId: 1,
+      targetFrameId: 0,
+      targetDocumentId: undefined,
+    });
     frameStore.documentsBySourceId.set('win-1', sourceDoc);
 
     const msg = makeMessage();
@@ -65,7 +71,13 @@ describe('Message.frames', () => {
     const sourceDoc = frameStore.getOrCreateDocumentById('doc-source');
     sourceDoc.frame = sourceFrame;
     sourceFrame.documents.push(sourceDoc);
-    sourceDoc.sourceId = 'win-1';
+    sourceDoc.addSourceIdRecord({
+      sourceId: 'win-1',
+      sourceType: 'child',
+      targetTabId: 1,
+      targetFrameId: 0,
+      targetDocumentId: undefined,
+    });
     frameStore.documentsBySourceId.set('win-1', sourceDoc);
 
     const msg = makeMessage({

@@ -492,7 +492,7 @@ describe('Frame model integration', () => {
         // Merged document has all properties
         const merged = mergedByDocId!;
         expect(merged.documentId).toBe(FRAME_B.documentId);
-        expect(merged.sourceId).toBe(FRAME_B.sourceId);
+        expect(merged.sourceIdRecords.some(r => r.sourceId === FRAME_B.sourceId)).toBe(true);
         expect(merged.url).toBe(FRAME_B.url);
         expect(merged.origin).toBe(FRAME_B.origin);
 
@@ -872,7 +872,7 @@ describe('Frame model integration', () => {
       expect(openedFrame.documents).toHaveLength(1);
       const doc = openedFrame.currentDocument!;
       expect(doc.documentId).toBe(FRAME_A.documentId);
-      expect(doc.sourceId).toBe('win-opened');
+      expect(doc.sourceIdRecords.some(r => r.sourceId === 'win-opened')).toBe(true);
     });
 
     it('opener tab: cross-tab message then registration produces one document on opened frame', () => {
@@ -892,7 +892,7 @@ describe('Frame model integration', () => {
       expect(openedFrame.documents).toHaveLength(1);
       const doc = openedFrame.currentDocument!;
       expect(doc.documentId).toBe(FRAME_A.documentId);
-      expect(doc.sourceId).toBe('win-opened');
+      expect(doc.sourceIdRecords.some(r => r.sourceId === 'win-opened')).toBe(true);
     });
   });
 
@@ -1034,7 +1034,7 @@ describe('Frame model integration', () => {
       expect(newDoc).toBeDefined();
       expect(newDoc).not.toBe(oldDoc);
       expect(newDoc!.documentId).toBe(FRAME_B_NAV.documentId);
-      expect(newDoc!.sourceId).toBe(FRAME_B.sourceId);
+      expect(newDoc!.sourceIdRecords.some(r => r.sourceId === FRAME_B.sourceId)).toBe(true);
     });
 
     it('source origin change creates new document instead of mutating old one', () => {
@@ -1379,7 +1379,7 @@ describe('Frame model integration', () => {
 
       // The orphaned doc should be accessible via the IFrame
       expect(iframe.orphanedDocument).toBeDefined();
-      expect(iframe.orphanedDocument!.sourceId).toBe(FRAME_B.sourceId);
+      expect(iframe.orphanedDocument!.sourceIdRecords.some(r => r.sourceId === FRAME_B.sourceId)).toBe(true);
 
       // It should NOT appear in unknownDocuments since it's claimed by an IFrame
       expect(frameStore.unknownDocuments).toHaveLength(0);
