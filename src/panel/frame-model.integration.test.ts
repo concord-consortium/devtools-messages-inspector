@@ -261,6 +261,42 @@ function crossTabRegistrationMsg(): IMessage {
   };
 }
 
+/**
+ * Self message: a frame posts to itself (e.g. devtools extension script).
+ *
+ * Captured by the frame's own content script. Background enriches source with
+ * the same frameId, tabId, and documentId as the target (since source === target window).
+ * The sourceId is from the frame's own WeakMap, different from the parent-assigned sourceId.
+ */
+function selfMsg(
+  frame: typeof FRAME_A,
+  selfSourceId: string,
+  data: Record<string, unknown> = { type: 'self-ping' },
+): IMessage {
+  return {
+    id: `msg-${++msgId}`,
+    timestamp: Date.now() + msgId,
+    target: {
+      url: frame.url,
+      origin: frame.origin,
+      documentTitle: frame.title,
+      frameId: frame.frameId,
+      tabId: TAB_ID,
+      documentId: frame.documentId,
+    },
+    source: {
+      type: 'self',
+      origin: frame.origin,
+      sourceId: selfSourceId,
+      iframe: null,
+      tabId: TAB_ID,
+      frameId: frame.frameId,
+      documentId: frame.documentId,
+    },
+    data,
+  };
+}
+
 // --- Tests ---
 
 describe('Frame model integration', () => {
@@ -1373,6 +1409,31 @@ describe('Frame model integration', () => {
 
       const iframe = frameStore.iframesBySourceId.get(FRAME_B.sourceId)!;
       expect(iframe.orphanedDocument).toBeUndefined();
+    });
+  });
+
+  describe('self message sourceId linking', () => {
+    it('links self sourceId to existing target FrameDocument', () => {
+      // First establish the document via a child message
+      processIncomingMessage(childMsg(FRAME_B, FRAME_A));
+      const targetDoc = frameStore.getDocumentById(FRAME_A.documentId);
+      expect(targetDoc).toBeDefined();
+
+      // Now process a self message on frame A with a different sourceId
+      const selfSourceId = 'win-self-A';
+      processIncomingMessage(selfMsg(FRAME_A, selfSourceId));
+
+      // The self sourceId should point to the SAME document as the target
+      const docBySelfSourceId = frameStore.getDocumentBySourceId(selfSourceId);
+      expect(docBySelfSourceId).toBe(targetDoc);
+
+      // The document should have a sourceIdRecord with sourceType 'self'
+      const selfRecord = targetDoc!.sourceIdRecords.find(r => r.sourceType === 'self');
+      expect(selfRecord).toBeDefined();
+      expect(selfRecord!.sourceId).toBe(selfSourceId);
+
+      // Should NOT create an unknown document
+      expect(frameStore.unknownDocuments).toHaveLength(0);
     });
   });
 });
