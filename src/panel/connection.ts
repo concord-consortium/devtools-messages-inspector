@@ -276,7 +276,7 @@ function processRegistration(message: Message): void {
   if (message.target.documentId) {
     const parentDoc = frameStore.getDocumentById(message.target.documentId);
     if (parentDoc) {
-      const iframe = parentDoc.iframes.find(i => i.sourceId === sourceId);
+      const iframe = parentDoc.iframes.find(i => i.sourceIdFromParent === sourceId);
       if (iframe) {
         iframe.childFrame = frame;
       }

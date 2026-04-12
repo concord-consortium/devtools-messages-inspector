@@ -555,7 +555,7 @@ describe('Frame model integration', () => {
       processIncomingMessage(childMsg(FRAME_B, FRAME_A));
 
       const parentDoc = frameStore.getDocumentById(FRAME_A.documentId);
-      const iframe = parentDoc!.iframes.find(i => i.sourceId === FRAME_B.sourceId);
+      const iframe = parentDoc!.iframes.find(i => i.sourceIdFromParent === FRAME_B.sourceId);
       expect(iframe).toBeDefined();
       expect(iframe!.domPath).toBe(FRAME_B.iframe.domPath);
 
@@ -580,7 +580,7 @@ describe('Frame model integration', () => {
 
       const parentDoc = frameStore.getDocumentById(FRAME_A.documentId);
       expect(parentDoc).toBeDefined();
-      const iframe = parentDoc!.iframes.find(i => i.sourceId === FRAME_B.sourceId);
+      const iframe = parentDoc!.iframes.find(i => i.sourceIdFromParent === FRAME_B.sourceId);
       expect(iframe).toBeDefined();
       expect(iframe!.domPath).toBe(FRAME_B.iframe.domPath);
       expect(iframe!.src).toBe(FRAME_B.iframe.src);
@@ -950,7 +950,7 @@ describe('Frame model integration', () => {
 
       // Verify IFrame entity exists with childFrame linked
       const parentDoc = frameStore.getDocumentById(FRAME_A.documentId)!;
-      const iframe = parentDoc.iframes.find(i => i.sourceId === FRAME_B.sourceId);
+      const iframe = parentDoc.iframes.find(i => i.sourceIdFromParent === FRAME_B.sourceId);
       expect(iframe).toBeDefined();
       expect(iframe!.childFrame).toBeDefined();
       expect(iframe!.childFrame!.frameId).toBe(FRAME_B.frameId);
@@ -1190,7 +1190,7 @@ describe('Frame model integration', () => {
       });
 
       expect(iframe.parentDocument).toBe(doc);
-      expect(iframe.sourceId).toBe('win-child');
+      expect(iframe.sourceIdFromParent).toBe('win-child');
       expect(iframe.domPath).toBe('body > iframe');
       expect(doc.iframes).toContain(iframe);
     });
@@ -1304,18 +1304,18 @@ describe('Frame model integration', () => {
   });
 
   // ===================================================================
-  // iframesBySourceId — linking documents to frames via IFrame sourceId
-  // ===================================================================
-  describe('iframesBySourceId linking', () => {
-    it('populates iframesBySourceId when hierarchy includes iframe with sourceId', () => {
+  // iframesBySourceIdFromParent — linking documents to frames via IFrame sourceIdFromParent
+  // ===========================================================================================
+  describe('iframesBySourceIdFromParent linking', () => {
+    it('populates iframesBySourceIdFromParent when hierarchy includes iframe with sourceId', () => {
       store.setFrameHierarchy([
         { frameId: 0, tabId: TAB_ID, documentId: FRAME_A.documentId, url: FRAME_A.url, parentFrameId: -1, title: FRAME_A.title, origin: FRAME_A.origin, iframes: [{ ...FRAME_B.iframe, sourceId: FRAME_B.sourceId }] },
         { frameId: 1, tabId: TAB_ID, documentId: FRAME_B.documentId, url: FRAME_B.url, parentFrameId: 0, title: FRAME_B.title, origin: FRAME_B.origin, iframes: [] },
       ]);
 
-      const iframe = frameStore.iframesBySourceId.get(FRAME_B.sourceId);
+      const iframe = frameStore.iframesBySourceIdFromParent.get(FRAME_B.sourceId);
       expect(iframe).toBeDefined();
-      expect(iframe!.sourceId).toBe(FRAME_B.sourceId);
+      expect(iframe!.sourceIdFromParent).toBe(FRAME_B.sourceId);
     });
 
     it('links orphaned document to child frame when registration establishes IFrame.childFrame', () => {
@@ -1335,7 +1335,7 @@ describe('Frame model integration', () => {
       ]);
 
       // The IFrame should have a childFrame link
-      const iframe = frameStore.iframesBySourceId.get(FRAME_B.sourceId)!;
+      const iframe = frameStore.iframesBySourceIdFromParent.get(FRAME_B.sourceId)!;
       expect(iframe.childFrame).toBeDefined();
       expect(iframe.childFrame!.frameId).toBe(1);
     });
@@ -1349,7 +1349,7 @@ describe('Frame model integration', () => {
         { frameId: 1, tabId: TAB_ID, documentId: FRAME_B.documentId, url: FRAME_B.url, parentFrameId: 0, title: FRAME_B.title, origin: FRAME_B.origin, iframes: [] },
       ]);
 
-      const iframe = frameStore.iframesBySourceId.get(FRAME_B.sourceId)!;
+      const iframe = frameStore.iframesBySourceIdFromParent.get(FRAME_B.sourceId)!;
       expect(iframe.childFrame).toBeDefined();
 
       // Create a new IFrame with a known childFrame (simulating a second iframe)
@@ -1374,7 +1374,7 @@ describe('Frame model integration', () => {
       // Child message without registration — IFrame has no childFrame
       processIncomingMessage(childMsg(FRAME_B, FRAME_A));
 
-      const iframe = frameStore.iframesBySourceId.get(FRAME_B.sourceId)!;
+      const iframe = frameStore.iframesBySourceIdFromParent.get(FRAME_B.sourceId)!;
       expect(iframe.childFrame).toBeUndefined();
 
       // The orphaned doc should be accessible via the IFrame
@@ -1394,7 +1394,7 @@ describe('Frame model integration', () => {
         { frameId: 1, tabId: TAB_ID, documentId: FRAME_B.documentId, url: FRAME_B.url, parentFrameId: 0, title: FRAME_B.title, origin: FRAME_B.origin, iframes: [] },
       ]);
 
-      const iframe = frameStore.iframesBySourceId.get(FRAME_B.sourceId)!;
+      const iframe = frameStore.iframesBySourceIdFromParent.get(FRAME_B.sourceId)!;
       expect(iframe.childFrame).toBeDefined();
       // When childFrame exists, documents are on the frame — no orphan
       expect(iframe.orphanedDocument).toBeUndefined();
@@ -1407,7 +1407,7 @@ describe('Frame model integration', () => {
         { frameId: 1, tabId: TAB_ID, documentId: FRAME_B.documentId, url: FRAME_B.url, parentFrameId: 0, title: FRAME_B.title, origin: FRAME_B.origin, iframes: [] },
       ]);
 
-      const iframe = frameStore.iframesBySourceId.get(FRAME_B.sourceId)!;
+      const iframe = frameStore.iframesBySourceIdFromParent.get(FRAME_B.sourceId)!;
       expect(iframe.orphanedDocument).toBeUndefined();
     });
   });

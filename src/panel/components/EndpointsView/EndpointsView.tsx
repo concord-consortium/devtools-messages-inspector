@@ -75,7 +75,7 @@ const DocumentNode = observer(({ doc, frame, depth, isNavigatedAway }: {
       {expanded && hasChildren && (
         <>
           {doc.iframes.map((iframe, i) => (
-            <IFrameNode key={iframe.sourceId || `iframe-${i}`} iframe={iframe} depth={depth + 1} />
+            <IFrameNode key={iframe.sourceIdFromParent || `iframe-${i}`} iframe={iframe} depth={depth + 1} />
           ))}
           {unknownChildren.map(childFrame => (
             <UnknownIFrameNode key={childFrame.key} frame={childFrame} depth={depth + 1} />
@@ -94,8 +94,8 @@ const IFrameNode = observer(({ iframe, depth }: { iframe: IFrame; depth: number 
   // Use child frame's identity if available; fall back to sourceId for unlinked iframes
   const nodeId: SelectedNode | null = childFrame
     ? { type: 'iframe', tabId: childFrame.tabId, frameId: childFrame.frameId, iframeRef: iframe }
-    : iframe.sourceId
-      ? { type: 'iframe-element', sourceId: iframe.sourceId, iframeRef: iframe }
+    : iframe.sourceIdFromParent
+      ? { type: 'iframe-element', sourceId: iframe.sourceIdFromParent, iframeRef: iframe }
       : null;
   const isSelected = nodeId ? nodesEqual(store.selectedNode, nodeId) : false;
   const orphanDoc = iframe.orphanedDocument;
@@ -346,7 +346,7 @@ const IFrameDetail = observer(({ tabId, frameId, isUnknown, iframeRef }: { tabId
             {iframeRef.domPath && <Field label="domPath">{iframeRef.domPath}</Field>}
             {iframeRef.src && <Field label="src">{iframeRef.src}</Field>}
             {iframeRef.id && <Field label="id">{iframeRef.id}</Field>}
-            {iframeRef.sourceId && <Field label="sourceId">{iframeRef.sourceId}</Field>}
+            {iframeRef.sourceIdFromParent && <Field label="sourceId">{iframeRef.sourceIdFromParent}</Field>}
           </>
         )}
         <Field label="frameId">frame[{frameId}]</Field>
@@ -367,7 +367,7 @@ const IFrameElementDetail = observer(({ iframeRef }: { iframeRef: IFrame }) => {
         {iframeRef.domPath && <Field label="domPath">{iframeRef.domPath}</Field>}
         {iframeRef.src && <Field label="src">{iframeRef.src}</Field>}
         {iframeRef.id && <Field label="id">{iframeRef.id}</Field>}
-        {iframeRef.sourceId && <Field label="sourceId">{iframeRef.sourceId}</Field>}
+        {iframeRef.sourceIdFromParent && <Field label="sourceId">{iframeRef.sourceIdFromParent}</Field>}
       </tbody>
     </table>
   );
