@@ -235,7 +235,7 @@ const TreeView = observer(() => {
           : <UnknownIFrameNode key={frame.key} frame={frame} depth={0} />
       ))}
       {unknownDocs.map(doc => (
-        <UnknownDocumentNode key={doc.sourceId} doc={doc} />
+        <UnknownDocumentNode key={doc.stableId} doc={doc} />
       ))}
     </div>
   );

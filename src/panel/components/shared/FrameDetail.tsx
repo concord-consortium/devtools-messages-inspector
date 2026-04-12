@@ -52,8 +52,8 @@ export const FrameDetail = observer(({ frame, document: docOverride, ownerElemen
       {doc?.documentId && (
         <Field id="document.documentId">{doc.documentId}</Field>
       )}
-      {showAdvanced && doc?.sourceId && (
-        <Field id="sourceId">{doc.sourceId}</Field>
+      {showAdvanced && doc?.sourceIdRecords && doc.sourceIdRecords.length > 0 && (
+        <Field id="sourceId">{doc.sourceIdRecords[0].sourceId}</Field>
       )}
       {doc?.url && (
         <Field id="document.url">{doc.url}</Field>
