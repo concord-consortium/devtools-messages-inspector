@@ -26,6 +26,7 @@ export function connect(): void {
   });
 
   port.onDisconnect.addListener(() => {
+    port = null;
     setTimeout(connect, 1000);
   });
 }
