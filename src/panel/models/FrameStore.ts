@@ -85,7 +85,7 @@ export class FrameStore implements FrameLookup {
   getOrCreateDocumentBySourceId(sourceId: string): FrameDocument {
     let doc = this.documentsBySourceId.get(sourceId);
     if (!doc) {
-      doc = new FrameDocument({ sourceId });
+      doc = new FrameDocument({});
       this.documentsBySourceId.set(sourceId, doc);
       // If an IFrame with this sourceId has a linked child frame, place the doc there
       const iframe = this.iframesBySourceIdFromParent.get(sourceId);

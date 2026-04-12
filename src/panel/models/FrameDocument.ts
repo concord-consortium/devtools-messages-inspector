@@ -23,7 +23,6 @@ export class FrameDocument {
   url: string | undefined;
   origin: string | undefined;
   title: string | undefined;
-  sourceId: string | undefined;
   frame: Frame | undefined;
   iframes: IFrame[] = [];
   sourceIdRecords: SourceIdRecord[] = [];
@@ -35,13 +34,11 @@ export class FrameDocument {
     url?: string;
     origin?: string;
     title?: string;
-    sourceId?: string;
   }) {
     this.documentId = init.documentId;
     this.url = init.url;
     this.origin = init.origin;
     this.title = init.title;
-    this.sourceId = init.sourceId;
     this.frame = undefined;
     this.createdAt = Date.now();
 
@@ -50,6 +47,14 @@ export class FrameDocument {
       sourceIdRecords: observable.shallow,
       changes: observable.shallow,
     });
+  }
+
+  get label(): string {
+    return this.url || this.origin || this.sourceIdRecords[0]?.sourceId || '(unknown)';
+  }
+
+  get stableId(): string {
+    return this.documentId || this.sourceIdRecords[0]?.sourceId || String(this.createdAt);
   }
 
   addSourceIdRecord(record: SourceIdRecord): void {

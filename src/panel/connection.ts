@@ -88,7 +88,6 @@ function _processIncomingMessage(msg: IMessage): void {
     sourceDoc = frameStore.getOrCreateDocumentById(msg.source.documentId);
     sourceDoc.origin = msg.source.origin;
     if (msg.source.sourceId) {
-      sourceDoc.sourceId = msg.source.sourceId;
       frameStore.documentsBySourceId.set(msg.source.sourceId, sourceDoc);
       sourceDoc.addSourceIdRecord({
         sourceId: msg.source.sourceId,
@@ -102,7 +101,7 @@ function _processIncomingMessage(msg: IMessage): void {
     const existing = frameStore.getDocumentBySourceId(msg.source.sourceId);
     if (existing && existing.origin && msg.source.origin && existing.origin !== msg.source.origin) {
       // Navigation detected — new document for same WindowProxy
-      sourceDoc = new FrameDocument({ sourceId: msg.source.sourceId, origin: msg.source.origin });
+      sourceDoc = new FrameDocument({ origin: msg.source.origin });
       frameStore.documentsBySourceId.set(msg.source.sourceId, sourceDoc);
     } else {
       sourceDoc = frameStore.getOrCreateDocumentBySourceId(msg.source.sourceId);
@@ -235,7 +234,6 @@ function processRegistration(message: Message): void {
   const docByDocId = frameStore.getDocumentById(regData.documentId);
 
   if (docBySourceId && docByDocId && docBySourceId !== docByDocId) {
-    docByDocId.sourceId = sourceId;
     if (docBySourceId.origin && !docByDocId.origin) {
       docByDocId.origin = docBySourceId.origin;
     }
@@ -256,10 +254,23 @@ function processRegistration(message: Message): void {
     frameStore.documents.set(regData.documentId, docBySourceId);
     docBySourceId.changes.push({ time: Date.now(), type: 'promotion' });
   } else if (!docBySourceId && docByDocId) {
-    docByDocId.sourceId = sourceId;
+    docByDocId.addSourceIdRecord({
+      sourceId,
+      sourceType: 'child',
+      targetTabId: message.target.tabId,
+      targetFrameId: message.target.frameId,
+      targetDocumentId: message.target.documentId,
+    });
     frameStore.documentsBySourceId.set(sourceId, docByDocId);
   } else if (!docBySourceId && !docByDocId) {
-    const doc = new FrameDocument({ documentId: regData.documentId, sourceId });
+    const doc = new FrameDocument({ documentId: regData.documentId });
+    doc.addSourceIdRecord({
+      sourceId,
+      sourceType: 'child',
+      targetTabId: message.target.tabId,
+      targetFrameId: message.target.frameId,
+      targetDocumentId: message.target.documentId,
+    });
     frameStore.documents.set(regData.documentId, doc);
     frameStore.documentsBySourceId.set(sourceId, doc);
   }
