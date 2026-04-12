@@ -70,7 +70,21 @@ function _processIncomingMessage(msg: IMessage): void {
 
   // --- Source ---
   let sourceDoc: InstanceType<typeof FrameDocument> | undefined;
-  if (msg.source.documentId) {
+
+  // Self messages: source and target are the same window. Link the self sourceId
+  // to the target's existing FrameDocument instead of creating a separate document.
+  if (msg.source.type === 'self' && msg.source.sourceId && msg.source.documentId) {
+    sourceDoc = frameStore.getOrCreateDocumentById(msg.source.documentId);
+    sourceDoc.origin = msg.source.origin;
+    sourceDoc.addSourceIdRecord({
+      sourceId: msg.source.sourceId,
+      sourceType: msg.source.type,
+      targetTabId: msg.target.tabId,
+      targetFrameId: msg.target.frameId,
+      targetDocumentId: msg.target.documentId,
+    });
+    frameStore.documentsBySourceId.set(msg.source.sourceId, sourceDoc);
+  } else if (msg.source.documentId) {
     sourceDoc = frameStore.getOrCreateDocumentById(msg.source.documentId);
     sourceDoc.origin = msg.source.origin;
     if (msg.source.sourceId) {
