@@ -346,6 +346,7 @@ const IFrameDetail = observer(({ tabId, frameId, isUnknown, iframeRef }: { tabId
             {iframeRef.domPath && <Field label="domPath">{iframeRef.domPath}</Field>}
             {iframeRef.src && <Field label="src">{iframeRef.src}</Field>}
             {iframeRef.id && <Field label="id">{iframeRef.id}</Field>}
+            {iframeRef.sourceId && <Field label="sourceId">{iframeRef.sourceId}</Field>}
           </>
         )}
         <Field label="frameId">frame[{frameId}]</Field>
