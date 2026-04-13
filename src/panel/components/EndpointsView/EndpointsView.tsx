@@ -29,9 +29,7 @@ function nodesEqual(a: SelectedNode | null, b: SelectedNode): boolean {
 
 function documentNodeId(doc: FrameDocument): SelectedNode {
   if (doc.documentId) return { type: 'document', documentId: doc.documentId, docRef: doc };
-  if (doc.sourceIdRecords[0]?.sourceId) return { type: 'document-by-sourceId', sourceId: doc.sourceIdRecords[0].sourceId, docRef: doc };
-  // Fallback — shouldn't happen in practice
-  return { type: 'document-by-sourceId', sourceId: '', docRef: doc };
+  return { type: 'document-by-sourceId', sourceId: doc.stableId, docRef: doc };
 }
 
 // --- Expand/Collapse Toggle ---

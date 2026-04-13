@@ -237,6 +237,13 @@ export class FrameStore implements FrameLookup {
         doc = this.getOrCreateDocumentById(frameData.documentId);
       } else if (frameData.sourceId) {
         doc = this.getOrCreateDocumentBySourceId(frameData.sourceId);
+        doc.addSourceIdRecord({
+          sourceId: frameData.sourceId,
+          sourceType: 'child',
+          targetTabId: frameData.tabId,
+          targetFrameId: frameData.parentFrameId ?? -1,
+          targetDocumentId: undefined,
+        });
       }
 
       if (doc) {
