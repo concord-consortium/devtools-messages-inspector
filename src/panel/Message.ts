@@ -77,7 +77,8 @@ class Message implements IMessage {
   get source(): IMessage['source'] {
     return {
       ...this._source,
-      frameId: this.computedFrameId
+      frameId: this.computedFrameId,
+      documentId: this.sourceDocumentId ?? this.sourceDocument?.documentId,
     };
   }
 

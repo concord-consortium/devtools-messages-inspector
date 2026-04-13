@@ -281,7 +281,7 @@ const DocumentDetail = observer(({ doc }: { doc: FrameDocument }) => {
   return (
     <table className="context-table">
       <tbody>
-        {showInternal && doc.documentId && <Field label="documentId">{doc.documentId}</Field>}
+        {doc.documentId && <Field label="Document ID">{doc.documentId}</Field>}
         {showInternal && <Field label="createdAt">{new Date(doc.createdAt).toISOString()}</Field>}
         {doc.url && <Field label="URL">{doc.url}</Field>}
         {doc.origin && <Field label="Origin">{doc.origin}</Field>}

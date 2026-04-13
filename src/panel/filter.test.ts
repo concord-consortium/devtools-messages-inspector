@@ -206,6 +206,39 @@ describe('liqe filtering via store', () => {
     expect(store.filteredMessages).toHaveLength(1);
   });
 
+  it('filters by source.documentId resolved via sourceId lookup', () => {
+    // Child messages often lack source.documentId on the raw message.
+    // The documentId is resolved via sourceId → FrameDocument lookup.
+    const sourceDoc = frameStore.getOrCreateDocumentById('doc-child');
+    frameStore.documentsBySourceId.set('win-child', sourceDoc);
+
+    const matched = makeMessage({
+      data: { type: 'matched' },
+      source: {
+        type: 'child',
+        origin: 'https://child.example.com',
+        sourceId: 'win-child',
+        iframe: null,
+        // no documentId here — must be resolved via sourceId
+      },
+    });
+    const unmatched = makeMessage({
+      id: 'msg-2',
+      data: { type: 'unmatched' },
+      source: {
+        type: 'child',
+        origin: 'https://other.example.com',
+        sourceId: 'win-other',
+        iframe: null,
+      },
+    });
+    store.addMessage(matched);
+    store.addMessage(unmatched);
+    store.setFilter('source.documentId:doc-child');
+    expect(store.filteredMessages).toHaveLength(1);
+    expect((store.filteredMessages[0].data as { type: string }).type).toBe('matched');
+  });
+
   describe('global filter', () => {
     it('filters messages when global filter is enabled', () => {
       addMessage({ source: 'react-devtools-hook' });
