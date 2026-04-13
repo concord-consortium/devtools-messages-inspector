@@ -1435,5 +1435,47 @@ describe('Frame model integration', () => {
       // Should NOT create an unknown document
       expect(frameStore.unknownDocuments).toHaveLength(0);
     });
+
+    it('self message on registered child frame does not break child sourceId tracking', () => {
+      // Establish frame B via child message + registration (typical flow)
+      processIncomingMessage(childMsg(FRAME_B, FRAME_A));
+      processIncomingMessage(registrationMsg(FRAME_B, FRAME_A));
+
+      const docB = frameStore.getDocumentById(FRAME_B.documentId)!;
+      expect(docB).toBeDefined();
+
+      // Verify child sourceId resolves to frame B's document
+      expect(frameStore.getDocumentBySourceId(FRAME_B.sourceId)).toBe(docB);
+
+      // Verify IFrame on parent document links via sourceIdFromParent
+      const parentDoc = frameStore.getDocumentById(FRAME_A.documentId)!;
+      const iframe = parentDoc.iframes.find(i => i.sourceIdFromParent === FRAME_B.sourceId);
+      expect(iframe).toBeDefined();
+      expect(iframe!.childFrame).toBeDefined();
+
+      // Now frame B posts a message to itself (e.g. devtools extension script)
+      const selfSourceId = 'win-self-B';
+      processIncomingMessage(selfMsg(FRAME_B, selfSourceId));
+
+      // Child sourceId must still resolve to the same document
+      expect(frameStore.getDocumentBySourceId(FRAME_B.sourceId)).toBe(docB);
+
+      // Self sourceId should also resolve to the same document
+      expect(frameStore.getDocumentBySourceId(selfSourceId)).toBe(docB);
+
+      // IFrame → child frame link must still be intact
+      expect(iframe!.childFrame!.frameId).toBe(FRAME_B.frameId);
+
+      // Document should have both sourceIdRecords: child and self
+      const childRecord = docB.sourceIdRecords.find(r => r.sourceType === 'child');
+      const selfRecord = docB.sourceIdRecords.find(r => r.sourceType === 'self');
+      expect(childRecord).toBeDefined();
+      expect(childRecord!.sourceId).toBe(FRAME_B.sourceId);
+      expect(selfRecord).toBeDefined();
+      expect(selfRecord!.sourceId).toBe(selfSourceId);
+
+      // Should NOT create unknown documents
+      expect(frameStore.unknownDocuments).toHaveLength(0);
+    });
   });
 });
