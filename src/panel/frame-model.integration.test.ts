@@ -261,6 +261,42 @@ function crossTabRegistrationMsg(): IMessage {
   };
 }
 
+/**
+ * Self message: a frame posts to itself (e.g. devtools extension script).
+ *
+ * Captured by the frame's own content script. Background enriches source with
+ * the same frameId, tabId, and documentId as the target (since source === target window).
+ * The sourceId is from the frame's own WeakMap, different from the parent-assigned sourceId.
+ */
+function selfMsg(
+  frame: typeof FRAME_A,
+  selfSourceId: string,
+  data: Record<string, unknown> = { type: 'self-ping' },
+): IMessage {
+  return {
+    id: `msg-${++msgId}`,
+    timestamp: Date.now() + msgId,
+    target: {
+      url: frame.url,
+      origin: frame.origin,
+      documentTitle: frame.title,
+      frameId: frame.frameId,
+      tabId: TAB_ID,
+      documentId: frame.documentId,
+    },
+    source: {
+      type: 'self',
+      origin: frame.origin,
+      sourceId: selfSourceId,
+      iframe: null,
+      tabId: TAB_ID,
+      frameId: frame.frameId,
+      documentId: frame.documentId,
+    },
+    data,
+  };
+}
+
 // --- Tests ---
 
 describe('Frame model integration', () => {
@@ -456,7 +492,7 @@ describe('Frame model integration', () => {
         // Merged document has all properties
         const merged = mergedByDocId!;
         expect(merged.documentId).toBe(FRAME_B.documentId);
-        expect(merged.sourceId).toBe(FRAME_B.sourceId);
+        expect(merged.sourceIdRecords.some(r => r.sourceId === FRAME_B.sourceId)).toBe(true);
         expect(merged.url).toBe(FRAME_B.url);
         expect(merged.origin).toBe(FRAME_B.origin);
 
@@ -519,7 +555,7 @@ describe('Frame model integration', () => {
       processIncomingMessage(childMsg(FRAME_B, FRAME_A));
 
       const parentDoc = frameStore.getDocumentById(FRAME_A.documentId);
-      const iframe = parentDoc!.iframes.find(i => i.sourceId === FRAME_B.sourceId);
+      const iframe = parentDoc!.iframes.find(i => i.sourceIdFromParent === FRAME_B.sourceId);
       expect(iframe).toBeDefined();
       expect(iframe!.domPath).toBe(FRAME_B.iframe.domPath);
 
@@ -544,7 +580,7 @@ describe('Frame model integration', () => {
 
       const parentDoc = frameStore.getDocumentById(FRAME_A.documentId);
       expect(parentDoc).toBeDefined();
-      const iframe = parentDoc!.iframes.find(i => i.sourceId === FRAME_B.sourceId);
+      const iframe = parentDoc!.iframes.find(i => i.sourceIdFromParent === FRAME_B.sourceId);
       expect(iframe).toBeDefined();
       expect(iframe!.domPath).toBe(FRAME_B.iframe.domPath);
       expect(iframe!.src).toBe(FRAME_B.iframe.src);
@@ -836,7 +872,7 @@ describe('Frame model integration', () => {
       expect(openedFrame.documents).toHaveLength(1);
       const doc = openedFrame.currentDocument!;
       expect(doc.documentId).toBe(FRAME_A.documentId);
-      expect(doc.sourceId).toBe('win-opened');
+      expect(doc.sourceIdRecords.some(r => r.sourceId === 'win-opened')).toBe(true);
     });
 
     it('opener tab: cross-tab message then registration produces one document on opened frame', () => {
@@ -856,7 +892,7 @@ describe('Frame model integration', () => {
       expect(openedFrame.documents).toHaveLength(1);
       const doc = openedFrame.currentDocument!;
       expect(doc.documentId).toBe(FRAME_A.documentId);
-      expect(doc.sourceId).toBe('win-opened');
+      expect(doc.sourceIdRecords.some(r => r.sourceId === 'win-opened')).toBe(true);
     });
   });
 
@@ -914,7 +950,7 @@ describe('Frame model integration', () => {
 
       // Verify IFrame entity exists with childFrame linked
       const parentDoc = frameStore.getDocumentById(FRAME_A.documentId)!;
-      const iframe = parentDoc.iframes.find(i => i.sourceId === FRAME_B.sourceId);
+      const iframe = parentDoc.iframes.find(i => i.sourceIdFromParent === FRAME_B.sourceId);
       expect(iframe).toBeDefined();
       expect(iframe!.childFrame).toBeDefined();
       expect(iframe!.childFrame!.frameId).toBe(FRAME_B.frameId);
@@ -998,7 +1034,7 @@ describe('Frame model integration', () => {
       expect(newDoc).toBeDefined();
       expect(newDoc).not.toBe(oldDoc);
       expect(newDoc!.documentId).toBe(FRAME_B_NAV.documentId);
-      expect(newDoc!.sourceId).toBe(FRAME_B.sourceId);
+      expect(newDoc!.sourceIdRecords.some(r => r.sourceId === FRAME_B.sourceId)).toBe(true);
     });
 
     it('source origin change creates new document instead of mutating old one', () => {
@@ -1154,7 +1190,7 @@ describe('Frame model integration', () => {
       });
 
       expect(iframe.parentDocument).toBe(doc);
-      expect(iframe.sourceId).toBe('win-child');
+      expect(iframe.sourceIdFromParent).toBe('win-child');
       expect(iframe.domPath).toBe('body > iframe');
       expect(doc.iframes).toContain(iframe);
     });
@@ -1268,18 +1304,18 @@ describe('Frame model integration', () => {
   });
 
   // ===================================================================
-  // iframesBySourceId — linking documents to frames via IFrame sourceId
-  // ===================================================================
-  describe('iframesBySourceId linking', () => {
-    it('populates iframesBySourceId when hierarchy includes iframe with sourceId', () => {
+  // iframesBySourceIdFromParent — linking documents to frames via IFrame sourceIdFromParent
+  // ===========================================================================================
+  describe('iframesBySourceIdFromParent linking', () => {
+    it('populates iframesBySourceIdFromParent when hierarchy includes iframe with sourceId', () => {
       store.setFrameHierarchy([
         { frameId: 0, tabId: TAB_ID, documentId: FRAME_A.documentId, url: FRAME_A.url, parentFrameId: -1, title: FRAME_A.title, origin: FRAME_A.origin, iframes: [{ ...FRAME_B.iframe, sourceId: FRAME_B.sourceId }] },
         { frameId: 1, tabId: TAB_ID, documentId: FRAME_B.documentId, url: FRAME_B.url, parentFrameId: 0, title: FRAME_B.title, origin: FRAME_B.origin, iframes: [] },
       ]);
 
-      const iframe = frameStore.iframesBySourceId.get(FRAME_B.sourceId);
+      const iframe = frameStore.iframesBySourceIdFromParent.get(FRAME_B.sourceId);
       expect(iframe).toBeDefined();
-      expect(iframe!.sourceId).toBe(FRAME_B.sourceId);
+      expect(iframe!.sourceIdFromParent).toBe(FRAME_B.sourceId);
     });
 
     it('links orphaned document to child frame when registration establishes IFrame.childFrame', () => {
@@ -1299,7 +1335,7 @@ describe('Frame model integration', () => {
       ]);
 
       // The IFrame should have a childFrame link
-      const iframe = frameStore.iframesBySourceId.get(FRAME_B.sourceId)!;
+      const iframe = frameStore.iframesBySourceIdFromParent.get(FRAME_B.sourceId)!;
       expect(iframe.childFrame).toBeDefined();
       expect(iframe.childFrame!.frameId).toBe(1);
     });
@@ -1313,7 +1349,7 @@ describe('Frame model integration', () => {
         { frameId: 1, tabId: TAB_ID, documentId: FRAME_B.documentId, url: FRAME_B.url, parentFrameId: 0, title: FRAME_B.title, origin: FRAME_B.origin, iframes: [] },
       ]);
 
-      const iframe = frameStore.iframesBySourceId.get(FRAME_B.sourceId)!;
+      const iframe = frameStore.iframesBySourceIdFromParent.get(FRAME_B.sourceId)!;
       expect(iframe.childFrame).toBeDefined();
 
       // Create a new IFrame with a known childFrame (simulating a second iframe)
@@ -1338,12 +1374,12 @@ describe('Frame model integration', () => {
       // Child message without registration — IFrame has no childFrame
       processIncomingMessage(childMsg(FRAME_B, FRAME_A));
 
-      const iframe = frameStore.iframesBySourceId.get(FRAME_B.sourceId)!;
+      const iframe = frameStore.iframesBySourceIdFromParent.get(FRAME_B.sourceId)!;
       expect(iframe.childFrame).toBeUndefined();
 
       // The orphaned doc should be accessible via the IFrame
       expect(iframe.orphanedDocument).toBeDefined();
-      expect(iframe.orphanedDocument!.sourceId).toBe(FRAME_B.sourceId);
+      expect(iframe.orphanedDocument!.sourceIdRecords.some(r => r.sourceId === FRAME_B.sourceId)).toBe(true);
 
       // It should NOT appear in unknownDocuments since it's claimed by an IFrame
       expect(frameStore.unknownDocuments).toHaveLength(0);
@@ -1358,7 +1394,7 @@ describe('Frame model integration', () => {
         { frameId: 1, tabId: TAB_ID, documentId: FRAME_B.documentId, url: FRAME_B.url, parentFrameId: 0, title: FRAME_B.title, origin: FRAME_B.origin, iframes: [] },
       ]);
 
-      const iframe = frameStore.iframesBySourceId.get(FRAME_B.sourceId)!;
+      const iframe = frameStore.iframesBySourceIdFromParent.get(FRAME_B.sourceId)!;
       expect(iframe.childFrame).toBeDefined();
       // When childFrame exists, documents are on the frame — no orphan
       expect(iframe.orphanedDocument).toBeUndefined();
@@ -1371,8 +1407,75 @@ describe('Frame model integration', () => {
         { frameId: 1, tabId: TAB_ID, documentId: FRAME_B.documentId, url: FRAME_B.url, parentFrameId: 0, title: FRAME_B.title, origin: FRAME_B.origin, iframes: [] },
       ]);
 
-      const iframe = frameStore.iframesBySourceId.get(FRAME_B.sourceId)!;
+      const iframe = frameStore.iframesBySourceIdFromParent.get(FRAME_B.sourceId)!;
       expect(iframe.orphanedDocument).toBeUndefined();
+    });
+  });
+
+  describe('self message sourceId linking', () => {
+    it('links self sourceId to existing target FrameDocument', () => {
+      // First establish the document via a child message
+      processIncomingMessage(childMsg(FRAME_B, FRAME_A));
+      const targetDoc = frameStore.getDocumentById(FRAME_A.documentId);
+      expect(targetDoc).toBeDefined();
+
+      // Now process a self message on frame A with a different sourceId
+      const selfSourceId = 'win-self-A';
+      processIncomingMessage(selfMsg(FRAME_A, selfSourceId));
+
+      // The self sourceId should point to the SAME document as the target
+      const docBySelfSourceId = frameStore.getDocumentBySourceId(selfSourceId);
+      expect(docBySelfSourceId).toBe(targetDoc);
+
+      // The document should have a sourceIdRecord with sourceType 'self'
+      const selfRecord = targetDoc!.sourceIdRecords.find(r => r.sourceType === 'self');
+      expect(selfRecord).toBeDefined();
+      expect(selfRecord!.sourceId).toBe(selfSourceId);
+
+      // Should NOT create an unknown document
+      expect(frameStore.unknownDocuments).toHaveLength(0);
+    });
+
+    it('self message on registered child frame does not break child sourceId tracking', () => {
+      // Establish frame B via child message + registration (typical flow)
+      processIncomingMessage(childMsg(FRAME_B, FRAME_A));
+      processIncomingMessage(registrationMsg(FRAME_B, FRAME_A));
+
+      const docB = frameStore.getDocumentById(FRAME_B.documentId)!;
+      expect(docB).toBeDefined();
+
+      // Verify child sourceId resolves to frame B's document
+      expect(frameStore.getDocumentBySourceId(FRAME_B.sourceId)).toBe(docB);
+
+      // Verify IFrame on parent document links via sourceIdFromParent
+      const parentDoc = frameStore.getDocumentById(FRAME_A.documentId)!;
+      const iframe = parentDoc.iframes.find(i => i.sourceIdFromParent === FRAME_B.sourceId);
+      expect(iframe).toBeDefined();
+      expect(iframe!.childFrame).toBeDefined();
+
+      // Now frame B posts a message to itself (e.g. devtools extension script)
+      const selfSourceId = 'win-self-B';
+      processIncomingMessage(selfMsg(FRAME_B, selfSourceId));
+
+      // Child sourceId must still resolve to the same document
+      expect(frameStore.getDocumentBySourceId(FRAME_B.sourceId)).toBe(docB);
+
+      // Self sourceId should also resolve to the same document
+      expect(frameStore.getDocumentBySourceId(selfSourceId)).toBe(docB);
+
+      // IFrame → child frame link must still be intact
+      expect(iframe!.childFrame!.frameId).toBe(FRAME_B.frameId);
+
+      // Document should have both sourceIdRecords: child and self
+      const childRecord = docB.sourceIdRecords.find(r => r.sourceType === 'child');
+      const selfRecord = docB.sourceIdRecords.find(r => r.sourceType === 'self');
+      expect(childRecord).toBeDefined();
+      expect(childRecord!.sourceId).toBe(FRAME_B.sourceId);
+      expect(selfRecord).toBeDefined();
+      expect(selfRecord!.sourceId).toBe(selfSourceId);
+
+      // Should NOT create unknown documents
+      expect(frameStore.unknownDocuments).toHaveLength(0);
     });
   });
 });

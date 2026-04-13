@@ -10,7 +10,7 @@ export class IFrame {
   domPath: string;
   src: string | undefined;
   id: string | undefined;
-  sourceId: string | undefined;
+  sourceIdFromParent: string | undefined;
   readonly parentDocument: FrameDocument;
   childFrame: Frame | undefined;
   removedFromHierarchy: boolean;
@@ -27,7 +27,7 @@ export class IFrame {
     this.domPath = domPath;
     this.src = src || undefined;
     this.id = id || undefined;
-    this.sourceId = undefined;
+    this.sourceIdFromParent = undefined;
     this.childFrame = undefined;
     this.removedFromHierarchy = false;
     this.docLookup = docLookup;
@@ -40,8 +40,8 @@ export class IFrame {
 
   /** Document with matching sourceId that has no frame — belongs to this IFrame but can't be linked to a Frame yet. */
   get orphanedDocument(): FrameDocument | undefined {
-    if (this.childFrame || !this.sourceId) return undefined;
-    const doc = this.docLookup.getDocumentBySourceId(this.sourceId);
+    if (this.childFrame || !this.sourceIdFromParent) return undefined;
+    const doc = this.docLookup.getDocumentBySourceId(this.sourceIdFromParent);
     return doc && !doc.frame ? doc : undefined;
   }
 }

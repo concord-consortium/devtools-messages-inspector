@@ -407,7 +407,17 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
         }
       }
 
-      if (message.payload.source.type === 'parent') {
+      if (sourceType === 'self') {
+        // Self messages: source and target are the same window.
+        // Copy target's frameId and documentId to source.
+        enrichedPayload.source = {
+          ...enrichedPayload.source,
+          frameId: frameId,
+          documentId: sender.documentId
+        };
+      }
+
+      if (sourceType === 'parent') {
         try {
           const frame = await chrome.webNavigation.getFrame({ tabId, frameId });
           if (!frame) {

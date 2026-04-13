@@ -401,6 +401,28 @@ describe('content → background → panel integration', () => {
     expect(msgPayloads[0].payload.data).toEqual({ type: 'early-msg' });
     expect(msgPayloads[0].payload.buffered).toBe(true);
   });
+
+  it('self message does not create unknown document', async () => {
+    const topFrame = actions.createTab({ url: 'https://self.example.com/', title: 'Self Page' });
+    const { messages } = env.connectPanel(topFrame.tab.id);
+    await flushPromises();
+
+    // Self message: window posts to itself
+    topFrame.window!.postMessage({ type: 'self-ping' }, '*');
+    await flushPromises();
+
+    const msgPayloads = messages.filter(m => m.type === 'message');
+    expect(msgPayloads).toHaveLength(1);
+
+    const payload = msgPayloads[0].payload;
+    expect(payload.source.type).toBe('self');
+    expect(payload.data).toEqual({ type: 'self-ping' });
+
+    // Background should enrich source with same frameId/documentId as target
+    expect(payload.source.frameId).toBe(payload.target.frameId);
+    expect(payload.source.documentId).toBe(payload.target.documentId);
+    expect(payload.source.tabId).toBe(payload.target.tabId);
+  });
 });
 
 // ---------------------------------------------------------------------------

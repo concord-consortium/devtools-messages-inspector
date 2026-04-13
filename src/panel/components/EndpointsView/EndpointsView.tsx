@@ -29,9 +29,7 @@ function nodesEqual(a: SelectedNode | null, b: SelectedNode): boolean {
 
 function documentNodeId(doc: FrameDocument): SelectedNode {
   if (doc.documentId) return { type: 'document', documentId: doc.documentId, docRef: doc };
-  if (doc.sourceId) return { type: 'document-by-sourceId', sourceId: doc.sourceId, docRef: doc };
-  // Fallback — shouldn't happen in practice
-  return { type: 'document-by-sourceId', sourceId: '', docRef: doc };
+  return { type: 'document-by-sourceId', sourceId: doc.stableId, docRef: doc };
 }
 
 // --- Expand/Collapse Toggle ---
@@ -56,7 +54,7 @@ const DocumentNode = observer(({ doc, frame, depth, isNavigatedAway }: {
   const [expanded, setExpanded] = useState(true);
   const nodeId = documentNodeId(doc);
   const isSelected = nodesEqual(store.selectedNode, nodeId);
-  const label = doc.url || doc.origin || doc.sourceId || '(unknown)';
+  const label = doc.label;
   const unknownChildren = frame ? frameStore.getUnknownChildFrames(frame, doc) : [];
   const hasChildren = doc.iframes.length > 0 || unknownChildren.length > 0;
 
@@ -75,7 +73,7 @@ const DocumentNode = observer(({ doc, frame, depth, isNavigatedAway }: {
       {expanded && hasChildren && (
         <>
           {doc.iframes.map((iframe, i) => (
-            <IFrameNode key={iframe.sourceId || `iframe-${i}`} iframe={iframe} depth={depth + 1} />
+            <IFrameNode key={iframe.sourceIdFromParent || `iframe-${i}`} iframe={iframe} depth={depth + 1} />
           ))}
           {unknownChildren.map(childFrame => (
             <UnknownIFrameNode key={childFrame.key} frame={childFrame} depth={depth + 1} />
@@ -94,8 +92,8 @@ const IFrameNode = observer(({ iframe, depth }: { iframe: IFrame; depth: number 
   // Use child frame's identity if available; fall back to sourceId for unlinked iframes
   const nodeId: SelectedNode | null = childFrame
     ? { type: 'iframe', tabId: childFrame.tabId, frameId: childFrame.frameId, iframeRef: iframe }
-    : iframe.sourceId
-      ? { type: 'iframe-element', sourceId: iframe.sourceId, iframeRef: iframe }
+    : iframe.sourceIdFromParent
+      ? { type: 'iframe-element', sourceId: iframe.sourceIdFromParent, iframeRef: iframe }
       : null;
   const isSelected = nodeId ? nodesEqual(store.selectedNode, nodeId) : false;
   const orphanDoc = iframe.orphanedDocument;
@@ -156,7 +154,7 @@ const FrameDocuments = observer(({ frame, depth }: { frame: Frame; depth: number
     <>
       {[...docs].reverse().map((doc, i) => (
         <DocumentNode
-          key={doc.documentId || doc.sourceId || `doc-${i}`}
+          key={doc.stableId}
           doc={doc}
           frame={frame}
           depth={depth}
@@ -192,7 +190,7 @@ const TabNode = observer(({ tabId, rootFrame, depth }: { tabId: number; rootFram
 });
 
 const UnknownDocumentNode = observer(({ doc }: { doc: FrameDocument }) => {
-  const nodeId: SelectedNode = { type: 'unknown-document', sourceId: doc.sourceId! };
+  const nodeId: SelectedNode = { type: 'unknown-document', sourceId: doc.sourceIdRecords[0]?.sourceId ?? '' };
   const isSelected = nodesEqual(store.selectedNode, nodeId);
 
   return (
@@ -203,7 +201,7 @@ const UnknownDocumentNode = observer(({ doc }: { doc: FrameDocument }) => {
     >
       <span className="tree-node-expand-spacer" />
       <span className="tree-node-type tree-node-type--unknown">Unknown</span>
-      <span className="tree-node-label">Unknown Document (sourceId: {doc.sourceId})</span>
+      <span className="tree-node-label">Unknown Document (sourceId: {doc.sourceIdRecords[0]?.sourceId})</span>
     </div>
   );
 });
@@ -235,7 +233,7 @@ const TreeView = observer(() => {
           : <UnknownIFrameNode key={frame.key} frame={frame} depth={0} />
       ))}
       {unknownDocs.map(doc => (
-        <UnknownDocumentNode key={doc.sourceId} doc={doc} />
+        <UnknownDocumentNode key={doc.stableId} doc={doc} />
       ))}
     </div>
   );
@@ -284,7 +282,6 @@ const DocumentDetail = observer(({ doc }: { doc: FrameDocument }) => {
     <table className="context-table">
       <tbody>
         {showInternal && doc.documentId && <Field label="documentId">{doc.documentId}</Field>}
-        {showInternal && doc.sourceId && <Field label="sourceId">{doc.sourceId}</Field>}
         {showInternal && <Field label="createdAt">{new Date(doc.createdAt).toISOString()}</Field>}
         {doc.url && <Field label="URL">{doc.url}</Field>}
         {doc.origin && <Field label="Origin">{doc.origin}</Field>}
@@ -295,7 +292,7 @@ const DocumentDetail = observer(({ doc }: { doc: FrameDocument }) => {
             <Field label="Frame">frame[{doc.frame.frameId}]</Field>
           </>
         )}
-        {showInternal && doc.sourceIdRecords.length > 0 && (
+        {doc.sourceIdRecords.length > 0 && (
           <>
             <SeparatorRow />
             <tr><th colSpan={2} className="section-heading">Source ID Records</th></tr>
@@ -346,7 +343,7 @@ const IFrameDetail = observer(({ tabId, frameId, isUnknown, iframeRef }: { tabId
             {iframeRef.domPath && <Field label="domPath">{iframeRef.domPath}</Field>}
             {iframeRef.src && <Field label="src">{iframeRef.src}</Field>}
             {iframeRef.id && <Field label="id">{iframeRef.id}</Field>}
-            {iframeRef.sourceId && <Field label="sourceId">{iframeRef.sourceId}</Field>}
+            {iframeRef.sourceIdFromParent && <Field label="sourceId">{iframeRef.sourceIdFromParent}</Field>}
           </>
         )}
         <Field label="frameId">frame[{frameId}]</Field>
@@ -367,7 +364,7 @@ const IFrameElementDetail = observer(({ iframeRef }: { iframeRef: IFrame }) => {
         {iframeRef.domPath && <Field label="domPath">{iframeRef.domPath}</Field>}
         {iframeRef.src && <Field label="src">{iframeRef.src}</Field>}
         {iframeRef.id && <Field label="id">{iframeRef.id}</Field>}
-        {iframeRef.sourceId && <Field label="sourceId">{iframeRef.sourceId}</Field>}
+        {iframeRef.sourceIdFromParent && <Field label="sourceId">{iframeRef.sourceIdFromParent}</Field>}
       </tbody>
     </table>
   );
