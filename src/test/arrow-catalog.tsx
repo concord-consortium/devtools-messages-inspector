@@ -3,7 +3,7 @@
 
 import React, { useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { DirectionIcon, UninvolvedIcon } from '../panel/components/shared/DirectionIcon';
+import { DirectionIcon } from '../panel/components/shared/DirectionIcon';
 import type { FocusPosition } from '../panel/types';
 
 const SOURCE_TYPES = ['parent', 'child', 'opener', 'opened', 'self', 'unknown'] as const;
@@ -26,7 +26,7 @@ function ArrowCatalog() {
             {FOCUS_POSITIONS.map(fp => (
               <th key={fp} style={thStyle}>focus: {fp}</th>
             ))}
-            <th style={thStyle}>uninvolved</th>
+
           </tr>
         </thead>
         <tbody>
@@ -43,9 +43,6 @@ function ArrowCatalog() {
                   )}
                 </td>
               ))}
-              <td style={tdStyle} className="dir-uninvolved">
-                <UninvolvedIcon />
-              </td>
             </tr>
           ))}
         </tbody>

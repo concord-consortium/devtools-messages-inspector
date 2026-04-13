@@ -292,7 +292,7 @@ const DocumentDetail = observer(({ doc }: { doc: FrameDocument }) => {
             <Field label="Frame">frame[{doc.frame.frameId}]</Field>
           </>
         )}
-        {doc.sourceIdRecords.length > 0 && (
+        {showInternal && doc.sourceIdRecords.length > 0 && (
           <>
             <SeparatorRow />
             <tr><th colSpan={2} className="section-heading">Source ID Records</th></tr>

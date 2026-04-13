@@ -263,8 +263,9 @@ test.describe('focused frame', () => {
 
     const row = page.locator('#message-table tbody tr', { has: page.locator('td[data-column="messageType"]', { hasText: 'uninvolved-test' }) });
     const dirCell = row.locator('td[data-column="direction"]');
+    await expect(dirCell).toHaveClass(/dir-child/);
     await expect(dirCell).toHaveClass(/dir-uninvolved/);
-    // Should not have a focus indicator, just a gray dot (circle element)
+    // Should not have a focus indicator (uses normal unfocused icon)
     const indicator = dirCell.locator('.focus-indicator');
     await expect(indicator).toHaveCount(0);
   });

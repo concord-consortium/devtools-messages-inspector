@@ -1,13 +1,6 @@
 # Remaining for Version 1
-- the extension is crashing sometimes, it goes completely blank, I have seen the error below when this happens, but I'm not sure it is related.
-- the extension has errors on this line:
-```
- Pn.postMessage({
-        type: "get-frame-hierarchy",
-        tabId: T.tabId
-    })
-```
-With the message Attempting to use a disconnected port object. This is a message sent to the background. So somehow the background is getting disconnected. It looks like this can happen often since we have some automatic reconnecting logic in connection.ts. So it seems like the messages connecting the background should retry.
+- add a general documentId filter that looks for both source and target documentIds
+- figure out a plan for how to handle "preserve log" with the endpoints. My hunch at this point is to clear the endpoints too, unless preserve log is checked. This makes it a more global setting.
 - review the details of the endpoints, they don't seem consistent between the different types.
 - it will be useful if we can record a "session" of messages/events between the panel and the background. Then we can setup the panel with specific settings and then replay the session. This might help reproduce issues that only show up in the real extension within the test harness environment. This has a few questions though: when does the session start recording? How is the session recording enabled? Should we also record any settings or other chrome calls made by the panel?
 - see if we can add iframe elements to console when clicked on in hierarchy
@@ -20,7 +13,7 @@ With the message Attempting to use a disconnected port object. This is a message
 - update details pane in messages view, probably details should be default and first and content second
 - the reload icon on the endpoints page is broken
 - the endpoints page should automatically update when it can. With the test harness actions this should be easier to implement and test now
-- The Hierarchy Map should support a mode where the frame is collapsed into its parent node. So this way the Tab represents itself plus its Frame. And the IFrame represents itself plus its Frame. This will reduce the number of containers shown and make it easier for someone to reason about without getting bogged down in the Frame construct the browser is using underneath. It still keeps the Document concept since there can multiple of those.
+- The Hierarchy Map (shown in test harness) should support a mode where the frame is collapsed into its parent node. So this way the Tab represents itself plus its Frame. And the IFrame represents itself plus its Frame. This will reduce the number of containers shown and make it easier for someone to reason about without getting bogged down in the Frame construct the browser is using underneath. It still keeps the Document concept since there can multiple of those.
 
 - truncate long values in the context pane with some way to see the full value.
 - clean up the left side

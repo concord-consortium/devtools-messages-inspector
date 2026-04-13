@@ -81,11 +81,6 @@ function CircularArrow({ focusPosition }: { focusPosition: FocusPosition }) {
   );
 }
 
-// Uninvolved dot: small gray dot when focused frame isn't part of this message
-function UninvolvedDot() {
-  return <circle cx={8} cy={8} r={2} fill="#80868b" />;
-}
-
 // Unknown: question mark
 function UnknownIcon() {
   return <text x={8} y={12} textAnchor="middle" fill="currentColor" fontSize={12}>?</text>;
@@ -172,10 +167,3 @@ export function DirectionIcon({ sourceType, focusPosition, hideTitle }: Directio
   );
 }
 
-export function UninvolvedIcon() {
-  return (
-    <span className="direction-icon">
-      <IconSvg title="uninvolved"><UninvolvedDot /></IconSvg>
-    </span>
-  );
-}

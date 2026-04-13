@@ -6,7 +6,7 @@ import { ALL_COLUMNS } from '../../types';
 import { getColumnLabel } from '../../field-info';
 import { Message } from '../../Message';
 import { buildCellFilter } from '../../buildCellFilter';
-import { DirectionIcon, UninvolvedIcon } from '../shared/DirectionIcon';
+import { DirectionIcon } from '../shared/DirectionIcon';
 
 // Column header with resize handle
 const ColumnHeader = observer(({ columnId }: { columnId: string }) => {
@@ -174,14 +174,10 @@ const MessageRow = observer(({ message }: { message: Message }) => {
             <td
               key={col.id}
               data-column={col.id}
-              className={isUninvolved ? 'dir-uninvolved' : `dir-${message.sourceType}`}
+              className={`dir-${message.sourceType}${isUninvolved ? ' dir-uninvolved' : ''}`}
               onContextMenu={(e) => showCellMenu(e, message, col.id)}
             >
-              {isUninvolved ? (
-                <UninvolvedIcon />
-              ) : (
-                <DirectionIcon sourceType={message.sourceType} focusPosition={focusPosition} />
-              )}
+              <DirectionIcon sourceType={message.sourceType} focusPosition={focusPosition} />
             </td>
           );
         }
