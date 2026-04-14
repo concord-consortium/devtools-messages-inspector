@@ -81,7 +81,7 @@ describe('store.navigateToNodeMessages', () => {
     store.navigateToNodeMessages({ type: 'document', documentId: 'doc-123' });
 
     expect(store.focusedFrame).toBeNull();
-    expect(store.filterText).toBe('source.documentId:doc-123 OR target.documentId:doc-123');
+    expect(store.filterText).toBe('documentId:doc-123');
   });
 
   it('unknown-document node sets sourceId filter', () => {

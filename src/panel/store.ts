@@ -367,7 +367,7 @@ class PanelStore {
       case 'unknown-iframe':
         return this.buildFrameFilter(node.tabId, node.frameId);
       case 'document':
-        return `source.documentId:${node.documentId} OR target.documentId:${node.documentId}`;
+        return `documentId:${node.documentId}`;
       case 'document-by-sourceId':
         return `source.sourceId:${node.sourceId}`;
       case 'iframe-element':

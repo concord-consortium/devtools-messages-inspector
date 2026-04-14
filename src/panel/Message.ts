@@ -125,6 +125,16 @@ class Message implements IMessage {
     return this.sourceDocument?.frame;
   }
 
+  // Computed: documentId array for liqe filtering (source + target documentIds).
+  get documentId(): string[] {
+    const result: string[] = [];
+    const srcDocId = this.source.documentId;
+    const tgtDocId = this.target.documentId;
+    if (srcDocId) result.push(srcDocId);
+    if (tgtDocId && tgtDocId !== srcDocId) result.push(tgtDocId);
+    return result;
+  }
+
   // Computed: frame identifier strings for liqe filtering.
   // Only the absolute tab[T].frame[N] form is stored; liqe's substring
   // matching means frames:frame[N] still matches.

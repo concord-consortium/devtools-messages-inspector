@@ -76,7 +76,7 @@ export const FIELD_INFO: Record<string, FieldInfoEntry> = {
     label: 'Document ID',
     description: 'Chrome-assigned unique identifier for this document instance in the frame.',
     technical: 'Assigned by Chrome via webNavigation API. Changes on each navigation.',
-    filter: null
+    filter: 'documentId:ABC123'
   },
   'document.url': {
     label: 'Document URL',

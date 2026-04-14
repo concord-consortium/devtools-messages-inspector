@@ -101,6 +101,66 @@ describe('Message.frames', () => {
   });
 });
 
+describe('Message.documentId', () => {
+  beforeEach(() => {
+    frameStore.clear();
+  });
+
+  it('returns both source and target documentIds', () => {
+    const msg = makeMessage();
+    expect(msg.documentId).toEqual(['doc-source', 'doc-target']);
+  });
+
+  it('deduplicates when source and target have the same documentId', () => {
+    const msg = makeMessage({
+      source: {
+        type: 'self',
+        origin: 'https://parent.example.com',
+        sourceId: null,
+        iframe: null,
+        documentId: 'doc-target',
+      },
+    });
+    expect(msg.documentId).toEqual(['doc-target']);
+  });
+
+  it('returns empty array when neither has documentId', () => {
+    const msg = makeMessage({
+      target: {
+        url: 'https://parent.example.com/',
+        origin: 'https://parent.example.com',
+        documentTitle: 'Parent',
+        frameId: 0,
+        tabId: TAB_ID,
+      },
+      source: {
+        type: 'child',
+        origin: 'https://child.example.com',
+        sourceId: null,
+        iframe: null,
+      },
+    });
+    expect(msg.documentId).toEqual([]);
+  });
+
+  it('resolves source documentId via sourceId lookup', () => {
+    const sourceDoc = frameStore.getOrCreateDocumentById('doc-resolved');
+    frameStore.documentsBySourceId.set('win-1', sourceDoc);
+
+    const msg = makeMessage({
+      source: {
+        type: 'child',
+        origin: 'https://child.example.com',
+        sourceId: 'win-1',
+        iframe: null,
+        // no documentId — resolved via sourceId
+      },
+    });
+    expect(msg.documentId).toContain('doc-resolved');
+    expect(msg.documentId).toContain('doc-target');
+  });
+});
+
 describe('liqe filtering via store', () => {
   beforeEach(() => {
     // Mock chrome.storage.local for updateSettings calls
@@ -237,6 +297,62 @@ describe('liqe filtering via store', () => {
     store.setFilter('source.documentId:doc-child');
     expect(store.filteredMessages).toHaveLength(1);
     expect((store.filteredMessages[0].data as { type: string }).type).toBe('matched');
+  });
+
+  it('filters by documentId (matches source or target)', () => {
+    const msg1 = makeMessage({
+      data: { type: 'first' },
+      target: {
+        url: 'https://parent.example.com/',
+        origin: 'https://parent.example.com',
+        documentTitle: 'Parent',
+        frameId: 0,
+        tabId: TAB_ID,
+        documentId: 'doc-AAA',
+      },
+      source: {
+        type: 'child',
+        origin: 'https://child.example.com',
+        sourceId: null,
+        iframe: null,
+        documentId: 'doc-BBB',
+      },
+    });
+    const msg2 = makeMessage({
+      id: 'msg-2',
+      data: { type: 'second' },
+      target: {
+        url: 'https://other.example.com/',
+        origin: 'https://other.example.com',
+        documentTitle: 'Other',
+        frameId: 0,
+        tabId: TAB_ID,
+        documentId: 'doc-CCC',
+      },
+      source: {
+        type: 'child',
+        origin: 'https://child.example.com',
+        sourceId: null,
+        iframe: null,
+        documentId: 'doc-DDD',
+      },
+    });
+    store.addMessage(msg1);
+    store.addMessage(msg2);
+
+    // Match by target documentId
+    store.setFilter('documentId:doc-AAA');
+    expect(store.filteredMessages).toHaveLength(1);
+    expect((store.filteredMessages[0].data as { type: string }).type).toBe('first');
+
+    // Match by source documentId
+    store.setFilter('documentId:doc-BBB');
+    expect(store.filteredMessages).toHaveLength(1);
+    expect((store.filteredMessages[0].data as { type: string }).type).toBe('first');
+
+    // No match
+    store.setFilter('documentId:doc-ZZZ');
+    expect(store.filteredMessages).toHaveLength(0);
   });
 
   describe('global filter', () => {
