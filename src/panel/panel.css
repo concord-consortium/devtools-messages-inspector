@@ -183,7 +183,7 @@ body {
 
 .filter-clear-button {
   position: absolute;
-  right: 4px;
+  right: 22px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -200,7 +200,7 @@ body {
 
 .filter-help-button {
   position: absolute;
-  right: 22px;
+  right: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -218,10 +218,9 @@ body {
 .filter-help-panel {
   position: absolute;
   top: 100%;
-  left: 0;
+  right: 8px;
   max-width: 500px;
   width: 100%;
-  max-height: calc(100vh - 80px);
   overflow-y: auto;
   background: #fff;
   border: 1px solid #cacdd1;

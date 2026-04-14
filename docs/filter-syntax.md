@@ -19,9 +19,6 @@ Filters use field-prefixed queries. Every query must specify which field to sear
   - Example: `target.origin:example.com`
 - `sourceType` — relationship between sender and receiver: parent, child, self, opener, opened, top
   - Example: `sourceType:child`
-
-### Identity
-
 - `documentId` — matches messages where either the source or target has the given document ID
   - Example: `documentId:ABC123`
 - `frames` — matches messages where either the source or target is in the given frame (quotes required)

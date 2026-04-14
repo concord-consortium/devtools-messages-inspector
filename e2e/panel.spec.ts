@@ -135,6 +135,37 @@ test.describe('filtering', () => {
   });
 });
 
+test.describe('filter help panel', () => {
+  test('help button toggles the filter syntax panel', async ({ page }) => {
+    const helpButton = page.locator('.filter-help-button');
+    const helpPanel = page.locator('.filter-help-panel');
+
+    // Panel is not visible initially
+    await expect(helpPanel).not.toBeVisible();
+
+    // Click help button opens the panel
+    await helpButton.click();
+    await expect(helpPanel).toBeVisible();
+    await expect(helpPanel.locator('h1')).toHaveText('Filter Syntax');
+
+    // Click help button again closes the panel
+    await helpButton.click();
+    await expect(helpPanel).not.toBeVisible();
+  });
+
+  test('clicking outside closes the help panel', async ({ page }) => {
+    const helpButton = page.locator('.filter-help-button');
+    const helpPanel = page.locator('.filter-help-panel');
+
+    await helpButton.click();
+    await expect(helpPanel).toBeVisible();
+
+    // Click outside the panel (far left of viewport, below the filter bar)
+    await page.mouse.click(5, 200);
+    await expect(helpPanel).not.toBeVisible();
+  });
+});
+
 test.describe('dynamic frames', () => {
   test('messages from a dynamically added iframe appear', async ({ page }) => {
     // Add a new iframe at runtime

@@ -1,8 +1,9 @@
 // FilterBar component for Messages view
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { observer } from 'mobx-react-lite';
 import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { store } from '../../store';
 import filterSyntaxMd from '../../../../docs/filter-syntax.md?raw';
 
@@ -10,6 +11,13 @@ export const FilterBar = observer(() => {
   const [helpOpen, setHelpOpen] = useState(false);
   const helpRef = useRef<HTMLDivElement>(null);
   const helpButtonRef = useRef<HTMLButtonElement>(null);
+  const helpPanelRef = useCallback((node: HTMLDivElement | null) => {
+    (helpRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+    if (node) {
+      const top = node.getBoundingClientRect().top;
+      node.style.maxHeight = `calc(100vh - ${top}px - 16px)`;
+    }
+  }, []);
 
   useEffect(() => {
     if (!helpOpen) return;
@@ -78,8 +86,8 @@ export const FilterBar = observer(() => {
         </button>
       </div>
       {helpOpen && (
-        <div ref={helpRef} className="filter-help-panel">
-          <Markdown>{filterSyntaxMd}</Markdown>
+        <div ref={helpPanelRef} className="filter-help-panel">
+          <Markdown remarkPlugins={[remarkGfm]}>{filterSyntaxMd}</Markdown>
         </div>
       )}
     </div>
