@@ -22,6 +22,10 @@ export function connect(): void {
       store.clearMessages();
     } else if (msg.type === 'frame-hierarchy' && msg.payload) {
       store.setFrameHierarchy(msg.payload as FrameInfo[]);
+    } else if (msg.type === 'log-iframe-element-failed') {
+      chrome.devtools.inspectedWindow.eval(
+        'console.log("[messages] iframe no longer exists, containing document no longer exists")',
+      );
     }
   });
 

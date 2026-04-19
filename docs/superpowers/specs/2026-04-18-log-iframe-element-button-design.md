@@ -31,9 +31,15 @@ console.log("[messages]", document.querySelector(domPath));
 
 The `[messages]` prefix identifies the log as coming from this extension. If the iframe was removed from its parent's DOM but the document is still loaded, `document.querySelector(domPath)` returns `null` and the console shows `null` — which correctly conveys "the iframe is no longer there."
 
-### Document-gone handling (silent)
+### Document-gone handling
 
-If `chrome.tabs.sendMessage` rejects (parent document has navigated away or no longer exists), the background script logs a debug message and the panel takes no further action. The user sees nothing in the console — the natural "it didn't work" signal. This is intentional first-cut behavior; if silent failure is confusing in practice, a fallback log can be added later.
+If `chrome.tabs.sendMessage` rejects (parent document has navigated away or no longer exists), the background script logs a debug message and posts `{ type: 'log-iframe-element-failed' }` back to the panel. The panel's port message handler responds by calling `chrome.devtools.inspectedWindow.eval` to log:
+
+```
+[messages] iframe no longer exists, containing document no longer exists
+```
+
+This eval runs in the inspected page's main world (top frame), so the failure log appears in the same console the user is looking at. Note: the success path's log comes from the content script's isolated world (per-document context), while the failure path's log comes from the main world — so the two appear under different console contexts. Acceptable since the failure case has no element to attach to.
 
 ### Enabled vs. disabled
 

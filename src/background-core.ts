@@ -208,11 +208,16 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
           });
         });
       } else if (msg.type === 'log-iframe-element' && msg.tabId !== undefined && msg.documentId && msg.domPath) {
+        const targetTabId = msg.tabId;
         chrome.tabs.sendMessage(
-          msg.tabId,
+          targetTabId,
           { type: 'log-iframe-element', domPath: msg.domPath },
           { documentId: msg.documentId },
-        ).catch(e => console.debug('[Messages] log-iframe-element failed:', { tabId: msg.tabId, documentId: msg.documentId, domPath: msg.domPath }, e));
+        ).catch(e => {
+          console.debug('[Messages] log-iframe-element failed:', { tabId: targetTabId, documentId: msg.documentId, domPath: msg.domPath }, e);
+          const panel = panelConnections.get(targetTabId);
+          if (panel) panel.postMessage({ type: 'log-iframe-element-failed' });
+        });
       }
     });
   });
