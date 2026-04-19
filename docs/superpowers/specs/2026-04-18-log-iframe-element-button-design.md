@@ -2,95 +2,115 @@
 
 ## Overview
 
-Add a button labeled **"Log element"** to the detail-pane header in the Endpoints view. Clicking it runs `console.log("Iframe " + domPath, document.querySelector(domPath))` in the inspected page via `chrome.devtools.inspectedWindow.eval`. This gives the user a logged DOM element they can hover to highlight on the page, right-click to reveal in the Elements panel, or store as a global (`temp1`, `temp2`…) from the console's built-in context menu.
+Add a button labeled **"Log element"** to the detail-pane header in the Endpoints view. Clicking it logs the iframe's DOM element to the inspected page's console, so the user can hover the logged element to highlight on the page, right-click to reveal in the Elements panel, or store as a global variable from the console's built-in context menu.
+
+The log is produced by routing through the content script in the iframe's parent document. This automatically scopes lookups to the document the iframe was actually observed in, so the lookup correctly returns `null` (rather than a wrong element from a new page) when the parent document has navigated away. Because content scripts run in every frame, this design supports nested iframes too.
 
 ## Scope
 
-The button is only rendered when the selected node is one of the two iframe detail types that carry an `IFrame` reference:
+The button is rendered for the two iframe detail types that carry an `IFrame` reference:
 
 - `iframe` — selected from `IFrameNode` when a child `Frame` has been linked. Handled by `IFrameDetail` with an `iframeRef` prop.
 - `iframe-element` — selected when the iframe has no linked child Frame. Handled by `IFrameElementDetail`.
 
 The button is **not** rendered for `tab`, `document`, `document-by-sourceId`, `unknown-iframe`, or `unknown-document` nodes.
 
-This first version supports iframes whose parent document is the top-level document of the page. For nested iframes (parent is itself in an iframe) the button is rendered but disabled with an explanatory tooltip, so the user sees it exists and understands why it doesn't apply.
+Both top-level and nested iframes are supported.
 
 ## Behavior
 
-### Eval expression
+### Message flow
 
-The button click runs:
+1. **Panel → background** (over the existing port): `{ type: 'log-iframe-element', tabId, documentId, domPath }`. The `documentId` is the parent document's documentId (`iframe.parentDocument.documentId`).
+2. **Background → content script**: `chrome.tabs.sendMessage(tabId, { type: 'log-iframe-element', domPath }, { documentId })`. The `documentId` option targets the specific document; if it's gone, the call rejects with `chrome.runtime.lastError`.
+3. **Content script** in that document runs:
 
 ```js
-console.log("Iframe " + <domPath-literal>, document.querySelector(<domPath-literal>))
+console.log("Iframe " + domPath, document.querySelector(domPath));
 ```
 
-where `<domPath-literal>` is the iframe's `domPath` string passed through `JSON.stringify` and interpolated into the expression. This avoids all quote/escape issues regardless of what characters the domPath contains.
+If the iframe was removed from its parent's DOM but the document is still loaded, `document.querySelector(domPath)` returns `null` and the console shows `null` — which correctly conveys "the iframe is no longer there."
 
-The expression is evaluated via `chrome.devtools.inspectedWindow.eval(expression, callback)` with no `options` argument — so it runs in the top frame of the inspected page.
+### Document-gone handling (silent)
 
-### Log output
-
-Two arguments:
-
-1. A string label `"Iframe " + domPath` — makes the log self-describing when multiple elements are logged.
-2. The element returned by `document.querySelector(domPath)` — may be `null` if the element is no longer in the DOM.
-
-A `null` result is acceptable: the console simply shows `null`, which confirms for the user that the element is gone.
+If `chrome.tabs.sendMessage` rejects (parent document has navigated away or no longer exists), the background script logs a debug message and the panel takes no further action. The user sees nothing in the console — the natural "it didn't work" signal. This is intentional first-cut behavior; if silent failure is confusing in practice, a fallback log can be added later.
 
 ### Enabled vs. disabled
 
-The button is **enabled** when the iframe's parent document is the top-level document. Concretely:
+The button is **enabled** when the iframe's parent document has a known `documentId`:
 
 ```ts
-iframe.parentDocument.frame?.frameId === 0
+!!iframe.parentDocument.documentId
 ```
 
-When **disabled**, the button still renders in the header, with:
+When **disabled** (no documentId — meaning we never observed a registration message that gave the document its identity), the button still renders, with:
 
 - `disabled` attribute set
-- `title="Log element only supported for iframes directly in the top-level document"`
+- `title="Parent document identity unknown — cannot target log"`
 
-No change to the button's appearance beyond the browser's default disabled styling (matching any existing disabled-button treatment in the codebase, if present).
+No special handling for `removedFromHierarchy` or navigated-away parents — those are handled by the runtime mechanism (silent failure or `null` log).
 
 ## Components
 
-### 1. Helper: `logIframeElement`
-
-A small module-local function in `EndpointsView.tsx`:
+### 1. Helper: `logIframeElement` (in `EndpointsView.tsx`)
 
 ```ts
 function logIframeElement(iframe: IFrame): void {
-  const selector = JSON.stringify(iframe.domPath);
-  const expression = `console.log("Iframe " + ${selector}, document.querySelector(${selector}))`;
-  chrome.devtools.inspectedWindow.eval(expression);
+  const documentId = iframe.parentDocument.documentId;
+  if (!documentId) return;
+  sendLogIframeElement(documentId, iframe.domPath);
 }
 ```
 
-Kept in the same file as its only caller. No new module unless a second caller appears.
+### 2. Connection helper: `sendLogIframeElement` (in `connection.ts`)
 
-### 2. Button rendering in `NodeDetailPane`
+Sends the message over the panel's existing port to the background script. Mirrors the existing `sendPreserveLog`/`requestFrameHierarchy` helpers.
 
-Inside the existing `<div className="detail-tabs">` block, after the "Show messages" button and before the close button, add:
-
-```tsx
-{(node.type === 'iframe' || node.type === 'iframe-element') && node.iframeRef && (
-  <LogElementButton iframe={node.iframeRef} />
-)}
+```ts
+export function sendLogIframeElement(documentId: string, domPath: string): void {
+  if (port) {
+    port.postMessage({ type: 'log-iframe-element', tabId: store.tabId, documentId, domPath });
+  }
+}
 ```
 
-### 3. `LogElementButton` component
+### 3. Background port message handler (in `background-core.ts`)
 
-A small component that encapsulates the enabled/disabled logic:
+Add a case to the existing `port.onMessage.addListener` block:
+
+```ts
+} else if (msg.type === 'log-iframe-element' && msg.tabId !== undefined && msg.documentId && msg.domPath) {
+  chrome.tabs.sendMessage(msg.tabId, { type: 'log-iframe-element', domPath: msg.domPath }, { documentId: msg.documentId })
+    .catch(e => console.debug('[Messages] log-iframe-element failed:', { tabId: msg.tabId, documentId: msg.documentId, domPath: msg.domPath }, e));
+}
+```
+
+Update `BackgroundChrome.tabs.sendMessage`'s options type to allow `documentId`.
+
+### 4. Content script handler (in `content-core.ts`)
+
+Add a case to the existing `chrome.runtime.onMessage` listener:
+
+```ts
+if (message.type === 'log-iframe-element') {
+  const el = win.document.querySelector(message.domPath);
+  console.log("Iframe " + message.domPath, el);
+  return;
+}
+```
+
+Add `querySelector` to the `ContentWindow.document` interface.
+
+### 5. `LogElementButton` component (unchanged shape, updated check)
 
 ```tsx
 const LogElementButton = observer(({ iframe }: { iframe: IFrame }) => {
-  const canLog = iframe.parentDocument.frame?.frameId === 0;
+  const canLog = !!iframe.parentDocument.documentId;
   return (
     <button
       className="log-element-btn"
       disabled={!canLog}
-      title={canLog ? undefined : "Log element only supported for iframes directly in the top-level document"}
+      title={canLog ? undefined : 'Parent document identity unknown — cannot target log'}
       onClick={() => logIframeElement(iframe)}
     >
       Log element
@@ -99,50 +119,67 @@ const LogElementButton = observer(({ iframe }: { iframe: IFrame }) => {
 });
 ```
 
-Defined in `EndpointsView.tsx` alongside the other local components.
+### 6. Type definitions (in `types.ts`)
 
-### 4. Styling
+```ts
+export interface LogIframeElementMessage {
+  type: 'log-iframe-element';
+  domPath: string;
+}
 
-The existing `.show-messages-btn` rule in `src/panel/panel.css` includes `margin-left: auto`, which pushes the button to the right side of the flex row. When a second action button is added, the two buttons should sit together at the right.
+export type BackgroundToContentMessage =
+  | SendMessageMessage
+  | GetFrameInfoMessage
+  | LogIframeElementMessage;
+```
 
-Plan:
-
-- Add a new `.log-element-btn` rule in `src/panel/panel.css` with the same visual properties as `.show-messages-btn` (padding, border, border-radius, background, font-size, cursor) but *without* `margin-left: auto`. Instead give it `margin-right: 4px` to match the gap before the close button.
-- Add a selector rule `.log-element-btn + .close-detail-btn { margin-left: 0; }` mirroring the existing `.show-messages-btn + .close-detail-btn` rule, so the close button sits tight against whichever action button is last.
-- Disabled appearance: rely on the browser default for `button:disabled`. No custom rule.
-
-Rendering order inside `.detail-tabs`: `detail-title`, `show-messages-btn` (push-right via its `margin-left: auto`), `log-element-btn`, `close-detail-btn`.
+The panel→background port message is loosely typed via the existing `{ type: string; tabId?: number; ... }` shape; we extend that inline in the handler.
 
 ## Files Changed
 
 | File | Change |
 |------|--------|
-| `src/panel/components/EndpointsView/EndpointsView.tsx` | Add `logIframeElement` helper and `LogElementButton` component; render it in `NodeDetailPane` header between "Show messages" and the close button, for `iframe` and `iframe-element` node types. |
-| `src/panel/panel.css` | Add `.log-element-btn` rule and `.log-element-btn + .close-detail-btn` rule (see Styling above). |
-| `src/panel/components/EndpointsView/EndpointsView.test.tsx` (new) | Unit tests for button visibility, enabled/disabled state, and click behavior. |
+| `src/types.ts` | Add `LogIframeElementMessage` to `BackgroundToContentMessage` union. |
+| `src/content-core.ts` | Add `querySelector` to `ContentWindow.document` interface; add `log-iframe-element` case to message handler. |
+| `src/background-core.ts` | Allow `documentId` in `BackgroundChrome.tabs.sendMessage` options; add `log-iframe-element` case to port message handler. |
+| `src/panel/connection.ts` | Add `sendLogIframeElement(documentId, domPath)` helper. |
+| `src/panel/components/EndpointsView/EndpointsView.tsx` | Replace `chrome.devtools.inspectedWindow.eval` body of `logIframeElement` with a call to `sendLogIframeElement`; update `LogElementButton`'s enabled check and tooltip text. |
+| `src/panel/components/EndpointsView/EndpointsView.test.tsx` | Replace eval-based test mocks with port-based mocks; update enabled/disabled state tests for the new condition. |
+| `src/panel/panel.css` | No changes (CSS from v1 still applies). |
 
 ## Testing
 
 ### Unit tests
 
-Using the existing vitest + React Testing Library setup:
+1. `logIframeElement` calls `sendLogIframeElement` with the iframe's `parentDocument.documentId` and `iframe.domPath`. (Mock the connection module.)
+2. `logIframeElement` is a no-op when `iframe.parentDocument.documentId` is undefined.
+3. `LogElementButton` enabled when `iframe.parentDocument.documentId` is set.
+4. `LogElementButton` disabled with the new tooltip when `iframe.parentDocument.documentId` is undefined.
+5. Click on enabled button calls the connection helper.
+6. `NodeDetailPane` button visibility tests (5 cases from v1) remain unchanged.
 
-1. Renders "Log element" button when `iframe` node is selected and `parentDocument.frame.frameId === 0`; button is enabled.
-2. Renders "Log element" button when `iframe-element` node is selected and `parentDocument.frame.frameId === 0`; button is enabled.
-3. Renders button as disabled with the tooltip text when `parentDocument.frame.frameId !== 0`.
-4. Does not render button for `tab`, `document`, `document-by-sourceId`, `unknown-iframe`, or `unknown-document` node types.
-5. Clicking the enabled button calls `chrome.devtools.inspectedWindow.eval` with an expression matching `console.log("Iframe " + "<domPath>", document.querySelector("<domPath>"))`, with `chrome.devtools.inspectedWindow.eval` mocked.
-6. `JSON.stringify` escaping: if the `domPath` contains a double quote, the produced expression is still valid JS (verified by running it through `new Function(...)` in the test, or by string-matching the expected escaped form).
+### Background unit test
+
+Existing `background-core.test.ts` (if present) — add a test for the port handler that asserts `chrome.tabs.sendMessage` is called with the expected message shape and `{ documentId }` option. If no test file exists for background-core, this can be omitted or added later.
+
+### Content script unit test
+
+Existing `content-core` integration tests use `ChromeExtensionEnv`. Add a test that delivers a `log-iframe-element` message to the content script and asserts `console.log` is called with the expected arguments. (Use `vi.spyOn(console, 'log')`.)
 
 ### Manual verification
 
-- Open the test page with iframes in the top-level document; select one in the Endpoints tree; click "Log element"; confirm the element appears in the console and can be hovered, revealed in Elements, and stored as a global.
-- Select a nested iframe; confirm the button is disabled with the expected tooltip.
-- Select a `document` or `tab` node; confirm no button appears.
+- Top-level iframe — click button, confirm element logs to inspected page console.
+- Nested iframe — click button, confirm element logs to inspected page console (look for the "(Isolated World)" or content script context indicator if Chrome shows one).
+- Iframe whose parent document has navigated away — click button, confirm nothing is logged (silent failure).
+- Iframe whose parent document has no documentId — confirm button is disabled with tooltip.
 
 ## Non-Goals
 
-- **Nested iframes.** Not supported in this version. The `frameURL` option to `inspectedWindow.eval` picks the first frame matching a URL with no way to disambiguate duplicates, and the alternative (content-script routing by frameId) adds significant machinery. The button is disabled in this case.
-- **Elements panel reveal.** The roadmap mentions using `chrome.devtools.inspectedWindow.eval('inspect(element)')` to switch to the Elements panel. That's tracked separately.
-- **Named globals.** The user can right-click the logged element → "Store as global variable" to get `temp1`, `temp2`, etc. The extension does not create named globals itself.
-- **Unknown iframes.** Iframes known only from Chrome's frame hierarchy (no DOM observation, no `domPath`) do not get a button.
+- **User-visible error message when document is gone.** Silent failure for now. Revisit if confusing.
+- **Named globals.** User can right-click → "Store as global variable" from the console.
+- **Reveal in Elements panel.** Tracked separately in roadmap (`inspect()` helper).
+- **Unknown iframes** (no `IFrame` model entry) — no button.
+
+## Notes on Console Output
+
+Logs from content scripts appear in the inspected page's DevTools console. Depending on Chrome's UI, they may be tagged with the content script's context ("Isolated World" or the extension name) and the console may need its context dropdown set appropriately to see them. This is acceptable — the logged element reference is still valid for highlighting and the right-click menu still works.
