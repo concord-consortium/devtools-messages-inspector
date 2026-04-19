@@ -31,15 +31,19 @@ console.log("[messages]", document.querySelector(domPath));
 
 The `[messages]` prefix identifies the log as coming from this extension. If the iframe was removed from its parent's DOM but the document is still loaded, `document.querySelector(domPath)` returns `null` and the console shows `null` — which correctly conveys "the iframe is no longer there."
 
-### Document-gone handling
+### Document-gone (and other failure) handling
 
-If `chrome.tabs.sendMessage` rejects (parent document has navigated away or no longer exists), the background script logs a debug message and posts `{ type: 'log-iframe-element-failed' }` back to the panel. The panel's port message handler responds by calling `chrome.devtools.inspectedWindow.eval` to log:
+If `chrome.tabs.sendMessage` rejects — the parent document has navigated away, the content script isn't yet injected, the tab is closed, etc. — the background captures the rejection's `.message` and posts `{ type: 'log-iframe-element-failed', error }` back to the panel. The panel's port handler logs in the inspected page's main world via `chrome.devtools.inspectedWindow.eval`:
 
 ```
-[messages] iframe no longer exists, containing document no longer exists
+[messages] could not log iframe: <error>
 ```
 
-This eval runs in the inspected page's main world (top frame), so the failure log appears in the same console the user is looking at. Note: the success path's log comes from the content script's isolated world (per-document context), while the failure path's log comes from the main world — so the two appear under different console contexts. Acceptable since the failure case has no element to attach to.
+For example, when the document has navigated away, Chrome's error message is *"Could not establish connection. Receiving end does not exist."* — so the user sees `[messages] could not log iframe: Could not establish connection. Receiving end does not exist.`
+
+The raw error text is exposed verbatim. We don't translate it: that keeps the panel ignorant of Chrome's specific wording (which can change across Chrome versions) and gives the user the actual cause. The downside is the message is more technical than a curated user-facing string, but the prefix `[messages]` makes it clearly identifiable as coming from this extension.
+
+Note: the success path's log comes from the content script's isolated world (per-document context), while the failure path's log comes from the main world — so the two appear under different console contexts. Acceptable since the failure case has no element to attach to.
 
 ### Enabled vs. disabled
 

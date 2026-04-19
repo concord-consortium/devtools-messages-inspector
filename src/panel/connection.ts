@@ -15,7 +15,7 @@ export function connect(): void {
   port = chrome.runtime.connect({ name: 'postmessage-panel' });
   port.postMessage({ type: 'init', tabId });
 
-  port.onMessage.addListener((msg: { type: string; payload?: CapturedMessage | FrameInfo[] }) => {
+  port.onMessage.addListener((msg: { type: string; payload?: CapturedMessage | FrameInfo[]; error?: string }) => {
     if (msg.type === 'message' && msg.payload) {
       processIncomingMessage(msg.payload as IMessage);
     } else if (msg.type === 'clear') {
@@ -23,9 +23,8 @@ export function connect(): void {
     } else if (msg.type === 'frame-hierarchy' && msg.payload) {
       store.setFrameHierarchy(msg.payload as FrameInfo[]);
     } else if (msg.type === 'log-iframe-element-failed') {
-      chrome.devtools.inspectedWindow.eval(
-        'console.log("[messages] iframe no longer exists, containing document no longer exists")',
-      );
+      const text = '[messages] could not log iframe: ' + (msg.error ?? '');
+      chrome.devtools.inspectedWindow.eval(`console.log(${JSON.stringify(text)})`);
     }
   });
 

@@ -216,7 +216,7 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
         ).catch(e => {
           console.debug('[Messages] log-iframe-element failed:', { tabId: targetTabId, documentId: msg.documentId, domPath: msg.domPath }, e);
           const panel = panelConnections.get(targetTabId);
-          if (panel) panel.postMessage({ type: 'log-iframe-element-failed' });
+          if (panel) panel.postMessage({ type: 'log-iframe-element-failed', error: e?.message ?? String(e) });
         });
       }
     });
