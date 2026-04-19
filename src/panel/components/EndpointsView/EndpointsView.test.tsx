@@ -41,6 +41,12 @@ describe('logIframeElement', () => {
     logIframeElement(iframe);
     expect(sendSpy).not.toHaveBeenCalled();
   });
+
+  it('is a no-op when domPath is empty', () => {
+    const iframe = makeIframe('', 0, 'doc-abc');
+    logIframeElement(iframe);
+    expect(sendSpy).not.toHaveBeenCalled();
+  });
 });
 
 describe('LogElementButton', () => {
@@ -72,6 +78,17 @@ describe('LogElementButton', () => {
     expect((btn as HTMLButtonElement).disabled).toBe(true);
     expect(btn.getAttribute('title')).toBe(
       'Parent document identity unknown — cannot target log',
+    );
+  });
+
+  it('renders disabled with selector tooltip when domPath is empty', () => {
+    const iframe = makeIframe('', 0, 'doc-abc');
+    render(<LogElementButton iframe={iframe} />);
+
+    const btn = screen.getByRole('button', { name: 'Log element' });
+    expect((btn as HTMLButtonElement).disabled).toBe(true);
+    expect(btn.getAttribute('title')).toBe(
+      'Iframe element selector unknown — cannot target log',
     );
   });
 

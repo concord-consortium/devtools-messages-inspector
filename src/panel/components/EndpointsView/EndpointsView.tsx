@@ -13,17 +13,24 @@ import type { SelectedNode } from '../../types';
 
 export function logIframeElement(iframe: IFrame): void {
   const documentId = iframe.parentDocument.documentId;
-  if (!documentId) return;
+  if (!documentId || !iframe.domPath) return;
   sendLogIframeElement(documentId, iframe.domPath);
 }
 
 export const LogElementButton = observer(({ iframe }: { iframe: IFrame }) => {
-  const canLog = !!iframe.parentDocument.documentId;
+  const hasDocumentId = !!iframe.parentDocument.documentId;
+  const hasDomPath = !!iframe.domPath;
+  const canLog = hasDocumentId && hasDomPath;
+  const title = canLog
+    ? undefined
+    : !hasDocumentId
+      ? 'Parent document identity unknown — cannot target log'
+      : 'Iframe element selector unknown — cannot target log';
   return (
     <button
       className="log-element-btn"
       disabled={!canLog}
-      title={canLog ? undefined : 'Parent document identity unknown — cannot target log'}
+      title={title}
       onClick={() => logIframeElement(iframe)}
     >
       Log element
