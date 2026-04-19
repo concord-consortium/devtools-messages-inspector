@@ -9,10 +9,10 @@ import filterSyntaxMd from '../../../../docs/filter-syntax.md?raw';
 
 export const FilterBar = observer(() => {
   const [helpOpen, setHelpOpen] = useState(false);
-  const helpRef = useRef<HTMLDivElement>(null);
+  const helpRef = useRef<HTMLDivElement | null>(null);
   const helpButtonRef = useRef<HTMLButtonElement>(null);
   const helpPanelRef = useCallback((node: HTMLDivElement | null) => {
-    (helpRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+    helpRef.current = node;
     if (node) {
       const top = node.getBoundingClientRect().top;
       node.style.maxHeight = `calc(100vh - ${top}px - 16px)`;

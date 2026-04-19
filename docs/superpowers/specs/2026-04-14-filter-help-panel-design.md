@@ -30,7 +30,7 @@ Content is derived from the CLAUDE.md filter syntax section and the `filter` ent
 
 ### 3. Dropdown Panel
 
-- **Position**: Absolutely positioned below the `filter-bar` div, anchored to the left edge of the filter input wrapper
+- **Position**: Absolutely positioned below the `filter-bar` div, anchored to the right side with an `8px` offset
 - **Width**: `max-width: 500px`, shrinks with viewport
 - **Height**: `max-height: calc(100vh - offset)` where offset accounts for the filter bar position, with `overflow-y: auto`
 - **Z-index**: 1001 (consistent with existing popups like FieldInfoPopup)

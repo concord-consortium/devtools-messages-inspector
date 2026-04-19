@@ -219,8 +219,7 @@ body {
   position: absolute;
   top: 100%;
   right: 8px;
-  max-width: 500px;
-  width: 100%;
+  width: min(500px, calc(100% - 16px));
   overflow-y: auto;
   background: #fff;
   border: 1px solid #cacdd1;
