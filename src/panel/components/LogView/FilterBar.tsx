@@ -1,9 +1,38 @@
 // FilterBar component for Messages view
 
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { observer } from 'mobx-react-lite';
+import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { store } from '../../store';
+import filterSyntaxMd from '../../../../docs/filter-syntax.md?raw';
 
 export const FilterBar = observer(() => {
+  const [helpOpen, setHelpOpen] = useState(false);
+  const helpRef = useRef<HTMLDivElement | null>(null);
+  const helpButtonRef = useRef<HTMLButtonElement>(null);
+  const helpPanelRef = useCallback((node: HTMLDivElement | null) => {
+    helpRef.current = node;
+    if (node) {
+      const top = node.getBoundingClientRect().top;
+      node.style.maxHeight = `calc(100vh - ${top}px - 16px)`;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!helpOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        helpRef.current && !helpRef.current.contains(e.target as Node) &&
+        helpButtonRef.current && !helpButtonRef.current.contains(e.target as Node)
+      ) {
+        setHelpOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [helpOpen]);
+
   const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     store.setFilter(e.target.value);
   };
@@ -43,7 +72,24 @@ export const FilterBar = observer(() => {
             </svg>
           </button>
         )}
+        <button
+          ref={helpButtonRef}
+          className="filter-help-button"
+          onClick={() => setHelpOpen(!helpOpen)}
+          title="Filter syntax help"
+          aria-label="Filter syntax help"
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14">
+            <circle cx="7" cy="7" r="6" fill="none" stroke="#5f6368" strokeWidth="1.2" />
+            <text x="7" y="10.5" textAnchor="middle" fontSize="9" fill="#5f6368" fontFamily="system-ui">?</text>
+          </svg>
+        </button>
       </div>
+      {helpOpen && (
+        <div ref={helpPanelRef} className="filter-help-panel">
+          <Markdown remarkPlugins={[remarkGfm]}>{filterSyntaxMd}</Markdown>
+        </div>
+      )}
     </div>
   );
 });
