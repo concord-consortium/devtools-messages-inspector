@@ -307,3 +307,9 @@ export function requestFrameHierarchy(): void {
     port.postMessage({ type: 'get-frame-hierarchy', tabId: store.tabId });
   }
 }
+
+export function sendLogIframeElement(documentId: string, domPath: string): void {
+  if (port) {
+    port.postMessage({ type: 'log-iframe-element', tabId: store.tabId, documentId, domPath });
+  }
+}
