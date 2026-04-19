@@ -96,7 +96,31 @@ export class ChromeExtensionEnv {
         },
       },
       tabs: {
-        async sendMessage(tabId: number, msg: any, options?: { frameId?: number }) {
+        async sendMessage(tabId: number, msg: any, options?: { frameId?: number; documentId?: string }) {
+          // documentId targeting models real Chrome: locate the frame whose current
+          // document has the matching id and dispatch to its content script. If no
+          // such document exists or no listener is attached, reject — Chrome's
+          // wording at the time of writing is "Could not establish connection.
+          // Receiving end does not exist." (we don't depend on the exact wording;
+          // anything with .message satisfies callers).
+          if (options?.documentId) {
+            const tab = env.tabs.get(tabId);
+            const frame = tab?.getAllFrames().find(f => f.currentDocument?.documentId === options.documentId);
+            const frameKey = frame ? `${tabId}:${frame.frameId}` : null;
+            const event = frameKey ? env.contentOnMessage.get(frameKey) : null;
+            if (!event) {
+              throw new Error('Could not establish connection. Receiving end does not exist.');
+            }
+            return new Promise<any>(resolve => {
+              let responded = false;
+              const sendResponse = (r: any) => { responded = true; resolve(r); };
+              const returnValues = event.fire(msg, {}, sendResponse);
+              const keepOpen = returnValues.some((v: any) => v === true);
+              if (!responded && !keepOpen) resolve(undefined);
+            });
+          }
+
+          // frameId-only path: existing behavior, silent undefined when no listener.
           const frameId = options?.frameId ?? 0;
           const key = `${tabId}:${frameId}`;
           const event = env.contentOnMessage.get(key);
