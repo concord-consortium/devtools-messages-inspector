@@ -11,6 +11,12 @@ import type { FrameDocument } from '../../models/FrameDocument';
 import type { IFrame } from '../../models/IFrame';
 import type { SelectedNode } from '../../types';
 
+export function logIframeElement(iframe: IFrame): void {
+  const selector = JSON.stringify(iframe.domPath);
+  const expression = `console.log("Iframe " + ${selector}, document.querySelector(${selector}))`;
+  chrome.devtools.inspectedWindow.eval(expression);
+}
+
 // --- Helpers ---
 
 function nodesEqual(a: SelectedNode | null, b: SelectedNode): boolean {
