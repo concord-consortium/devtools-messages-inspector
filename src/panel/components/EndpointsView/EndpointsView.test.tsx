@@ -6,108 +6,89 @@ import { FrameDocument } from '../../models/FrameDocument';
 import { IFrame } from '../../models/IFrame';
 import { logIframeElement, LogElementButton, NodeDetailPane } from './EndpointsView';
 import { store } from '../../store';
-
-const evalMock = vi.fn();
+import * as connection from '../../connection';
 
 vi.stubGlobal('chrome', {
   storage: { local: { set: vi.fn(), get: vi.fn() } },
-  devtools: {
-    inspectedWindow: { tabId: 42, eval: evalMock },
-  },
+  devtools: { inspectedWindow: { tabId: 42 } },
 });
+
+const sendSpy = vi.spyOn(connection, 'sendLogIframeElement').mockImplementation(() => {});
 
 const frameLookup = { getFramesByParent: () => [] };
 const docLookup = { getDocumentBySourceId: () => undefined };
 
-function makeIframe(domPath: string, parentFrameId: number): IFrame {
-  const frame = new Frame(42, parentFrameId, frameLookup);
-  const parentDoc = new FrameDocument({ documentId: 'doc-parent' });
+function makeIframe(domPath: string, frameId: number, documentId: string | null = 'doc-parent'): IFrame {
+  const frame = new Frame(42, frameId, frameLookup);
+  const parentDoc = new FrameDocument({ documentId: documentId ?? undefined });
   parentDoc.frame = frame;
   return new IFrame(parentDoc, domPath, undefined, undefined, docLookup);
 }
 
 describe('logIframeElement', () => {
   beforeEach(() => {
-    evalMock.mockClear();
+    sendSpy.mockClear();
   });
 
-  it('calls inspectedWindow.eval with a console.log expression for the domPath', () => {
-    const iframe = makeIframe('iframe#hello', 0);
+  it('calls sendLogIframeElement with the parent documentId and domPath', () => {
+    const iframe = makeIframe('iframe#hello', 0, 'doc-abc');
     logIframeElement(iframe);
-
-    expect(evalMock).toHaveBeenCalledTimes(1);
-    expect(evalMock).toHaveBeenCalledWith(
-      'console.log("Iframe " + "iframe#hello", document.querySelector("iframe#hello"))',
-    );
+    expect(sendSpy).toHaveBeenCalledWith('doc-abc', 'iframe#hello');
   });
 
-  it('JSON-escapes domPaths containing double quotes', () => {
-    const iframe = makeIframe('iframe[src="https://x.com/a"]', 0);
+  it('is a no-op when parentDocument has no documentId', () => {
+    const iframe = makeIframe('iframe#orphan', 0, null);
     logIframeElement(iframe);
-
-    const expr = evalMock.mock.calls[0][0] as string;
-    // The expression must be valid JS that, when parsed, produces a console.log call.
-    // We don't execute it; we just verify the embedded string literal round-trips.
-    expect(expr).toBe(
-      'console.log("Iframe " + "iframe[src=\\"https://x.com/a\\"]", document.querySelector("iframe[src=\\"https://x.com/a\\"]"))',
-    );
+    expect(sendSpy).not.toHaveBeenCalled();
   });
 });
 
 describe('LogElementButton', () => {
   beforeEach(() => {
-    evalMock.mockClear();
+    sendSpy.mockClear();
   });
 
-  it('renders enabled when parent document is the top-level frame', () => {
-    const iframe = makeIframe('iframe#hello', 0);
+  it('renders enabled when parent document has a documentId', () => {
+    const iframe = makeIframe('iframe#hello', 0, 'doc-abc');
     render(<LogElementButton iframe={iframe} />);
 
     const btn = screen.getByRole('button', { name: 'Log element' });
-    expect(btn).toBeTruthy();
     expect((btn as HTMLButtonElement).disabled).toBe(false);
   });
 
-  it('renders disabled with tooltip when parent is a nested frame', () => {
-    const iframe = makeIframe('iframe#nested', 5);
+  it('renders enabled for nested iframes too', () => {
+    const iframe = makeIframe('iframe#nested', 5, 'doc-nested');
+    render(<LogElementButton iframe={iframe} />);
+
+    const btn = screen.getByRole('button', { name: 'Log element' });
+    expect((btn as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('renders disabled with tooltip when parentDocument has no documentId', () => {
+    const iframe = makeIframe('iframe#orphan', 0, null);
     render(<LogElementButton iframe={iframe} />);
 
     const btn = screen.getByRole('button', { name: 'Log element' });
     expect((btn as HTMLButtonElement).disabled).toBe(true);
     expect(btn.getAttribute('title')).toBe(
-      'Log element only supported for iframes directly in the top-level document',
+      'Parent document identity unknown — cannot target log',
     );
   });
 
-  it('renders disabled when parent document has no frame attached', () => {
-    const docLookup = { getDocumentBySourceId: () => undefined };
-    const parentDoc = new FrameDocument({ documentId: 'doc-orphan' });
-    // Note: parentDoc.frame intentionally left undefined
-    const iframe = new IFrame(parentDoc, 'iframe#orphan', undefined, undefined, docLookup);
-
-    render(<LogElementButton iframe={iframe} />);
-
-    const btn = screen.getByRole('button', { name: 'Log element' });
-    expect((btn as HTMLButtonElement).disabled).toBe(true);
-  });
-
-  it('calls logIframeElement on click when enabled', async () => {
+  it('calls sendLogIframeElement on click when enabled', async () => {
     const user = userEvent.setup();
-    const iframe = makeIframe('iframe#clickme', 0);
+    const iframe = makeIframe('iframe#clickme', 0, 'doc-click');
     render(<LogElementButton iframe={iframe} />);
 
     await user.click(screen.getByRole('button', { name: 'Log element' }));
 
-    expect(evalMock).toHaveBeenCalledTimes(1);
-    expect(evalMock).toHaveBeenCalledWith(
-      'console.log("Iframe " + "iframe#clickme", document.querySelector("iframe#clickme"))',
-    );
+    expect(sendSpy).toHaveBeenCalledWith('doc-click', 'iframe#clickme');
   });
 });
 
 describe('NodeDetailPane "Log element" button visibility', () => {
   beforeEach(() => {
-    evalMock.mockClear();
+    sendSpy.mockClear();
     store.selectNode(null);
   });
 

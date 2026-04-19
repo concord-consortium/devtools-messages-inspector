@@ -4,7 +4,7 @@ import { observer } from 'mobx-react-lite';
 import { useEffect, useState } from 'react';
 import { Group, Panel, Separator, usePanelRef } from 'react-resizable-panels';
 import { store } from '../../store';
-import { requestFrameHierarchy } from '../../connection';
+import { requestFrameHierarchy, sendLogIframeElement } from '../../connection';
 import { frameStore } from '../../models';
 import type { Frame } from '../../models/Frame';
 import type { FrameDocument } from '../../models/FrameDocument';
@@ -12,18 +12,18 @@ import type { IFrame } from '../../models/IFrame';
 import type { SelectedNode } from '../../types';
 
 export function logIframeElement(iframe: IFrame): void {
-  const selector = JSON.stringify(iframe.domPath);
-  const expression = `console.log("Iframe " + ${selector}, document.querySelector(${selector}))`;
-  chrome.devtools.inspectedWindow.eval(expression);
+  const documentId = iframe.parentDocument.documentId;
+  if (!documentId) return;
+  sendLogIframeElement(documentId, iframe.domPath);
 }
 
 export const LogElementButton = observer(({ iframe }: { iframe: IFrame }) => {
-  const canLog = iframe.parentDocument.frame?.frameId === 0;
+  const canLog = !!iframe.parentDocument.documentId;
   return (
     <button
       className="log-element-btn"
       disabled={!canLog}
-      title={canLog ? undefined : 'Log element only supported for iframes directly in the top-level document'}
+      title={canLog ? undefined : 'Parent document identity unknown — cannot target log'}
       onClick={() => logIframeElement(iframe)}
     >
       Log element
