@@ -36,10 +36,10 @@ The `[messages]` prefix identifies the log as coming from this extension. If the
 If `chrome.tabs.sendMessage` rejects — the parent document has navigated away, the content script isn't yet injected, the tab is closed, etc. — the background captures the rejection's `.message` and posts `{ type: 'log-iframe-element-failed', error }` back to the panel. The panel's port handler logs in the inspected page's main world via `chrome.devtools.inspectedWindow.eval`:
 
 ```
-[messages] could not log iframe: <error>
+[messages] could not log iframe — failed to reach parent document: <error>
 ```
 
-For example, when the document has navigated away, Chrome's error message is *"Could not establish connection. Receiving end does not exist."* — so the user sees `[messages] could not log iframe: Could not establish connection. Receiving end does not exist.`
+For example, when the document has navigated away, Chrome's error message is *"Could not establish connection. Receiving end does not exist."* — so the user sees `[messages] could not log iframe — failed to reach parent document: Could not establish connection. Receiving end does not exist.`
 
 The raw error text is exposed verbatim. We don't translate it: that keeps the panel ignorant of Chrome's specific wording (which can change across Chrome versions) and gives the user the actual cause. The downside is the message is more technical than a curated user-facing string, but the prefix `[messages]` makes it clearly identifiable as coming from this extension.
 

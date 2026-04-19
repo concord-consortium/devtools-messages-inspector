@@ -23,7 +23,7 @@ export function connect(): void {
     } else if (msg.type === 'frame-hierarchy' && msg.payload) {
       store.setFrameHierarchy(msg.payload as FrameInfo[]);
     } else if (msg.type === 'log-iframe-element-failed') {
-      const text = '[messages] could not log iframe: ' + (msg.error ?? '');
+      const text = '[messages] could not log iframe — failed to reach parent document: ' + (msg.error ?? '');
       chrome.devtools.inspectedWindow.eval(`console.log(${JSON.stringify(text)})`);
     }
   });
