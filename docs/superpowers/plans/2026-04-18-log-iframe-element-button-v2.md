@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace the v1 `chrome.devtools.inspectedWindow.eval` implementation of the "Log element" button with a panel→background→content-script roundtrip that targets the parent document by `documentId`. Adds support for nested iframes; naturally fails silently when the parent document has navigated away.
+**Goal:** Replace the v1 `chrome.devtools.inspectedWindow.eval` implementation of the "Log element" button with a panel→background→content-script roundtrip that targets the parent document by `documentId`. Adds support for nested iframes. When the parent document has navigated away (or `chrome.tabs.sendMessage` otherwise rejects), the failure is reported back to the panel via a `log-iframe-element-failed` port message; the panel logs a fallback message in the inspected page's console via `chrome.devtools.inspectedWindow.eval`.
 
-**Architecture:** Panel sends a port message; background calls `chrome.tabs.sendMessage(tabId, msg, { documentId })` so Chrome targets the exact document; content script in that document runs `console.log("Iframe " + domPath, document.querySelector(domPath))`. The button is enabled whenever the iframe's `parentDocument.documentId` is known.
+**Architecture:** Panel sends a port message; background calls `chrome.tabs.sendMessage(tabId, msg, { documentId })` so Chrome targets the exact document; content script in that document runs `console.log("[messages]", document.querySelector(domPath))`. The button is enabled whenever the iframe's `parentDocument.documentId` is known.
 
 **Tech Stack:** TypeScript + React + MobX, vitest, existing Chrome extension messaging APIs.
 
@@ -420,11 +420,9 @@ Hover the logged element to confirm it highlights on the page. Right-click → "
 
 Drill into a nested iframe (one whose parent is itself an iframe). Click "Log element". Confirm the element is logged in the inspected page's console. Note: Chrome's console may filter logs by context — if you don't see it immediately, check the console's context dropdown (top-left of the console panel).
 
-- [ ] **Step 5: Navigated-away parent — silent failure**
+- [ ] **Step 5: Navigated-away parent — failure log**
 
-Trigger a navigation in the test page (or use the test harness to simulate one) so a previously-known iframe's parent document is no longer current. Click "Log element". Nothing should appear in the console; no errors in the panel.
-
-(If the test page doesn't make this easy, skip this step — the silent-failure behavior is also exercised by the absence of `chrome.runtime.lastError` propagation in the background handler.)
+Trigger a navigation in the test page (e.g., the "Navigate Iframe 1 → Page 2" button) so a previously-known iframe's parent document is no longer current. Click "Log element" on the now-stale iframe. The inspected page's main-world console should show: `[messages] iframe no longer exists, containing document no longer exists` (logged via `chrome.devtools.inspectedWindow.eval` after the background's `chrome.tabs.sendMessage` rejection).
 
 - [ ] **Step 6: No documentId — button disabled**
 

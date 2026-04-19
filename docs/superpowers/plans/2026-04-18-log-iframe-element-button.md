@@ -1,5 +1,7 @@
 # Log Iframe Element Button Implementation Plan
 
+> **SUPERSEDED.** This v1 plan describes the original `chrome.devtools.inspectedWindow.eval`-based approach. The implementation was rewritten before merge to route through the content script — see [`2026-04-18-log-iframe-element-button-v2.md`](2026-04-18-log-iframe-element-button-v2.md). The v1 commits are still in the branch history for context, but readers implementing or testing should use the v2 plan.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add a "Log element" button to the Endpoints view's iframe details pane that logs the iframe's DOM element to the inspected page's console via `chrome.devtools.inspectedWindow.eval`.
