@@ -155,7 +155,7 @@ export interface HarnessWindowOptions {
 export class HarnessWindow {
   location: { href: string; origin: string };
   top: HarnessWindow;
-  document: { title: string; querySelectorAll(selector: string): NodeListOf<Element> };
+  document: { title: string; querySelector(selector: string): Element | null; querySelectorAll(selector: string): NodeListOf<Element> };
   __postmessage_devtools_content__?: boolean;
 
   /** Mirrors window.origin — shorthand for location.origin */
@@ -183,6 +183,9 @@ export class HarnessWindow {
     const container = this._iframeContainer;
     this.document = {
       title: options.title ?? '',
+      querySelector(selector: string) {
+        return container.querySelector(selector);
+      },
       querySelectorAll(selector: string) {
         return container.querySelectorAll(selector);
       },

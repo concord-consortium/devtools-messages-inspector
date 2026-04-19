@@ -94,7 +94,12 @@ export interface FrameInfoResponse {
   opener?: OpenerInfo | null;
 }
 
-export type BackgroundToContentMessage = SendMessageMessage | GetFrameInfoMessage;
+export interface LogIframeElementMessage {
+  type: 'log-iframe-element';
+  domPath: string;
+}
+
+export type BackgroundToContentMessage = SendMessageMessage | GetFrameInfoMessage | LogIframeElementMessage;
 
 // Messages sent from content script to background
 export interface PostMessageCapturedMessage {

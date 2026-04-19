@@ -19,6 +19,7 @@ export interface ContentWindow {
   location: { href: string; origin: string };
   document: {
     title: string;
+    querySelector(selector: string): Element | null;
     querySelectorAll(selector: string): NodeListOf<Element>;
   };
   frames: { length: number; [index: number]: any };
@@ -194,6 +195,12 @@ export function initContentScript(win: ContentWindow, chrome: ContentChrome): vo
     _sender: chrome.runtime.MessageSender,
     sendResponse: (response: FrameInfoResponse) => void
   ) => {
+    if (message.type === 'log-iframe-element') {
+      const el = win.document.querySelector(message.domPath);
+      console.log("Iframe " + message.domPath, el);
+      return;
+    }
+
     if (message.type === 'send-message') {
       const { target, message: payload } = message;
       if (target === 'parent' && win.parent !== win) {
