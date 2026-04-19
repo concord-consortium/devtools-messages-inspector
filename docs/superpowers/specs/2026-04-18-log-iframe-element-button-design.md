@@ -26,10 +26,10 @@ Both top-level and nested iframes are supported.
 3. **Content script** in that document runs:
 
 ```js
-console.log("Iframe " + domPath, document.querySelector(domPath));
+console.log("[messages]", document.querySelector(domPath));
 ```
 
-If the iframe was removed from its parent's DOM but the document is still loaded, `document.querySelector(domPath)` returns `null` and the console shows `null` — which correctly conveys "the iframe is no longer there."
+The `[messages]` prefix identifies the log as coming from this extension. If the iframe was removed from its parent's DOM but the document is still loaded, `document.querySelector(domPath)` returns `null` and the console shows `null` — which correctly conveys "the iframe is no longer there."
 
 ### Document-gone handling (silent)
 
@@ -94,7 +94,7 @@ Add a case to the existing `chrome.runtime.onMessage` listener:
 ```ts
 if (message.type === 'log-iframe-element') {
   const el = win.document.querySelector(message.domPath);
-  console.log("Iframe " + message.domPath, el);
+  console.log("[messages]", el);
   return;
 }
 ```

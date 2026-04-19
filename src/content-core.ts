@@ -197,7 +197,7 @@ export function initContentScript(win: ContentWindow, chrome: ContentChrome): vo
   ) => {
     if (message.type === 'log-iframe-element') {
       const el = win.document.querySelector(message.domPath);
-      console.log("Iframe " + message.domPath, el);
+      console.log("[messages]", el);
       return;
     }
 
