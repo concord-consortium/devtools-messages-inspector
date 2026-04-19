@@ -418,7 +418,7 @@ function resolveDocument(node: SelectedNode & { type: 'document' | 'document-by-
   return frameStore.getDocumentBySourceId(node.sourceId);
 }
 
-const NodeDetailPane = observer(() => {
+export const NodeDetailPane = observer(() => {
   const node = store.selectedNode;
 
   const handleClose = () => {
@@ -440,6 +440,9 @@ const NodeDetailPane = observer(() => {
         >
           Show messages
         </button>
+        {(node.type === 'iframe' || node.type === 'iframe-element') && node.iframeRef && (
+          <LogElementButton iframe={node.iframeRef} />
+        )}
         <button className="close-detail-btn" title="Close" onClick={handleClose}>×</button>
       </div>
       <div className="tab-content">

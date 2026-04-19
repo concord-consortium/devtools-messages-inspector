@@ -4,7 +4,8 @@ import userEvent from '@testing-library/user-event';
 import { Frame } from '../../models/Frame';
 import { FrameDocument } from '../../models/FrameDocument';
 import { IFrame } from '../../models/IFrame';
-import { logIframeElement, LogElementButton } from './EndpointsView';
+import { logIframeElement, LogElementButton, NodeDetailPane } from './EndpointsView';
+import { store } from '../../store';
 
 const evalMock = vi.fn();
 
@@ -101,5 +102,55 @@ describe('LogElementButton', () => {
     expect(evalMock).toHaveBeenCalledWith(
       'console.log("Iframe " + "iframe#clickme", document.querySelector("iframe#clickme"))',
     );
+  });
+});
+
+describe('NodeDetailPane "Log element" button visibility', () => {
+  beforeEach(() => {
+    evalMock.mockClear();
+    store.selectNode(null);
+  });
+
+  it('shows the Log element button for an iframe-element node', () => {
+    const iframe = makeIframe('iframe#abc', 0);
+    iframe.sourceIdFromParent = 'src-1';
+    store.selectNode({ type: 'iframe-element', sourceId: 'src-1', iframeRef: iframe });
+
+    render(<NodeDetailPane />);
+
+    expect(screen.queryByRole('button', { name: 'Log element' })).toBeTruthy();
+  });
+
+  it('shows the Log element button for an iframe node with iframeRef', () => {
+    const iframe = makeIframe('iframe#xyz', 0);
+    store.selectNode({ type: 'iframe', tabId: 42, frameId: 7, iframeRef: iframe });
+
+    render(<NodeDetailPane />);
+
+    expect(screen.queryByRole('button', { name: 'Log element' })).toBeTruthy();
+  });
+
+  it('does not show the Log element button for a tab node', () => {
+    store.selectNode({ type: 'tab', tabId: 42 });
+
+    render(<NodeDetailPane />);
+
+    expect(screen.queryByRole('button', { name: 'Log element' })).toBeNull();
+  });
+
+  it('does not show the Log element button for an unknown-iframe node', () => {
+    store.selectNode({ type: 'unknown-iframe', tabId: 42, frameId: 9 });
+
+    render(<NodeDetailPane />);
+
+    expect(screen.queryByRole('button', { name: 'Log element' })).toBeNull();
+  });
+
+  it('does not show the Log element button for an iframe node lacking iframeRef', () => {
+    store.selectNode({ type: 'iframe', tabId: 42, frameId: 7 });
+
+    render(<NodeDetailPane />);
+
+    expect(screen.queryByRole('button', { name: 'Log element' })).toBeNull();
   });
 });
