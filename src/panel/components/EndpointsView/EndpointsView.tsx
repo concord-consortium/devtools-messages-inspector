@@ -17,6 +17,20 @@ export function logIframeElement(iframe: IFrame): void {
   chrome.devtools.inspectedWindow.eval(expression);
 }
 
+export const LogElementButton = observer(({ iframe }: { iframe: IFrame }) => {
+  const canLog = iframe.parentDocument.frame?.frameId === 0;
+  return (
+    <button
+      className="log-element-btn"
+      disabled={!canLog}
+      title={canLog ? undefined : 'Log element only supported for iframes directly in the top-level document'}
+      onClick={() => logIframeElement(iframe)}
+    >
+      Log element
+    </button>
+  );
+});
+
 // --- Helpers ---
 
 function nodesEqual(a: SelectedNode | null, b: SelectedNode): boolean {

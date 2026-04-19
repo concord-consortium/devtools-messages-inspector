@@ -1,8 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { Frame } from '../../models/Frame';
 import { FrameDocument } from '../../models/FrameDocument';
 import { IFrame } from '../../models/IFrame';
-import { logIframeElement } from './EndpointsView';
+import { logIframeElement, LogElementButton } from './EndpointsView';
 
 const evalMock = vi.fn();
 
@@ -47,6 +49,57 @@ describe('logIframeElement', () => {
     // We don't execute it; we just verify the embedded string literal round-trips.
     expect(expr).toBe(
       'console.log("Iframe " + "iframe[src=\\"https://x.com/a\\"]", document.querySelector("iframe[src=\\"https://x.com/a\\"]"))',
+    );
+  });
+});
+
+describe('LogElementButton', () => {
+  beforeEach(() => {
+    evalMock.mockClear();
+  });
+
+  it('renders enabled when parent document is the top-level frame', () => {
+    const iframe = makeIframe('iframe#hello', 0);
+    render(<LogElementButton iframe={iframe} />);
+
+    const btn = screen.getByRole('button', { name: 'Log element' });
+    expect(btn).toBeTruthy();
+    expect((btn as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('renders disabled with tooltip when parent is a nested frame', () => {
+    const iframe = makeIframe('iframe#nested', 5);
+    render(<LogElementButton iframe={iframe} />);
+
+    const btn = screen.getByRole('button', { name: 'Log element' });
+    expect((btn as HTMLButtonElement).disabled).toBe(true);
+    expect(btn.getAttribute('title')).toBe(
+      'Log element only supported for iframes directly in the top-level document',
+    );
+  });
+
+  it('renders disabled when parent document has no frame attached', () => {
+    const docLookup = { getDocumentBySourceId: () => undefined };
+    const parentDoc = new FrameDocument({ documentId: 'doc-orphan' });
+    // Note: parentDoc.frame intentionally left undefined
+    const iframe = new IFrame(parentDoc, 'iframe#orphan', undefined, undefined, docLookup);
+
+    render(<LogElementButton iframe={iframe} />);
+
+    const btn = screen.getByRole('button', { name: 'Log element' });
+    expect((btn as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('calls logIframeElement on click when enabled', async () => {
+    const user = userEvent.setup();
+    const iframe = makeIframe('iframe#clickme', 0);
+    render(<LogElementButton iframe={iframe} />);
+
+    await user.click(screen.getByRole('button', { name: 'Log element' }));
+
+    expect(evalMock).toHaveBeenCalledTimes(1);
+    expect(evalMock).toHaveBeenCalledWith(
+      'console.log("Iframe " + "iframe#clickme", document.querySelector("iframe#clickme"))',
     );
   });
 });
