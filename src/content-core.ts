@@ -53,7 +53,7 @@ export function initContentScript(win: ContentWindow, chrome: ContentChrome): vo
     while (element && element.nodeType === Node.ELEMENT_NODE) {
       let selector = element.nodeName.toLowerCase();
       if (element.id) {
-        selector += '#' + element.id;
+        selector += '#' + CSS.escape(element.id);
         parts.unshift(selector);
         break; // id is unique, stop here
       }
@@ -196,8 +196,17 @@ export function initContentScript(win: ContentWindow, chrome: ContentChrome): vo
     sendResponse: (response: FrameInfoResponse) => void
   ) => {
     if (message.type === 'log-iframe-element') {
-      const el = win.document.querySelector(message.domPath);
-      console.log("[messages]", el);
+      let el: Element | null = null;
+      try {
+        el = win.document.querySelector(message.domPath);
+      } catch {
+        // querySelector throws on invalid selectors (e.g., unescaped chars in old domPaths)
+      }
+      if (el) {
+        console.log("[messages]", el);
+      } else {
+        console.log(`[messages] can't find iframe element at ${message.domPath}`);
+      }
       return;
     }
 
