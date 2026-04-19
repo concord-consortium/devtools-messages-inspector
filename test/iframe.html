@@ -13,10 +13,22 @@
   <button onclick="sendToParent('ready')">Send ready</button>
   <button onclick="sendToParent('ack')">Send ack</button>
   <button onclick="location.href='iframe-page2.html'">Navigate to Page 2</button>
+  <button onclick="addChildIframe()">Add child iframe</button>
 
   <script>
     function sendToParent(type) {
       parent.postMessage({ type, from: 'iframe', timestamp: Date.now() }, '*');
+    }
+
+    let childIframeCount = 0;
+    function addChildIframe() {
+      childIframeCount++;
+      const child = document.createElement('iframe');
+      child.id = 'child-iframe-' + childIframeCount;
+      child.src = 'iframe.html';
+      child.width = 380;
+      child.height = 100;
+      document.body.appendChild(child);
     }
 
     window.addEventListener('message', (e) => {

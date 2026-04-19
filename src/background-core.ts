@@ -27,7 +27,7 @@ export interface BackgroundChrome {
     executeScript(options: { target: { tabId: number; frameIds?: number[]; allFrames?: boolean }; files: string[]; injectImmediately?: boolean }): Promise<any[]>;
   };
   tabs: {
-    sendMessage(tabId: number, msg: any, options?: { frameId?: number }): Promise<any>;
+    sendMessage(tabId: number, msg: any, options?: { frameId?: number; documentId?: string }): Promise<any>;
     onRemoved: { addListener(cb: (tabId: number) => void): void };
   };
   webNavigation: {
@@ -176,7 +176,7 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
   chrome.runtime.onConnect.addListener((port: BackgroundPort) => {
     if (port.name !== 'postmessage-panel') return;
 
-    port.onMessage.addListener((msg: { type: string; tabId?: number; value?: boolean }) => {
+    port.onMessage.addListener((msg: { type: string; tabId?: number; value?: boolean; documentId?: string; domPath?: string }) => {
       if (msg.type === 'init' && msg.tabId !== undefined) {
         console.debug('[Messages] panel connected for tab', msg.tabId);
         panelConnections.set(msg.tabId, port);
@@ -206,6 +206,17 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
             type: 'frame-hierarchy',
             payload: hierarchy
           });
+        });
+      } else if (msg.type === 'log-iframe-element' && msg.tabId !== undefined && msg.documentId && msg.domPath) {
+        const targetTabId = msg.tabId;
+        chrome.tabs.sendMessage(
+          targetTabId,
+          { type: 'log-iframe-element', domPath: msg.domPath },
+          { documentId: msg.documentId },
+        ).catch(e => {
+          console.debug('[Messages] log-iframe-element failed:', { tabId: targetTabId, documentId: msg.documentId, domPath: msg.domPath }, e);
+          const panel = panelConnections.get(targetTabId);
+          if (panel) panel.postMessage({ type: 'log-iframe-element-failed', error: e?.message ?? String(e) });
         });
       }
     });

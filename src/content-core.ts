@@ -19,6 +19,7 @@ export interface ContentWindow {
   location: { href: string; origin: string };
   document: {
     title: string;
+    querySelector(selector: string): Element | null;
     querySelectorAll(selector: string): NodeListOf<Element>;
   };
   frames: { length: number; [index: number]: any };
@@ -52,7 +53,7 @@ export function initContentScript(win: ContentWindow, chrome: ContentChrome): vo
     while (element && element.nodeType === Node.ELEMENT_NODE) {
       let selector = element.nodeName.toLowerCase();
       if (element.id) {
-        selector += '#' + element.id;
+        selector += '#' + CSS.escape(element.id);
         parts.unshift(selector);
         break; // id is unique, stop here
       }
@@ -194,6 +195,21 @@ export function initContentScript(win: ContentWindow, chrome: ContentChrome): vo
     _sender: chrome.runtime.MessageSender,
     sendResponse: (response: FrameInfoResponse) => void
   ) => {
+    if (message.type === 'log-iframe-element') {
+      let el: Element | null = null;
+      try {
+        el = win.document.querySelector(message.domPath);
+      } catch {
+        // querySelector throws on invalid selectors (e.g., unescaped chars in old domPaths)
+      }
+      if (el) {
+        console.log("[messages]", el);
+      } else {
+        console.log(`[messages] can't find iframe element at ${message.domPath}`);
+      }
+      return;
+    }
+
     if (message.type === 'send-message') {
       const { target, message: payload } = message;
       if (target === 'parent' && win.parent !== win) {

@@ -2,17 +2,16 @@
 - figure out a plan for how to handle "preserve log" with the endpoints. My hunch at this point is to clear the endpoints too, unless preserve log is checked. This makes it a more global setting.
 - review the details of the endpoints, they don't seem consistent between the different types.
 - it will be useful if we can record a "session" of messages/events between the panel and the background. Then we can setup the panel with specific settings and then replay the session. This might help reproduce issues that only show up in the real extension within the test harness environment. This has a few questions though: when does the session start recording? How is the session recording enabled? Should we also record any settings or other chrome calls made by the panel?
-- see if we can add iframe elements to console when clicked on in hierarchy
 - see if we can show the iframe element in the elements tab from the hierarchy
   - Use `chrome.devtools.inspectedWindow.eval('inspect(element)')` where `inspect()` is a DevTools console helper that switches to Elements panel and selects the element
   - Challenge: need to get a reference to the iframe element; could use a selector or store references in injected.js
   - For cross-origin: the iframe element itself is in the parent frame, so this should work even though iframe contents are cross-origin
-- see if we can add an option to a context menu in the elements tab to hierarchy view
 - fix table column resize handles they are hard to select
 - update details pane in messages view, probably details should be default and first and content second
 - the reload icon on the endpoints page is broken
 - the endpoints page should automatically update when it can. With the test harness actions this should be easier to implement and test now
 - The Hierarchy Map (shown in test harness) should support a mode where the frame is collapsed into its parent node. So this way the Tab represents itself plus its Frame. And the IFrame represents itself plus its Frame. This will reduce the number of containers shown and make it easier for someone to reason about without getting bogged down in the Frame construct the browser is using underneath. It still keeps the Document concept since there can multiple of those.
+- For unknown iframes (when registration is disabled) we should have some info option in the details explaining why this is unknown: "Chrome APIs tell us this is a child frame, but it doesn't tell us which iframe element this frame is connected to. Registration messages are used to make this connection."
 
 - truncate long values in the context pane with some way to see the full value.
 - clean up the left side
@@ -34,6 +33,8 @@
 - import button
 - find a more precise way to know when we can send the registration messages we could try sending them every 10ms as a test and also record various event times to see if we can figure out which event has to fire before the registration message goes through.
 - consider a mixed tree and table hierarchy view. This would let us show more info about each iframe and document. However with the different types it isn't clear how to do this.
+- consider adding an elements side panel. It isn't possible to add a context menu item to the elements pane, but extensions can add side panels. So we could add a side panel that shows the messages and/or frame information for this element. I'm not sure this will be very useful so lets wait to see if people request it.
+- consider using https://github.com/antonmedv/finder instead of our custom getDomPath function. It would be 3K injected into the content script. It has no dependencies, but we need to be careful with what gets injected in peoples pages.
 
 # Version 2
 - add timing view: a sequence diagram with one row per frame, x axis can be based on time, we'll need scaling.

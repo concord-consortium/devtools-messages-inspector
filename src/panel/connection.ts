@@ -15,13 +15,16 @@ export function connect(): void {
   port = chrome.runtime.connect({ name: 'postmessage-panel' });
   port.postMessage({ type: 'init', tabId });
 
-  port.onMessage.addListener((msg: { type: string; payload?: CapturedMessage | FrameInfo[] }) => {
+  port.onMessage.addListener((msg: { type: string; payload?: CapturedMessage | FrameInfo[]; error?: string }) => {
     if (msg.type === 'message' && msg.payload) {
       processIncomingMessage(msg.payload as IMessage);
     } else if (msg.type === 'clear') {
       store.clearMessages();
     } else if (msg.type === 'frame-hierarchy' && msg.payload) {
       store.setFrameHierarchy(msg.payload as FrameInfo[]);
+    } else if (msg.type === 'log-iframe-element-failed') {
+      const text = '[messages] could not log iframe — failed to reach parent document: ' + (msg.error ?? '');
+      chrome.devtools.inspectedWindow.eval(`console.log(${JSON.stringify(text)})`);
     }
   });
 
@@ -305,5 +308,11 @@ export function sendPreserveLog(value: boolean): void {
 export function requestFrameHierarchy(): void {
   if (port) {
     port.postMessage({ type: 'get-frame-hierarchy', tabId: store.tabId });
+  }
+}
+
+export function sendLogIframeElement(documentId: string, domPath: string): void {
+  if (port) {
+    port.postMessage({ type: 'log-iframe-element', tabId: store.tabId, documentId, domPath });
   }
 }

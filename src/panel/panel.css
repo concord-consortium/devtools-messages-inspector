@@ -1026,3 +1026,22 @@ body {
 .show-messages-btn + .close-detail-btn {
   margin-left: 0;
 }
+
+/* Log element button in Endpoints detail pane (sits next to .show-messages-btn) */
+.log-element-btn {
+  padding: 2px 8px;
+  border: 1px solid #cacdd1;
+  border-radius: 2px;
+  background: #fff;
+  font-size: 11px;
+  cursor: pointer;
+  margin-right: 4px;
+}
+
+.log-element-btn:hover:not(:disabled) {
+  background: #e8eaed;
+}
+
+.log-element-btn + .close-detail-btn {
+  margin-left: 0;
+}

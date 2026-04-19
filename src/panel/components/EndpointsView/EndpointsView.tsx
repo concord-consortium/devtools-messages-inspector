@@ -4,12 +4,39 @@ import { observer } from 'mobx-react-lite';
 import { useEffect, useState } from 'react';
 import { Group, Panel, Separator, usePanelRef } from 'react-resizable-panels';
 import { store } from '../../store';
-import { requestFrameHierarchy } from '../../connection';
+import { requestFrameHierarchy, sendLogIframeElement } from '../../connection';
 import { frameStore } from '../../models';
 import type { Frame } from '../../models/Frame';
 import type { FrameDocument } from '../../models/FrameDocument';
 import type { IFrame } from '../../models/IFrame';
 import type { SelectedNode } from '../../types';
+
+export function logIframeElement(iframe: IFrame): void {
+  const documentId = iframe.parentDocument.documentId;
+  if (!documentId || !iframe.domPath) return;
+  sendLogIframeElement(documentId, iframe.domPath);
+}
+
+export const LogElementButton = observer(({ iframe }: { iframe: IFrame }) => {
+  const hasDocumentId = !!iframe.parentDocument.documentId;
+  const hasDomPath = !!iframe.domPath;
+  const canLog = hasDocumentId && hasDomPath;
+  const title = canLog
+    ? undefined
+    : !hasDocumentId
+      ? 'Parent document identity unknown — cannot target log'
+      : 'Iframe element selector unknown — cannot target log';
+  return (
+    <button
+      className="log-element-btn"
+      disabled={!canLog}
+      title={title}
+      onClick={() => logIframeElement(iframe)}
+    >
+      Log element
+    </button>
+  );
+});
 
 // --- Helpers ---
 
@@ -398,7 +425,7 @@ function resolveDocument(node: SelectedNode & { type: 'document' | 'document-by-
   return frameStore.getDocumentBySourceId(node.sourceId);
 }
 
-const NodeDetailPane = observer(() => {
+export const NodeDetailPane = observer(() => {
   const node = store.selectedNode;
 
   const handleClose = () => {
@@ -420,6 +447,9 @@ const NodeDetailPane = observer(() => {
         >
           Show messages
         </button>
+        {(node.type === 'iframe' || node.type === 'iframe-element') && node.iframeRef && (
+          <LogElementButton iframe={node.iframeRef} />
+        )}
         <button className="close-detail-btn" title="Close" onClick={handleClose}>×</button>
       </div>
       <div className="tab-content">
