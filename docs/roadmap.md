@@ -1,21 +1,19 @@
 # Remaining for Version 1
+- in the message details pane, each endpoint should have a Frame and Document section. Maybe the frame section should be called Tab for Tabs and IFrame for iframes. I'm not sure where to put the source type. It might be better to move it to a top level direction field to match the table. 
 - figure out a plan for how to handle "preserve log" with the endpoints. My hunch at this point is to clear the endpoints too, unless preserve log is checked. This makes it a more global setting.
 - review the details of the endpoints, they don't seem consistent between the different types.
 - it will be useful if we can record a "session" of messages/events between the panel and the background. Then we can setup the panel with specific settings and then replay the session. This might help reproduce issues that only show up in the real extension within the test harness environment. This has a few questions though: when does the session start recording? How is the session recording enabled? Should we also record any settings or other chrome calls made by the panel?
 - fix table column resize handles they are hard to select
 - update details pane in messages view, probably details should be default and first and content second
-- the reload icon on the endpoints page is broken
 - the endpoints page should automatically update when it can. With the test harness actions this should be easier to implement and test now
 - The Hierarchy Map (shown in test harness) should support a mode where the frame is collapsed into its parent node. So this way the Tab represents itself plus its Frame. And the IFrame represents itself plus its Frame. This will reduce the number of containers shown and make it easier for someone to reason about without getting bogged down in the Frame construct the browser is using underneath. It still keeps the Document concept since there can multiple of those.
 - For unknown iframes (when registration is disabled) we should have some info option in the details explaining why this is unknown: "Chrome APIs tell us this is a child frame, but it doesn't tell us which iframe element this frame is connected to. Registration messages are used to make this connection."
 
 - truncate long values in the context pane with some way to see the full value.
-- clean up the left side
 - unknown openers (no openedTabs mapping) don't get a Frame in FrameStore because Frame requires numeric tabId/frameId. To support them, Frame would need to work without tab/frame IDs.
 
 - update documentation on matching up iframes with frameIds, the issue linked in the doc is nuanced. It sounds like it will not be fixed for a while, but perhaps a new issue that provides the documentId would be something better.
 - improve UI to better match the rest of the dev tools styling
-- revise the icon buttons on the message details pane, the current icons aren't clear. Perhaps they should be regular buttons.
 - show a banner when the extension is reloaded/updated while the panel is open, telling the user to reopen DevTools
 - update frame id syntax so it is more liqe friendly, perhaps just tX.fY
 - create a website for the extension, could just be github.io

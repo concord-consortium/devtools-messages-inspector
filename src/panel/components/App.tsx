@@ -6,6 +6,8 @@ import { ViewType } from '../types';
 import { LogView } from './LogView';
 import { EndpointsView } from './EndpointsView';
 import { FieldInfoPopup } from './shared/FieldInfoPopup';
+import { Icon } from '../icons/Icon';
+import { EndpointsIcon } from '../icons/EndpointsIcon';
 
 interface SidebarItemProps {
   view: ViewType;
@@ -27,18 +29,11 @@ const SidebarItem = observer(({ view, icon, label }: SidebarItemProps) => {
   );
 });
 
-const EndpointsIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="1" y="3" width="8" height="10" rx="1.5" />
-    <path d="M5 8h9.5M12 5.5 14.5 8 12 10.5" />
-  </svg>
-);
-
 const Sidebar = () => (
   <div className="sidebar">
-    <SidebarItem view="log" icon="📋" label="Log" />
+    <SidebarItem view="log" icon={<Icon name="viewList" size={20} />} label="Log" />
     <SidebarItem view="endpoints" icon={<EndpointsIcon />} label="Endpoints" />
-    <SidebarItem view="settings" icon="⚙️" label="Settings" />
+    <SidebarItem view="settings" icon={<Icon name="settings" size={20} />} label="Settings" />
   </div>
 );
 

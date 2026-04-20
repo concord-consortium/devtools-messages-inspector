@@ -4,6 +4,7 @@ import { observer } from 'mobx-react-lite';
 import { useEffect, useState } from 'react';
 import { Group, Panel, Separator, usePanelRef } from 'react-resizable-panels';
 import { store } from '../../store';
+import { Icon } from '../../icons/Icon';
 import { requestFrameHierarchy, sendLogIframeElement } from '../../connection';
 import { frameStore } from '../../models';
 import type { Frame } from '../../models/Frame';
@@ -479,7 +480,7 @@ const EndpointsTopBar = () => {
   return (
     <div className="top-bar">
       <button className="icon-btn" title="Refresh" onClick={handleRefresh}>
-        <span className="refresh-icon"></span>
+        <Icon name="refresh" />
       </button>
     </div>
   );

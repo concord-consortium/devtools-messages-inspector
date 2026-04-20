@@ -4,6 +4,7 @@ import { observer } from 'mobx-react-lite';
 import { store } from '../../store';
 import { sendPreserveLog } from '../../connection';
 import { downloadMessagesAsJson } from '../../export';
+import { Icon } from '../../icons/Icon';
 import { FrameFocusDropdown } from './FrameFocusDropdown';
 
 export const TopBar = observer(() => {
@@ -58,7 +59,7 @@ export const TopBar = observer(() => {
         title="Export messages"
         onClick={handleExportClick}
       >
-        <span className="export-icon"></span>
+        <Icon name="download" />
       </button>
     </div>
   );
