@@ -366,6 +366,9 @@ const IFrameDetail = observer(({ tabId, frameId, isUnknown, iframeRef }: { tabId
       <tbody>
         <FrameSection frame={frame} ownerElement={owner} status={status} showAdvanced={showAdvanced} />
         {doc && <DocumentSection doc={doc} heading="Current Document" showAdvanced={showAdvanced} />}
+        {iframeRef?.sourceIdFromParent && (
+          <Field id="sourceId">{iframeRef.sourceIdFromParent}</Field>
+        )}
       </tbody>
     </table>
   );
@@ -378,6 +381,9 @@ const IFrameElementDetail = observer(({ iframeRef }: { iframeRef: IFrame }) => {
     <table className="context-table">
       <tbody>
         <FrameSection ownerElement={owner} status={status} />
+        {iframeRef.sourceIdFromParent && (
+          <Field id="sourceId">{iframeRef.sourceIdFromParent}</Field>
+        )}
       </tbody>
     </table>
   );
