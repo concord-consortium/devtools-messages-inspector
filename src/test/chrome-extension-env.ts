@@ -32,6 +32,9 @@ export class ChromeExtensionEnv {
   /** Mock storage data — returned by chrome.storage.local.get */
   storageData: Record<string, any> = {};
 
+  /** Mock session storage — returned by chrome.storage.session.get */
+  sessionStorageData: Record<string, any> = {};
+
   // Tab/frame registry using harness models
   private tabs = new Map<number, HarnessTab>();
 
@@ -68,8 +71,7 @@ export class ChromeExtensionEnv {
         onMessage: env.bgRuntimeOnMessage,
       },
       scripting: {
-        async executeScript(options: { target: { tabId: number; frameIds?: number[]; allFrames?: boolean } }) {
-          if (!env._initContentScript) return [];
+        async executeScript(options: { target: { tabId: number; frameIds?: number[]; allFrames?: boolean }; files?: string[]; func?: (...args: any[]) => any; args?: any[] }) {
           const tab = env.tabs.get(options.target.tabId);
           if (!tab) return [];
 
@@ -84,12 +86,32 @@ export class ChromeExtensionEnv {
             return [];
           }
 
-          for (const frame of frames) {
-            if (frame.window) {
-              env._initContentScript(
-                frame.window,
-                env.createContentChrome(frame),
-              );
+          if (options.func) {
+            // Simulate Chrome injecting a function into the page's isolated world
+            // by temporarily aliasing globalThis.self to the frame's window for
+            // the duration of the call. The injected func reads/writes globals
+            // via `self`.
+            for (const frame of frames) {
+              if (!frame.window) continue;
+              const origSelf = (globalThis as any).self;
+              (globalThis as any).self = frame.window;
+              try {
+                options.func.apply(null, options.args ?? []);
+              } finally {
+                (globalThis as any).self = origSelf;
+              }
+            }
+            return [];
+          }
+
+          if (options.files && env._initContentScript) {
+            for (const frame of frames) {
+              if (frame.window) {
+                env._initContentScript(
+                  frame.window,
+                  env.createContentChrome(frame),
+                );
+              }
             }
           }
           return [];
@@ -169,6 +191,20 @@ export class ChromeExtensionEnv {
               }
             }
             return Promise.resolve(result);
+          },
+        },
+        session: {
+          get(keys: string | string[]) {
+            const keyArr = Array.isArray(keys) ? keys : [keys];
+            const result: Record<string, any> = {};
+            for (const key of keyArr) {
+              if (key in env.sessionStorageData) result[key] = env.sessionStorageData[key];
+            }
+            return Promise.resolve(result);
+          },
+          set(items: Record<string, any>) {
+            Object.assign(env.sessionStorageData, items);
+            return Promise.resolve();
           },
         },
       },

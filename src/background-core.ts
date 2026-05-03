@@ -24,7 +24,13 @@ export interface BackgroundChrome {
     onMessage: { addListener(cb: (msg: ContentToBackgroundMessage, sender: MessageSender, sendResponse: (...args: any[]) => void) => void): void };
   };
   scripting: {
-    executeScript(options: { target: { tabId: number; frameIds?: number[]; allFrames?: boolean }; files: string[]; injectImmediately?: boolean }): Promise<any[]>;
+    executeScript(options: {
+      target: { tabId: number; frameIds?: number[]; allFrames?: boolean };
+      files?: string[];
+      func?: (...args: any[]) => any;
+      args?: any[];
+      injectImmediately?: boolean;
+    }): Promise<any[]>;
   };
   tabs: {
     sendMessage(tabId: number, msg: any, options?: { frameId?: number; documentId?: string }): Promise<any>;
@@ -36,7 +42,13 @@ export interface BackgroundChrome {
     onCommitted: { addListener(cb: (details: { tabId: number; frameId: number; url: string; transitionType: string; transitionQualifiers: string[] }) => void): void };
     onCreatedNavigationTarget: { addListener(cb: (details: { sourceTabId: number; sourceFrameId: number; tabId: number; url: string }) => void): void };
   };
-  storage: { local: { get(keys: string | string[]): Promise<Record<string, any>> } };
+  storage: {
+    local: { get(keys: string | string[]): Promise<Record<string, any>> };
+    session: {
+      get(keys: string | string[]): Promise<Record<string, any>>;
+      set(items: Record<string, any>): Promise<void>;
+    };
+  };
 }
 
 export function initBackgroundScript(chrome: BackgroundChrome): void {
