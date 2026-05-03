@@ -107,4 +107,33 @@ export interface PostMessageCapturedMessage {
   payload: RawCapturedMessage;
 }
 
-export type ContentToBackgroundMessage = PostMessageCapturedMessage;
+export type ContentToBackgroundMessage =
+  | PostMessageCapturedMessage
+  | ContentScriptReadyMessage
+  | StaleFrameMessage;
+
+// Window globals used by the inject bootstrap.
+// __pm_devtools_sw_id__ holds the service-worker startup ID that injected the
+// most recent content script. The bootstrap stores it on the page window so
+// future injections (after extension reload) can detect mismatch.
+export const SW_ID_KEY = '__pm_devtools_sw_id__';
+
+// __pm_devtools_inject_action__ is written by the bootstrap and read by the
+// content script. Tells the content script what to do this injection.
+export const INJECT_ACTION_KEY = '__pm_devtools_inject_action__';
+
+export type InjectAction = 'init' | 'skip' | 'stale';
+
+// Storage key for swStartupId persisted in chrome.storage.session.
+export const SW_STARTUP_ID_STORAGE_KEY = 'swStartupId';
+
+// Content script → background: this content script just finished fresh init.
+export interface ContentScriptReadyMessage {
+  type: 'content-script-ready';
+}
+
+// Content script → background: a stale orphan from a previous extension
+// version is still attached to this frame; this fresh injection bailed.
+export interface StaleFrameMessage {
+  type: 'stale-frame';
+}
