@@ -7,8 +7,10 @@ import { Message } from '../../Message';
 import { FIELD_INFO } from '../../field-info';
 import { JsonTree } from '../shared/JsonTree';
 import { FieldLabel } from '../shared/FieldInfoPopup';
-import { FrameDetail } from '../shared/FrameDetail';
+import { DocumentSection } from '../shared/DocumentSection';
+import { FrameSection } from '../shared/FrameSection';
 import { FrameActionButtons } from '../shared/FrameActionButtons';
+import { DirectionIcon } from '../shared/DirectionIcon';
 
 // Data tab content
 const DataTab = observer(({ message }: { message: Message }) => {
@@ -59,51 +61,67 @@ const SeparatorRow = () => (
 // Context tab content
 const ContextTab = observer(({ message }: { message: Message }) => {
   const focusPosition = store.getFocusPosition(message);
+  const showAdvanced = store.settings.showInternalFields;
 
   return (
     <table className="context-table">
       <tbody>
-        {store.settings.showInternalFields && (
+        {showAdvanced && (
           <Field id="messageId">{message.id}</Field>
         )}
         <Field id="timestamp">{new Date(message.timestamp).toISOString()}</Field>
         <Field id="messageType">{message.messageType || '(none)'}</Field>
         <Field id="dataSize">{store.formatSize(message.dataSize)}</Field>
-        {store.settings.showInternalFields && (
+        {showAdvanced && (
           <Field id="buffered">{message.buffered ? 'Yes' : 'No'}</Field>
         )}
 
         <SeparatorRow />
-        <tr><th colSpan={2} className="section-heading">
+        <Field id="sourceType">
+          <DirectionIcon sourceType={message.sourceType} focusPosition={focusPosition} /> {message.sourceType}
+        </Field>
+
+        <SeparatorRow />
+        <tr><th colSpan={2} className="section-heading section-heading--top">
           Target{focusPosition === 'target' || focusPosition === 'both' ? ' (focused)' : ''}
           {message.targetFrame && (
             <FrameActionButtons tabId={message.targetFrame.tabId} frameId={message.targetFrame.frameId} />
           )}
         </th></tr>
-        <FrameDetail
-          frame={message.targetFrame}
-          document={message.targetDocument}
-          ownerElement={message.targetOwnerElement}
-          showAdvanced={store.settings.showInternalFields}
-        />
+        {(message.targetFrame || message.targetOwnerElement) && (
+          <FrameSection
+            frame={message.targetFrame}
+            ownerElement={message.targetOwnerElement}
+            showAdvanced={showAdvanced}
+          />
+        )}
+        {message.targetDocument && (
+          <DocumentSection doc={message.targetDocument} showAdvanced={showAdvanced} />
+        )}
         {message.target.frameInfoError && (
           <Field id="frameError">{message.target.frameInfoError}</Field>
         )}
 
         <SeparatorRow />
-        <tr><th colSpan={2} className="section-heading">
+        <tr><th colSpan={2} className="section-heading section-heading--top">
           Source{focusPosition === 'source' || focusPosition === 'both' ? ' (focused)' : ''}
           {message.sourceFrame && (
             <FrameActionButtons tabId={message.sourceFrame.tabId} frameId={message.sourceFrame.frameId} />
           )}
         </th></tr>
-        <FrameDetail
-          frame={message.sourceFrame}
-          document={message.sourceDocument}
-          ownerElement={message.sourceOwnerElement}
-          sourceType={message.sourceType}
-          showAdvanced={store.settings.showInternalFields}
-        />
+        {(message.sourceFrame || message.sourceOwnerElement) && (
+          <FrameSection
+            frame={message.sourceFrame}
+            ownerElement={message.sourceOwnerElement}
+            showAdvanced={showAdvanced}
+          />
+        )}
+        {message.sourceDocument && (
+          <DocumentSection doc={message.sourceDocument} showAdvanced={showAdvanced} />
+        )}
+        {showAdvanced && message.sourceDocument?.sourceIdRecords?.[0] && (
+          <Field id="sourceId">{message.sourceDocument.sourceIdRecords[0].sourceId}</Field>
+        )}
       </tbody>
     </table>
   );
