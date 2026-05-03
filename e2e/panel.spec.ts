@@ -721,7 +721,7 @@ test.describe('endpoints tree after navigation', () => {
     await page.evaluate('window.harness.flushPromises()');
 
     // Click refresh to get updated hierarchy
-    await page.locator('.refresh-icon').click();
+    await page.locator('button[title="Refresh"]').click();
     await page.evaluate('window.harness.flushPromises()');
 
     // Wait for tree nodes to appear
