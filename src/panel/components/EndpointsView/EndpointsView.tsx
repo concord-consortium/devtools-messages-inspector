@@ -366,7 +366,7 @@ const IFrameDetail = observer(({ tabId, frameId, isUnknown, iframeRef }: { tabId
       <tbody>
         <FrameSection frame={frame} ownerElement={owner} status={status} showAdvanced={showAdvanced} />
         {doc && <DocumentSection doc={doc} heading="Current Document" showAdvanced={showAdvanced} />}
-        {iframeRef?.sourceIdFromParent && (
+        {showAdvanced && iframeRef?.sourceIdFromParent && (
           <Field id="sourceId">{iframeRef.sourceIdFromParent}</Field>
         )}
       </tbody>
@@ -375,13 +375,14 @@ const IFrameDetail = observer(({ tabId, frameId, isUnknown, iframeRef }: { tabId
 });
 
 const IFrameElementDetail = observer(({ iframeRef }: { iframeRef: IFrame }) => {
+  const showAdvanced = store.settings.showInternalFields;
   const owner = new OwnerElement(iframeRef.domPath, iframeRef.src, iframeRef.id);
   const status = iframeRef.removedFromHierarchy ? 'Removed from page' : undefined;
   return (
     <table className="context-table">
       <tbody>
         <FrameSection ownerElement={owner} status={status} />
-        {iframeRef.sourceIdFromParent && (
+        {showAdvanced && iframeRef.sourceIdFromParent && (
           <Field id="sourceId">{iframeRef.sourceIdFromParent}</Field>
         )}
       </tbody>
