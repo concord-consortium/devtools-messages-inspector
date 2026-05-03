@@ -156,7 +156,6 @@ export class HarnessWindow {
   location: { href: string; origin: string };
   top: HarnessWindow;
   document: { title: string; querySelector(selector: string): Element | null; querySelectorAll(selector: string): NodeListOf<Element> };
-  __postmessage_devtools_content__?: boolean;
 
   /** Mirrors window.origin — shorthand for location.origin */
   get origin(): string { return this.location.origin; }

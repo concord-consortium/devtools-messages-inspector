@@ -8,15 +8,8 @@ import {
   INJECT_ACTION_KEY, InjectAction,
 } from './types';
 
-declare global {
-  interface Window {
-    [key: string]: any;
-  }
-}
-
 /** Minimal window interface needed by the content script */
 export interface ContentWindow {
-  __postmessage_devtools_content__?: boolean;
   parent: any;
   top: any;
   opener: any;
@@ -28,6 +21,8 @@ export interface ContentWindow {
   };
   frames: { length: number; [index: number]: any };
   addEventListener(type: string, callback: (event: any) => void, capture?: boolean): void;
+  __pm_devtools_inject_action__?: 'init' | 'skip' | 'stale';
+  __pm_devtools_sw_id__?: string;
 }
 
 /** Minimal chrome API interface needed by the content script */
@@ -47,12 +42,13 @@ export interface ContentChrome {
 export function initContentScript(win: ContentWindow, chrome: ContentChrome): void {
   // Read and consume the action set by the bootstrap injection step.
   // Default to 'init' so direct test calls (without a bootstrap) still work.
-  const action: InjectAction = (win as any)[INJECT_ACTION_KEY] ?? 'init';
-  delete (win as any)[INJECT_ACTION_KEY];
+  const action: InjectAction = win[INJECT_ACTION_KEY] as InjectAction ?? 'init';
+  delete win[INJECT_ACTION_KEY];
 
   if (action === 'skip') return;
 
   if (action === 'stale') {
+    // TODO(task-4): widen ContentChrome.runtime.sendMessage type to ContentToBackgroundMessage
     chrome.runtime.sendMessage({ type: 'stale-frame' } as any);
     return;
   }
@@ -256,5 +252,6 @@ export function initContentScript(win: ContentWindow, chrome: ContentChrome): vo
   });
 
   // Tell background this fresh injection succeeded — used to clear stale-frame state.
+  // TODO(task-4): widen ContentChrome.runtime.sendMessage type to ContentToBackgroundMessage
   chrome.runtime.sendMessage({ type: 'content-script-ready' } as any);
 }

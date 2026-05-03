@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { initContentScript } from './content-core';
-import { INJECT_ACTION_KEY, SW_ID_KEY } from './types';
+import { INJECT_ACTION_KEY } from './types';
 
 function makeWindow(): any {
   const win: any = {
