@@ -523,3 +523,72 @@ describe('automatic frame registration', () => {
     expect(popupPings).toHaveLength(1);
   });
 });
+
+describe('extension reload recovery', () => {
+  let env: ChromeExtensionEnv;
+  let runtime: HarnessRuntime;
+  let actions: HarnessActions;
+
+  beforeEach(() => {
+    env = new ChromeExtensionEnv(initContentScript);
+    env.storageData.enableFrameRegistration = false;
+    initBackgroundScript(env.createBackgroundChrome());
+    runtime = new HarnessRuntime(env);
+    actions = new HarnessActions(runtime);
+  });
+
+  it('does not flag stale frames on the very first injection', async () => {
+    const top = actions.createTab({ url: 'https://parent.example.com/', title: 'Parent' });
+    const { messages } = env.connectPanel(top.tab.id);
+    await flushPromises();
+
+    expect(messages.some(m => m.type === 'stale-frame')).toBe(false);
+  });
+
+  it('emits stale-frame to the panel when a previous swStartupId is found in the window', async () => {
+    const top = actions.createTab({ url: 'https://parent.example.com/', title: 'Parent' });
+
+    // Simulate orphan: top frame's window already has a stale __pm_devtools_sw_id__
+    // from a previous extension lifetime.
+    (top.window as any).__pm_devtools_sw_id__ = 'PREVIOUS-LIFETIME';
+
+    const { messages } = env.connectPanel(top.tab.id);
+    await flushPromises();
+
+    const stale = messages.filter(m => m.type === 'stale-frame');
+    expect(stale.length).toBeGreaterThan(0);
+    expect(stale[0].frameId).toBe(0);
+  });
+
+  it('clears stale-frame after a fresh content-script-ready arrives for the frame', async () => {
+    const top = actions.createTab({ url: 'https://parent.example.com/', title: 'Parent' });
+    (top.window as any).__pm_devtools_sw_id__ = 'PREVIOUS-LIFETIME';
+
+    const { messages } = env.connectPanel(top.tab.id);
+    await flushPromises();
+
+    expect(messages.filter(m => m.type === 'stale-frame').length).toBeGreaterThan(0);
+
+    // Simulate page reload: navigation creates a fresh window, then re-inject runs.
+    actions.navigate(top, { url: 'https://parent.example.com/', title: 'Parent' });
+    await flushPromises();
+
+    const cleared = messages.filter(m => m.type === 'stale-frame-cleared');
+    expect(cleared.length).toBeGreaterThan(0);
+    expect(cleared[cleared.length - 1].frameId).toBe(0);
+  });
+
+  it('reuses the same swStartupId across SW restarts (no false stale)', async () => {
+    const top = actions.createTab({ url: 'https://parent.example.com/', title: 'Parent' });
+    env.connectPanel(top.tab.id);
+    await flushPromises();
+
+    // Simulate SW idle restart: re-init background-core against the same env.
+    // sessionStorageData persists across this restart; storageData also persists.
+    initBackgroundScript(env.createBackgroundChrome());
+    const second = env.connectPanel(top.tab.id);
+    await flushPromises();
+
+    expect(second.messages.some(m => m.type === 'stale-frame')).toBe(false);
+  });
+});
