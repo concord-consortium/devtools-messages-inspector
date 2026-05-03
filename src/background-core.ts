@@ -2,7 +2,11 @@
 // In production, background.ts calls initBackgroundScript(chrome).
 // In tests, call with a mock BackgroundChrome to avoid needing globalThis.chrome.
 
-import { IMessage, ContentToBackgroundMessage, SendMessageMessage, FrameInfo, FrameInfoResponse, GetFrameInfoMessage, OpenerInfo, REGISTRATION_MESSAGE_TYPE } from './types';
+import {
+  IMessage, ContentToBackgroundMessage, SendMessageMessage, FrameInfo, FrameInfoResponse,
+  GetFrameInfoMessage, OpenerInfo, PostMessageCapturedMessage,
+  REGISTRATION_MESSAGE_TYPE, INJECT_ACTION_KEY, SW_ID_KEY, SW_STARTUP_ID_STORAGE_KEY,
+} from './types';
 
 /** Minimal chrome API surface needed by the background script */
 export interface BackgroundPort {
@@ -60,6 +64,27 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
   // Store preserve log preference by tab ID
   const preserveLogPrefs = new Map<number, boolean>();
 
+  // Per-SW-startup ID. Persisted in chrome.storage.session so it survives idle
+  // restarts of the SW but is cleared on extension reload (which is what we
+  // want — same ID across idle restarts means no false "stale" reports;
+  // different ID after reload means orphan content scripts get detected).
+  const swStartupIdReady: Promise<string> = (async () => {
+    const result = await chrome.storage.session.get([SW_STARTUP_ID_STORAGE_KEY]);
+    let id: string | undefined = result[SW_STARTUP_ID_STORAGE_KEY];
+    if (typeof id !== 'string' || !id) {
+      id = generateSwStartupId();
+      await chrome.storage.session.set({ [SW_STARTUP_ID_STORAGE_KEY]: id });
+    }
+    return id;
+  })();
+
+  function generateSwStartupId(): string {
+    const bytes = (globalThis as any).crypto.getRandomValues(new Uint8Array(8));
+    let s = '';
+    for (let i = 0; i < bytes.length; i++) s += bytes[i].toString(16).padStart(2, '0');
+    return s;
+  }
+
   // Buffer messages for tabs without a panel connection
   const messageBuffers = new Map<number, IMessage[]>();
   // Tabs that should have buffering enabled (opened from a monitored tab)
@@ -71,6 +96,10 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
 
   // For each opened tab, the frame that opened it (via window.open)
   const openedTabs = new Map<number, { tabId: number; frameId: number }>();
+
+  // Per-tab set of frame IDs that reported a stale orphan content script.
+  // Cleared when the frame's content-script-ready arrives (it reloaded).
+  const staleFrames = new Map<number, Set<number>>();
   // For each opener frame key ("tabId:frameId"), the tabs it opened
   const openerFrames = new Map<string, Set<number>>();
 
@@ -89,6 +118,7 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
   // Inject content script into a specific tab and frame
   async function injectContentScript(tabId: number, frameId: number | null = null): Promise<void> {
     try {
+      const id = await swStartupIdReady;
       const target: { tabId: number; frameIds?: number[]; allFrames?: boolean } = { tabId };
       if (frameId !== null) {
         target.frameIds = [frameId];
@@ -96,18 +126,35 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
         target.allFrames = true;
       }
 
-      if (!injectedFrames.has(tabId)) {
-        injectedFrames.set(tabId, new Set());
-      }
+      if (!injectedFrames.has(tabId)) injectedFrames.set(tabId, new Set());
+      if (frameId !== null && injectedFrames.get(tabId)!.has(frameId)) return;
 
-      if (frameId !== null && injectedFrames.get(tabId)!.has(frameId)) {
-        return;
-      }
+      // Step 1: bootstrap. Reads existing window[SW_ID_KEY], compares to id,
+      // and writes window[INJECT_ACTION_KEY] = 'init' | 'skip' | 'stale'.
+      // The function source is serialized and re-executed in the page's
+      // isolated world — no closures, must inline constants.
+      await chrome.scripting.executeScript({
+        target,
+        func: (id: string, swIdKey: string, actionKey: string) => {
+          const w: any = self;
+          if (w[swIdKey] === id) {
+            w[actionKey] = 'skip';
+          } else if (w[swIdKey]) {
+            w[actionKey] = 'stale';
+          } else {
+            w[swIdKey] = id;
+            w[actionKey] = 'init';
+          }
+        },
+        args: [id, SW_ID_KEY, INJECT_ACTION_KEY],
+        injectImmediately: true,
+      });
 
+      // Step 2: content.js. Reads INJECT_ACTION_KEY and acts accordingly.
       await chrome.scripting.executeScript({
         target,
         files: ['content.js'],
-        injectImmediately: true
+        injectImmediately: true,
       });
 
       if (frameId !== null) {
@@ -120,9 +167,7 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
           for (const frame of frames) {
             const isNew = !alreadyInjected.has(frame.frameId);
             alreadyInjected.add(frame.frameId);
-            if (isNew) {
-              sendRegistrationMessages(tabId, frame.frameId);
-            }
+            if (isNew) sendRegistrationMessages(tabId, frame.frameId);
           }
         }
       }
@@ -204,6 +249,12 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
           messageBuffers.delete(msg.tabId);
         }
         bufferingEnabledTabs.delete(msg.tabId);
+
+        // Replay any frames already known stale for this tab.
+        const stale = staleFrames.get(msg.tabId);
+        if (stale) {
+          for (const fid of stale) port.postMessage({ type: 'stale-frame', frameId: fid });
+        }
 
         port.onDisconnect.addListener(() => {
           console.debug('[Messages] panel disconnected for tab', msg.tabId);
@@ -340,11 +391,31 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
     message: ContentToBackgroundMessage,
     sender: MessageSender
   ) => {
-    if (message.type !== 'postmessage-captured') return;
-
     const tabId = sender.tab?.id;
     const frameId = sender.frameId;
 
+    if (message.type === 'stale-frame') {
+      if (tabId == null || frameId == null) return;
+      if (!staleFrames.has(tabId)) staleFrames.set(tabId, new Set());
+      staleFrames.get(tabId)!.add(frameId);
+      const panel = panelConnections.get(tabId);
+      if (panel) panel.postMessage({ type: 'stale-frame', frameId });
+      return;
+    }
+
+    if (message.type === 'content-script-ready') {
+      if (tabId == null || frameId == null) return;
+      const set = staleFrames.get(tabId);
+      if (set?.has(frameId)) {
+        set.delete(frameId);
+        if (set.size === 0) staleFrames.delete(tabId);
+        const panel = panelConnections.get(tabId);
+        if (panel) panel.postMessage({ type: 'stale-frame-cleared', frameId });
+      }
+      return;
+    }
+
+    if (message.type !== 'postmessage-captured') return;
     if (!tabId || frameId === undefined) return;
 
     (async () => {
@@ -550,6 +621,7 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
 
   // Clean up when tab is closed
   chrome.tabs.onRemoved.addListener((tabId: number) => {
+    staleFrames.delete(tabId);
     messageBuffers.delete(tabId);
     bufferingEnabledTabs.delete(tabId);
     injectedFrames.delete(tabId);
