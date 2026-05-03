@@ -12,10 +12,31 @@ export function connect(): void {
   const tabId = chrome.devtools.inspectedWindow.tabId;
   store.setTabId(tabId);
 
-  port = chrome.runtime.connect({ name: 'postmessage-panel' });
+  let runtimeId: string | undefined;
+  try {
+    runtimeId = chrome.runtime?.id;
+  } catch {
+    runtimeId = undefined;
+  }
+  if (!runtimeId) {
+    store.setExtensionContextInvalidated(true);
+    return;
+  }
+
+  try {
+    port = chrome.runtime.connect({ name: 'postmessage-panel' });
+  } catch (e) {
+    if (String(e).includes('Extension context invalidated')) {
+      store.setExtensionContextInvalidated(true);
+      return;
+    }
+    setTimeout(connect, 1000);
+    return;
+  }
+
   port.postMessage({ type: 'init', tabId });
 
-  port.onMessage.addListener((msg: { type: string; payload?: CapturedMessage | FrameInfo[]; error?: string }) => {
+  port.onMessage.addListener((msg: { type: string; payload?: CapturedMessage | FrameInfo[]; error?: string; frameId?: number }) => {
     if (msg.type === 'message' && msg.payload) {
       processIncomingMessage(msg.payload as IMessage);
     } else if (msg.type === 'clear') {
@@ -25,6 +46,10 @@ export function connect(): void {
     } else if (msg.type === 'log-iframe-element-failed') {
       const text = '[messages] could not log iframe — failed to reach parent document: ' + (msg.error ?? '');
       chrome.devtools.inspectedWindow.eval(`console.log(${JSON.stringify(text)})`);
+    } else if (msg.type === 'stale-frame' && typeof msg.frameId === 'number') {
+      runInAction(() => store.addStaleFrame(msg.frameId!));
+    } else if (msg.type === 'stale-frame-cleared' && typeof msg.frameId === 'number') {
+      runInAction(() => store.clearStaleFrame(msg.frameId!));
     }
   });
 
