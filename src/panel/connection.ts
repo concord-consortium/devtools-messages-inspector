@@ -6,12 +6,24 @@ import { Message } from './Message';
 import { frameStore, Frame, FrameDocument, OwnerElement } from './models';
 import { CapturedMessage, FrameInfo, IMessage } from './types';
 
+// Chrome throws this exact text from chrome.runtime.connect() when the
+// extension has been reloaded/updated since this DevTools page loaded.
+// There is no structured error code or chrome.runtime.lastError on
+// synchronous throws — the message string is the API.
+const EXTENSION_INVALIDATED_MARKER = 'Extension context invalidated';
+
 let port: chrome.runtime.Port | null = null;
 
 export function connect(): void {
   const tabId = chrome.devtools.inspectedWindow.tabId;
   store.setTabId(tabId);
 
+  // Two-stage detection of extension-context invalidation:
+  // 1) fast path: chrome.runtime?.id is undefined (or throws) when this panel
+  //    page is from an extension version that has been reloaded/updated.
+  // 2) race fallback: chrome.runtime.connect(...) below catches the rarer
+  //    case where the runtime appeared alive at the pre-check but is
+  //    invalidated by the time we connect.
   let runtimeId: string | undefined;
   try {
     runtimeId = chrome.runtime?.id;
@@ -26,7 +38,7 @@ export function connect(): void {
   try {
     port = chrome.runtime.connect({ name: 'postmessage-panel' });
   } catch (e) {
-    if (String(e).includes('Extension context invalidated')) {
+    if (String(e).includes(EXTENSION_INVALIDATED_MARKER)) {
       store.setExtensionContextInvalidated(true);
       return;
     }
@@ -47,9 +59,11 @@ export function connect(): void {
       const text = '[messages] could not log iframe — failed to reach parent document: ' + (msg.error ?? '');
       chrome.devtools.inspectedWindow.eval(`console.log(${JSON.stringify(text)})`);
     } else if (msg.type === 'stale-frame' && typeof msg.frameId === 'number') {
-      runInAction(() => store.addStaleFrame(msg.frameId!));
+      const frameId = msg.frameId;
+      store.addStaleFrame(frameId);
     } else if (msg.type === 'stale-frame-cleared' && typeof msg.frameId === 'number') {
-      runInAction(() => store.clearStaleFrame(msg.frameId!));
+      const frameId = msg.frameId;
+      store.clearStaleFrame(frameId);
     }
   });
 
