@@ -587,6 +587,14 @@ body {
   width: auto;
 }
 
+.context-table th.section-heading--top {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid #cacdd1;
+  padding-bottom: 2px;
+}
+
 /* Copy button */
 .copy-btn {
   padding: 4px 8px;

@@ -7,10 +7,15 @@ import { store } from '../../store';
 import { Icon } from '../../icons/Icon';
 import { requestFrameHierarchy, sendLogIframeElement } from '../../connection';
 import { frameStore } from '../../models';
+import { FIELD_INFO } from '../../field-info';
 import type { Frame } from '../../models/Frame';
 import type { FrameDocument } from '../../models/FrameDocument';
 import type { IFrame } from '../../models/IFrame';
 import type { SelectedNode } from '../../types';
+import { DocumentSection } from '../shared/DocumentSection';
+import { FrameSection } from '../shared/FrameSection';
+import { OwnerElement } from '../../models/OwnerElement';
+import { FieldLabel } from '../shared/FieldInfoPopup';
 
 export function logIframeElement(iframe: IFrame): void {
   const documentId = iframe.parentDocument.documentId;
@@ -269,12 +274,16 @@ const TreeView = observer(() => {
 
 // --- Detail Pane ---
 
-const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
-  <tr>
-    <th>{label}</th>
-    <td>{children}</td>
-  </tr>
-);
+const Field = ({ id, children }: { id: string; children: React.ReactNode }) => {
+  const fieldInfo = FIELD_INFO[id];
+  const label = fieldInfo ? fieldInfo.label : id;
+  return (
+    <tr>
+      <th>{fieldInfo ? <FieldLabel fieldId={id} label={label} /> : label}</th>
+      <td>{children}</td>
+    </tr>
+  );
+};
 
 const SeparatorRow = () => (
   <tr><td colSpan={2} className="context-separator"></td></tr>
@@ -284,43 +293,27 @@ const TabDetail = observer(({ tabId, tabRef }: { tabId: number; tabRef?: import(
   const tab = tabRef ?? frameStore.tabs.get(tabId);
   const rootFrame = tab?.rootFrame ?? frameStore.getFrame(tabId, 0);
   const doc = rootFrame?.currentDocument;
+  const showAdvanced = store.settings.showInternalFields;
 
   return (
     <table className="context-table">
       <tbody>
-        <Field label="tabId">tab[{tabId}]</Field>
-        <Field label="frameId">frame[0]</Field>
-        {doc?.url && <Field label="URL">{doc.url}</Field>}
-        {doc?.origin && <Field label="Origin">{doc.origin}</Field>}
-        {doc?.title && <Field label="Title">{doc.title}</Field>}
-        {tab?.openerTab && (
-          <Field label="Opener Tab">tab[{tab.openerTab.tabId}]</Field>
-        )}
-        {tab && tab.openedTabs.length > 0 && (
-          <Field label="Opened Tabs">{tab.openedTabs.map(t => `tab[${t.tabId}]`).join(', ')}</Field>
-        )}
+        {rootFrame && <FrameSection frame={rootFrame} />}
+        {doc && <DocumentSection doc={doc} heading="Current Document" showAdvanced={showAdvanced} />}
       </tbody>
     </table>
   );
 });
 
 const DocumentDetail = observer(({ doc }: { doc: FrameDocument }) => {
-  const showInternal = store.settings.showInternalFields;
+  const showAdvanced = store.settings.showInternalFields;
+  const frame = doc.frame;
   return (
     <table className="context-table">
       <tbody>
-        {doc.documentId && <Field label="Document ID">{doc.documentId}</Field>}
-        {showInternal && <Field label="createdAt">{new Date(doc.createdAt).toISOString()}</Field>}
-        {doc.url && <Field label="URL">{doc.url}</Field>}
-        {doc.origin && <Field label="Origin">{doc.origin}</Field>}
-        {doc.title && <Field label="Title">{doc.title}</Field>}
-        {doc.frame && (
-          <>
-            <Field label="Tab">tab[{doc.frame.tabId}]</Field>
-            <Field label="Frame">frame[{doc.frame.frameId}]</Field>
-          </>
-        )}
-        {showInternal && doc.sourceIdRecords.length > 0 && (
+        <DocumentSection doc={doc} showAdvanced={showAdvanced} />
+        {frame && <FrameSection frame={frame} showAdvanced={showAdvanced} />}
+        {showAdvanced && doc.sourceIdRecords.length > 0 && (
           <>
             <SeparatorRow />
             <tr><th colSpan={2} className="section-heading">Source ID Records</th></tr>
@@ -337,7 +330,7 @@ const DocumentDetail = observer(({ doc }: { doc: FrameDocument }) => {
             ))}
           </>
         )}
-        {showInternal && doc.changes.length > 0 && (
+        {showAdvanced && doc.changes.length > 0 && (
           <>
             <SeparatorRow />
             <tr><th colSpan={2} className="section-heading">Changes</th></tr>
@@ -361,23 +354,20 @@ const DocumentDetail = observer(({ doc }: { doc: FrameDocument }) => {
 
 const IFrameDetail = observer(({ tabId, frameId, isUnknown, iframeRef }: { tabId: number; frameId: number; isUnknown: boolean; iframeRef?: IFrame }) => {
   const frame = frameStore.getFrame(tabId, frameId);
+  const showAdvanced = store.settings.showInternalFields;
+  const owner = (!isUnknown && iframeRef)
+    ? new OwnerElement(iframeRef.domPath, iframeRef.src, iframeRef.id)
+    : undefined;
+  const status = (!isUnknown && iframeRef?.removedFromHierarchy) ? 'Removed from page' : undefined;
+  const doc = frame?.currentDocument;
 
   return (
     <table className="context-table">
       <tbody>
-        {!isUnknown && iframeRef && (
-          <>
-            {iframeRef.removedFromHierarchy && <Field label="Status">Removed from page</Field>}
-            {iframeRef.domPath && <Field label="domPath">{iframeRef.domPath}</Field>}
-            {iframeRef.src && <Field label="src">{iframeRef.src}</Field>}
-            {iframeRef.id && <Field label="id">{iframeRef.id}</Field>}
-            {iframeRef.sourceIdFromParent && <Field label="sourceId">{iframeRef.sourceIdFromParent}</Field>}
-          </>
-        )}
-        <Field label="frameId">frame[{frameId}]</Field>
-        <Field label="Tab">tab[{tabId}]</Field>
-        {frame?.parentFrameId !== undefined && frame.parentFrameId >= 0 && (
-          <Field label="Parent Frame">frame[{frame.parentFrameId}]</Field>
+        <FrameSection frame={frame} ownerElement={owner} status={status} showAdvanced={showAdvanced} tabId={tabId} frameId={frameId} />
+        {doc && <DocumentSection doc={doc} heading="Current Document" showAdvanced={showAdvanced} />}
+        {showAdvanced && iframeRef?.sourceIdFromParent && (
+          <Field id="sourceId">{iframeRef.sourceIdFromParent}</Field>
         )}
       </tbody>
     </table>
@@ -385,14 +375,16 @@ const IFrameDetail = observer(({ tabId, frameId, isUnknown, iframeRef }: { tabId
 });
 
 const IFrameElementDetail = observer(({ iframeRef }: { iframeRef: IFrame }) => {
+  const showAdvanced = store.settings.showInternalFields;
+  const owner = new OwnerElement(iframeRef.domPath, iframeRef.src, iframeRef.id);
+  const status = iframeRef.removedFromHierarchy ? 'Removed from page' : undefined;
   return (
     <table className="context-table">
       <tbody>
-        {iframeRef.removedFromHierarchy && <Field label="Status">Removed from page</Field>}
-        {iframeRef.domPath && <Field label="domPath">{iframeRef.domPath}</Field>}
-        {iframeRef.src && <Field label="src">{iframeRef.src}</Field>}
-        {iframeRef.id && <Field label="id">{iframeRef.id}</Field>}
-        {iframeRef.sourceIdFromParent && <Field label="sourceId">{iframeRef.sourceIdFromParent}</Field>}
+        <FrameSection ownerElement={owner} status={status} />
+        {showAdvanced && iframeRef.sourceIdFromParent && (
+          <Field id="sourceId">{iframeRef.sourceIdFromParent}</Field>
+        )}
       </tbody>
     </table>
   );
@@ -402,7 +394,9 @@ const UnknownDocumentDetail = observer(({ sourceId }: { sourceId: string }) => {
   return (
     <table className="context-table">
       <tbody>
-        <Field label="sourceId">{sourceId}</Field>
+        <SeparatorRow />
+        <tr><th colSpan={2} className="section-heading">Document</th></tr>
+        <Field id="sourceId">{sourceId}</Field>
       </tbody>
     </table>
   );

@@ -1,14 +1,17 @@
 // Field information for context pane - used for UI popups and documentation generation
 
+export type FieldScope = 'document' | 'frame' | 'iframeElement';
+
 export interface FieldInfoEntry {
   label: string;
+  scope?: FieldScope;
   description: string;
   technical: string;
   filter: string | null;
 }
 
 export const FIELD_INFO: Record<string, FieldInfoEntry> = {
-  // Message-level fields
+  // Message-level fields (no scope)
   messageId: {
     label: 'Message ID',
     description: 'Unique identifier for this message.',
@@ -52,68 +55,104 @@ export const FIELD_INFO: Record<string, FieldInfoEntry> = {
     filter: null
   },
 
+  // Frame-scoped fields
   tabId: {
     label: 'Tab',
+    scope: 'frame',
     description: 'The Chrome tab ID of the window.',
     technical: 'Set by the background script from sender.tab.id or the opener relationship registry.',
     filter: null
   },
-
-  // Frame/document fields (generic, used by FrameDetail and column label derivation)
   frameId: {
     label: 'Frame',
+    scope: 'frame',
     description: 'The Chrome frame ID of this window.',
     technical: 'Obtained from sender.frameId in the background script.',
     filter: null
   },
   parentFrameId: {
     label: 'Parent Frame',
+    scope: 'frame',
     description: 'The Chrome frame ID of the parent window.',
     technical: 'Obtained from the frame hierarchy via chrome.webNavigation.',
     filter: null
   },
+  'tab.openerTab': {
+    label: 'Opener Tab',
+    scope: 'frame',
+    description: 'The tab that opened this tab via window.open.',
+    technical: 'Recorded by the background script via chrome.webNavigation.onCreatedNavigationTarget; surfaced to the panel via opener/opened source-type messages and linked into Tab.openerTab.',
+    filter: null
+  },
+  'tab.openedTabs': {
+    label: 'Opened Tabs',
+    scope: 'frame',
+    description: 'Tabs that were opened from this tab via window.open.',
+    technical: 'Inverse of openerTab — populated on the opener Tab as opener/opened messages link new tabs.',
+    filter: null
+  },
+
+  // Document-scoped fields
   'document.documentId': {
-    label: 'Document ID',
+    label: 'ID',
+    scope: 'document',
     description: 'Chrome-assigned unique identifier for this document instance in the frame.',
     technical: 'Assigned by Chrome via webNavigation API. Changes on each navigation.',
     filter: 'documentId:ABC123'
   },
   'document.url': {
-    label: 'Document URL',
+    label: 'URL',
+    scope: 'document',
     description: 'The full URL of the document loaded in this frame.',
     technical: 'Obtained from window.location.href of the frame.',
     filter: null
   },
   'document.origin': {
-    label: 'Document Origin',
+    label: 'Origin',
+    scope: 'document',
     description: 'The origin of the document loaded in this frame.',
     technical: 'Obtained from window.location.origin of the frame.',
     filter: 'target:example.com / source:example.com'
   },
   'document.title': {
-    label: 'Document Title',
+    label: 'Title',
+    scope: 'document',
     description: 'The document title of this frame.',
     technical: 'Obtained from document.title of the frame.',
     filter: null
   },
+  'document.createdAt': {
+    label: 'Created At',
+    scope: 'document',
+    description: 'When this FrameDocument was first observed by the panel.',
+    technical: 'Captured at FrameDocument construction time via Date.now().',
+    filter: null
+  },
+
+  // IframeElement-scoped fields (the <iframe> element in the parent document)
   'ownerElement.domPath': {
-    label: 'Owner Element',
+    label: 'DOM Path',
+    scope: 'iframeElement',
     description: 'CSS selector path to the iframe element that contains this frame.',
     technical: 'Obtained via registration message correlation. The parent frame records the iframe domPath when the child registers.',
     filter: null
   },
   'ownerElement.src': {
-    label: 'Iframe Src',
+    label: 'Src',
+    scope: 'iframeElement',
     description: 'The src attribute of the iframe element that contains this frame.',
     technical: 'Read from the iframe element in the parent document.',
     filter: null
   },
   'ownerElement.id': {
-    label: 'Iframe ID',
+    label: 'ID',
+    scope: 'iframeElement',
     description: 'The id attribute of the iframe element that contains this frame.',
     technical: 'Read from the iframe element in the parent document.',
     filter: null
   },
+
+  // Other unscoped fields
   frameError: {
     label: 'Frame Error',
     description: 'Error that occurred when trying to get frame information.',
@@ -134,16 +173,27 @@ export const FIELD_INFO: Record<string, FieldInfoEntry> = {
   }
 };
 
+const SCOPE_PREFIX: Partial<Record<FieldScope, string>> = {
+  document: 'Document',
+  iframeElement: 'Iframe',
+  // 'frame' has no extra prefix
+};
+
 // Derive a column label from a column ID.
 // For IDs like "target.document.url" or "source.ownerElement.src",
-// strips the prefix and looks up the generic key in FIELD_INFO,
-// prepending "Target" or "Source".
+// strips the "target."/"source." prefix, looks up the FIELD_INFO entry,
+// and composes:  side + (scope prefix if any) + label.
 export function getColumnLabel(colId: string): string {
-  for (const prefix of ['target.', 'source.']) {
-    if (colId.startsWith(prefix)) {
-      const fieldKey = colId.slice(prefix.length);
-      const side = prefix === 'target.' ? 'Target' : 'Source';
-      return side + ' ' + (FIELD_INFO[fieldKey]?.label ?? fieldKey);
+  for (const sidePrefix of ['target.', 'source.']) {
+    if (colId.startsWith(sidePrefix)) {
+      const fieldKey = colId.slice(sidePrefix.length);
+      const side = sidePrefix === 'target.' ? 'Target' : 'Source';
+      const entry = FIELD_INFO[fieldKey];
+      if (!entry) return side + ' ' + fieldKey;
+      const scopePrefix = entry.scope ? SCOPE_PREFIX[entry.scope] : undefined;
+      return scopePrefix
+        ? `${side} ${scopePrefix} ${entry.label}`
+        : `${side} ${entry.label}`;
     }
   }
   return FIELD_INFO[colId]?.label ?? colId;

@@ -330,7 +330,7 @@ test.describe('focused frame', () => {
     await page.locator('.tab-btn', { hasText: 'Context' }).click();
 
     const view = page.locator(logView);
-    const headings = view.locator('.section-heading');
+    const headings = view.locator('.section-heading--top');
     await expect(headings.nth(0)).toHaveText('Target (focused)');
     await expect(headings.nth(1)).toHaveText('Source');
   });
@@ -344,7 +344,7 @@ test.describe('focused frame', () => {
     await page.locator('.tab-btn', { hasText: 'Context' }).click();
 
     const view = page.locator(logView);
-    const headings = view.locator('.section-heading');
+    const headings = view.locator('.section-heading--top');
     await expect(headings.nth(0)).toHaveText('Target');
     await expect(headings.nth(1)).toHaveText('Source (focused)');
   });
@@ -480,7 +480,7 @@ test.describe('cross-pane navigation', () => {
     await page.locator('.tab-btn', { hasText: 'Context' }).click();
 
     const view = page.locator(logView);
-    const headings = view.locator('.section-heading');
+    const headings = view.locator('.section-heading--top');
 
     // Target heading (index 0) should contain frame action buttons
     await expect(headings.nth(0).locator('.frame-action-buttons')).toHaveCount(1);
@@ -496,7 +496,7 @@ test.describe('cross-pane navigation', () => {
     await page.locator('.tab-btn', { hasText: 'Context' }).click();
 
     const view = page.locator(logView);
-    const targetHeading = view.locator('.section-heading').nth(0);
+    const targetHeading = view.locator('.section-heading--top').nth(0);
 
     // Click the filter action button (first .frame-action-btn) on the Target heading
     // For child-to-parent, target is frame[0] in tab 1
@@ -514,7 +514,7 @@ test.describe('cross-pane navigation', () => {
     await page.locator('.tab-btn', { hasText: 'Context' }).click();
 
     const view = page.locator(logView);
-    const sourceHeading = view.locator('.section-heading').nth(1);
+    const sourceHeading = view.locator('.section-heading--top').nth(1);
 
     // Click the "View in Endpoints" button (third .frame-action-btn) on Source heading
     // For child-to-parent, source is frame[1] in tab 1
@@ -721,7 +721,7 @@ test.describe('endpoints tree after navigation', () => {
     await page.evaluate('window.harness.flushPromises()');
 
     // Click refresh to get updated hierarchy
-    await page.locator('.refresh-icon').click();
+    await page.locator('button[title="Refresh"]').click();
     await page.evaluate('window.harness.flushPromises()');
 
     // Wait for tree nodes to appear
