@@ -98,6 +98,9 @@ const ContextTab = observer(({ message }: { message: Message }) => {
         {message.targetDocument && (
           <DocumentSection doc={message.targetDocument} showAdvanced={showAdvanced} />
         )}
+        {showAdvanced && message.targetDocument?.sourceIdRecords?.[0] && (
+          <Field id="sourceId">{message.targetDocument.sourceIdRecords[0].sourceId}</Field>
+        )}
         {message.target.frameInfoError && (
           <Field id="frameError">{message.target.frameInfoError}</Field>
         )}
