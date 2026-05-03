@@ -43,7 +43,7 @@ export const FIELD_INFO: Record<string, FieldInfoEntry> = {
     filter: null
   },
   sourceType: {
-    label: 'Direction',
+    label: 'Source Type',
     description: 'The relationship between the sender and receiver windows.',
     technical: 'Determined by comparing event.source to window.parent, window.opener, opened windows, and child frames.',
     filter: 'sourceType:parent'

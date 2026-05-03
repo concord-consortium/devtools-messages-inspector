@@ -77,9 +77,10 @@ const ContextTab = observer(({ message }: { message: Message }) => {
         )}
 
         <SeparatorRow />
-        <Field id="sourceType">
-          <DirectionIcon sourceType={message.sourceType} focusPosition={focusPosition} /> {message.sourceType}
-        </Field>
+        <tr>
+          <th><FieldLabel fieldId="sourceType" label="Direction" /></th>
+          <td><DirectionIcon sourceType={message.sourceType} focusPosition={focusPosition} /> {message.sourceType}</td>
+        </tr>
 
         <SeparatorRow />
         <tr><th colSpan={2} className="section-heading section-heading--top">
