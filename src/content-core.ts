@@ -5,7 +5,7 @@
 import {
   REGISTRATION_MESSAGE_TYPE, BackgroundToContentMessage, IframeElementInfo,
   RawCapturedMessage, FrameInfoResponse, OpenerInfo, PostMessageCapturedMessage,
-  INJECT_ACTION_KEY, InjectAction,
+  ContentToBackgroundMessage, INJECT_ACTION_KEY, InjectAction,
 } from './types';
 
 /** Minimal window interface needed by the content script */
@@ -28,7 +28,7 @@ export interface ContentWindow {
 /** Minimal chrome API interface needed by the content script */
 export interface ContentChrome {
   runtime: {
-    sendMessage(message: PostMessageCapturedMessage): void;
+    sendMessage(message: ContentToBackgroundMessage): void;
     onMessage: {
       addListener(callback: (
         message: BackgroundToContentMessage,
@@ -48,8 +48,7 @@ export function initContentScript(win: ContentWindow, chrome: ContentChrome): vo
   if (action === 'skip') return;
 
   if (action === 'stale') {
-    // TODO(task-4): widen ContentChrome.runtime.sendMessage type to ContentToBackgroundMessage
-    chrome.runtime.sendMessage({ type: 'stale-frame' } as any);
+    chrome.runtime.sendMessage({ type: 'stale-frame' });
     return;
   }
   // action === 'init': fall through to fresh init.
@@ -252,6 +251,5 @@ export function initContentScript(win: ContentWindow, chrome: ContentChrome): vo
   });
 
   // Tell background this fresh injection succeeded — used to clear stale-frame state.
-  // TODO(task-4): widen ContentChrome.runtime.sendMessage type to ContentToBackgroundMessage
-  chrome.runtime.sendMessage({ type: 'content-script-ready' } as any);
+  chrome.runtime.sendMessage({ type: 'content-script-ready' });
 }

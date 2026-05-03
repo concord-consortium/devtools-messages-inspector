@@ -4,7 +4,7 @@
 
 import {
   IMessage, ContentToBackgroundMessage, SendMessageMessage, FrameInfo, FrameInfoResponse,
-  GetFrameInfoMessage, OpenerInfo, PostMessageCapturedMessage,
+  GetFrameInfoMessage, OpenerInfo,
   REGISTRATION_MESSAGE_TYPE, INJECT_ACTION_KEY, SW_ID_KEY, SW_STARTUP_ID_STORAGE_KEY,
 } from './types';
 
@@ -79,7 +79,7 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
   })();
 
   function generateSwStartupId(): string {
-    const bytes = (globalThis as any).crypto.getRandomValues(new Uint8Array(8));
+    const bytes = crypto.getRandomValues(new Uint8Array(8));
     let s = '';
     for (let i = 0; i < bytes.length; i++) s += bytes[i].toString(16).padStart(2, '0');
     return s;
