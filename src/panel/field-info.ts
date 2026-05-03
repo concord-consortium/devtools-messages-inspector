@@ -81,14 +81,14 @@ export const FIELD_INFO: Record<string, FieldInfoEntry> = {
     label: 'Opener Tab',
     scope: 'frame',
     description: 'The tab that opened this tab via window.open.',
-    technical: 'Tracked by the background script from chrome.tabs.onCreated openerTabId.',
+    technical: 'Recorded by the background script via chrome.webNavigation.onCreatedNavigationTarget; surfaced to the panel via opener/opened source-type messages and linked into Tab.openerTab.',
     filter: null
   },
   'tab.openedTabs': {
     label: 'Opened Tabs',
     scope: 'frame',
     description: 'Tabs that were opened from this tab via window.open.',
-    technical: 'Inverse of openerTab — populated as child tabs are observed.',
+    technical: 'Inverse of openerTab — populated on the opener Tab as opener/opened messages link new tabs.',
     filter: null
   },
 
