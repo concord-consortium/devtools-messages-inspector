@@ -1,7 +1,5 @@
 # Remaining for Version 1
-- in the message details pane, each endpoint should have a Frame and Document section. Maybe the frame section should be called Tab for Tabs and IFrame for iframes. I'm not sure where to put the source type. It might be better to move it to a top level direction field to match the table. 
 - figure out a plan for how to handle "preserve log" with the endpoints. My hunch at this point is to clear the endpoints too, unless preserve log is checked. This makes it a more global setting.
-- review the details of the endpoints, they don't seem consistent between the different types.
 - it will be useful if we can record a "session" of messages/events between the panel and the background. Then we can setup the panel with specific settings and then replay the session. This might help reproduce issues that only show up in the real extension within the test harness environment. This has a few questions though: when does the session start recording? How is the session recording enabled? Should we also record any settings or other chrome calls made by the panel?
 - fix table column resize handles they are hard to select
 - update details pane in messages view, probably details should be default and first and content second
