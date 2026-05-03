@@ -77,6 +77,20 @@ export const FIELD_INFO: Record<string, FieldInfoEntry> = {
     technical: 'Obtained from the frame hierarchy via chrome.webNavigation.',
     filter: null
   },
+  'tab.openerTab': {
+    label: 'Opener Tab',
+    scope: 'frame',
+    description: 'The tab that opened this tab via window.open.',
+    technical: 'Tracked by the background script from chrome.tabs.onCreated openerTabId.',
+    filter: null
+  },
+  'tab.openedTabs': {
+    label: 'Opened Tabs',
+    scope: 'frame',
+    description: 'Tabs that were opened from this tab via window.open.',
+    technical: 'Inverse of openerTab — populated as child tabs are observed.',
+    filter: null
+  },
 
   // Document-scoped fields
   'document.documentId': {
@@ -105,6 +119,13 @@ export const FIELD_INFO: Record<string, FieldInfoEntry> = {
     scope: 'document',
     description: 'The document title of this frame.',
     technical: 'Obtained from document.title of the frame.',
+    filter: null
+  },
+  'document.createdAt': {
+    label: 'Created At',
+    scope: 'document',
+    description: 'When this FrameDocument was first observed by the panel.',
+    technical: 'Captured at FrameDocument construction time via Date.now().',
     filter: null
   },
 

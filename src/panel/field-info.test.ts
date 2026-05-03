@@ -1,4 +1,4 @@
-import { getColumnLabel } from './field-info';
+import { FIELD_INFO, getColumnLabel } from './field-info';
 
 describe('getColumnLabel', () => {
   it('returns the label for a top-level field', () => {
@@ -25,5 +25,25 @@ describe('getColumnLabel', () => {
 
   it('returns the raw ID when no label is found', () => {
     expect(getColumnLabel('unknownField')).toBe('unknownField');
+  });
+});
+
+describe('FIELD_INFO additions', () => {
+  it('has document.createdAt with document scope', () => {
+    expect(FIELD_INFO['document.createdAt']).toBeDefined();
+    expect(FIELD_INFO['document.createdAt'].label).toBe('Created At');
+    expect(FIELD_INFO['document.createdAt'].scope).toBe('document');
+  });
+
+  it('has tab.openerTab with frame scope', () => {
+    expect(FIELD_INFO['tab.openerTab']).toBeDefined();
+    expect(FIELD_INFO['tab.openerTab'].label).toBe('Opener Tab');
+    expect(FIELD_INFO['tab.openerTab'].scope).toBe('frame');
+  });
+
+  it('has tab.openedTabs with frame scope', () => {
+    expect(FIELD_INFO['tab.openedTabs']).toBeDefined();
+    expect(FIELD_INFO['tab.openedTabs'].label).toBe('Opened Tabs');
+    expect(FIELD_INFO['tab.openedTabs'].scope).toBe('frame');
   });
 });
