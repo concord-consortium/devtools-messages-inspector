@@ -556,7 +556,7 @@ describe('extension reload recovery', () => {
     await flushPromises();
 
     const stale = messages.filter(m => m.type === 'stale-frame');
-    expect(stale.length).toBeGreaterThan(0);
+    expect(stale).toHaveLength(1);
     expect(stale[0].frameId).toBe(0);
   });
 
@@ -567,15 +567,15 @@ describe('extension reload recovery', () => {
     const { messages } = env.connectPanel(top.tab.id);
     await flushPromises();
 
-    expect(messages.filter(m => m.type === 'stale-frame').length).toBeGreaterThan(0);
+    expect(messages.filter(m => m.type === 'stale-frame')).toHaveLength(1);
 
     // Simulate page reload: navigation creates a fresh window, then re-inject runs.
     actions.navigate(top, { url: 'https://parent.example.com/', title: 'Parent' });
     await flushPromises();
 
     const cleared = messages.filter(m => m.type === 'stale-frame-cleared');
-    expect(cleared.length).toBeGreaterThan(0);
-    expect(cleared[cleared.length - 1].frameId).toBe(0);
+    expect(cleared).toHaveLength(1);
+    expect(cleared[0].frameId).toBe(0);
   });
 
   it('reuses the same swStartupId across SW restarts (no false stale)', async () => {
