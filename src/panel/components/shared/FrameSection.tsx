@@ -14,6 +14,10 @@ interface FrameSectionProps {
   heading?: string;
   status?: string;
   showAdvanced?: boolean;
+  // Fallbacks used when frame is undefined (e.g. selected node refers to a
+  // frame that's no longer in frameStore after a refresh).
+  tabId?: number;
+  frameId?: number;
 }
 
 const Field = ({ id, children }: { id: string; children: React.ReactNode }) => {
@@ -31,14 +35,16 @@ const SeparatorRow = () => (
   <tr><td colSpan={2} className="context-separator"></td></tr>
 );
 
-function deriveHeading(frame: Frame | undefined): string {
-  if (frame && frame.frameId === 0) return 'Tab';
+function deriveHeading(frameId: number | undefined): string {
+  if (frameId === 0) return 'Tab';
   return 'IFrame';
 }
 
-export const FrameSection = observer(({ frame, ownerElement, heading, status }: FrameSectionProps) => {
-  const resolvedHeading = heading ?? deriveHeading(frame);
-  const tab = frame && frame.frameId === 0 ? frameStore.tabs.get(frame.tabId) : undefined;
+export const FrameSection = observer(({ frame, ownerElement, heading, status, tabId: tabIdProp, frameId: frameIdProp }: FrameSectionProps) => {
+  const tabId = frame?.tabId ?? tabIdProp;
+  const frameId = frame?.frameId ?? frameIdProp;
+  const resolvedHeading = heading ?? deriveHeading(frameId);
+  const tab = frameId === 0 && tabId !== undefined ? frameStore.tabs.get(tabId) : undefined;
 
   return (
     <>
@@ -47,11 +53,11 @@ export const FrameSection = observer(({ frame, ownerElement, heading, status }: 
       {status && (
         <tr><th>Status</th><td>{status}</td></tr>
       )}
-      {frame && (
-        <Field id="tabId">tab[{frame.tabId}]</Field>
+      {tabId !== undefined && (
+        <Field id="tabId">tab[{tabId}]</Field>
       )}
-      {frame && (
-        <Field id="frameId">frame[{frame.frameId}]</Field>
+      {frameId !== undefined && (
+        <Field id="frameId">frame[{frameId}]</Field>
       )}
       {frame && frame.parentFrameId !== undefined && frame.parentFrameId >= 0 && (
         <Field id="parentFrameId">frame[{frame.parentFrameId}]</Field>

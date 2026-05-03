@@ -100,4 +100,16 @@ describe('FrameSection', () => {
     expect(screen.queryByText('Opener Tab')).toBeNull();
     expect(screen.queryByText('Opened Tabs')).toBeNull();
   });
+
+  it('falls back to tabId/frameId props when frame is undefined', () => {
+    renderInTable(<FrameSection tabId={42} frameId={5} />);
+    expect(screen.getByText('tab[42]')).toBeTruthy();
+    expect(screen.getByText('frame[5]')).toBeTruthy();
+  });
+
+  it('derives "Tab" heading from frameId prop when frame is undefined', () => {
+    const { container } = renderInTable(<FrameSection tabId={42} frameId={0} />);
+    const heading = container.querySelector('.section-heading');
+    expect(heading?.textContent).toBe('Tab');
+  });
 });
