@@ -2,11 +2,15 @@
 // In production, content.ts calls initContentScript(window, chrome).
 // In tests, call with mock window and chrome objects to simulate multiple content scripts.
 
-import { REGISTRATION_MESSAGE_TYPE, BackgroundToContentMessage, IframeElementInfo, RawCapturedMessage, FrameInfoResponse, OpenerInfo, PostMessageCapturedMessage } from './types';
+import {
+  REGISTRATION_MESSAGE_TYPE, BackgroundToContentMessage, IframeElementInfo,
+  RawCapturedMessage, FrameInfoResponse, OpenerInfo, PostMessageCapturedMessage,
+  INJECT_ACTION_KEY, InjectAction,
+} from './types';
 
 declare global {
   interface Window {
-    __postmessage_devtools_content__?: boolean;
+    [key: string]: any;
   }
 }
 
@@ -41,9 +45,18 @@ export interface ContentChrome {
 }
 
 export function initContentScript(win: ContentWindow, chrome: ContentChrome): void {
-  // Guard against multiple injections
-  if (win.__postmessage_devtools_content__) return;
-  win.__postmessage_devtools_content__ = true;
+  // Read and consume the action set by the bootstrap injection step.
+  // Default to 'init' so direct test calls (without a bootstrap) still work.
+  const action: InjectAction = (win as any)[INJECT_ACTION_KEY] ?? 'init';
+  delete (win as any)[INJECT_ACTION_KEY];
+
+  if (action === 'skip') return;
+
+  if (action === 'stale') {
+    chrome.runtime.sendMessage({ type: 'stale-frame' } as any);
+    return;
+  }
+  // action === 'init': fall through to fresh init.
 
   const sourceEntries = new WeakMap<object, { sourceId: string; type: string }>();
 
@@ -241,4 +254,7 @@ export function initContentScript(win: ContentWindow, chrome: ContentChrome): vo
     }
     return true; // Keep channel open for async response
   });
+
+  // Tell background this fresh injection succeeded — used to clear stale-frame state.
+  chrome.runtime.sendMessage({ type: 'content-script-ready' } as any);
 }
