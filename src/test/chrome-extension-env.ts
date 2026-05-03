@@ -91,6 +91,12 @@ export class ChromeExtensionEnv {
             // by temporarily aliasing globalThis.self to the frame's window for
             // the duration of the call. The injected func reads/writes globals
             // via `self`.
+            //
+            // Limitation: only safe for synchronous injected functions. If `func`
+            // schedules a microtask or timer that touches `self`, that work runs
+            // after the swap is restored and will mutate the test runner's globals.
+            // Real Chrome runs the injected function in the page's isolated world,
+            // so this divergence is a harness limitation, not a production bug.
             for (const frame of frames) {
               if (!frame.window) continue;
               const origSelf = (globalThis as any).self;
