@@ -106,35 +106,22 @@ export class ChromeExtensionEnv {
           }
 
           if (options.func) {
-            // Simulate Chrome injecting a function into the page's isolated world.
-            // In real Chrome, the injected function's `self` and `document`
-            // identifiers resolve to the target frame's window/document. We
-            // can't reassign `document` on the harness Window (it's a
-            // non-configurable getter in real browsers), so instead we
-            // re-execute the function source inside a `with` block that
-            // shadows `self` and `document` in the scope chain. Bare
-            // references like `document.documentElement` and `(self as any)[k]`
-            // resolve to the frame's mock instead of the host page's.
-            //
-            // Limitation: only safe for synchronous injected functions. If
-            // `func` schedules a microtask or timer that touches `self` or
-            // `document`, that work runs in the host page's context. Real
-            // Chrome isolates the injected function fully, so this divergence
-            // is a harness limitation, not a production bug.
+            // Simulate Chrome injecting a function into the page's isolated
+            // world. Real Chrome serializes options.func via toString() and
+            // calls it with options.args inside the isolated world, where
+            // bare `self`/`document` references resolve to the page globals.
+            // The harness can't change globalThis.document (non-configurable
+            // getter in real browsers), so the convention is: bootstrap-style
+            // funcs accept optional trailing overrides for `self` and
+            // `document` and fall back to the real globals when absent.
+            // We pass the frame's window and document as those overrides.
             for (const frame of frames) {
               if (!frame.window) continue;
-              const scope = {
-                self: frame.window,
-                document: (frame.window as any).document,
-              };
-              const fnSrc = options.func.toString();
-              // eslint-disable-next-line no-new-func
-              const runner = new Function(
-                'scope',
-                'args',
-                `with (scope) { return (${fnSrc}).apply(null, args); }`,
-              );
-              runner(scope, options.args ?? []);
+              options.func.apply(null, [
+                ...(options.args ?? []),
+                frame.window,
+                (frame.window as any).document,
+              ]);
             }
             return [];
           }

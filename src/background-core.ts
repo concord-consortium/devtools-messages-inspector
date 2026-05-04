@@ -139,8 +139,19 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
       // the new content script. The DOM is shared across isolated worlds.
       await chrome.scripting.executeScript({
         target,
-        func: (id: string, attrName: string, actionKey: string) => {
-          const html = document.documentElement;
+        func: (
+          id: string,
+          attrName: string,
+          actionKey: string,
+          // Test-harness overrides. Production Chrome only passes the 3 args
+          // above; the default-undefined params fall through to the page's
+          // own `self` and `document` globals in the isolated world.
+          _selfOverride?: any,
+          _documentOverride?: any,
+        ) => {
+          const w: any = _selfOverride ?? self;
+          const d: any = _documentOverride ?? document;
+          const html = d ? d.documentElement : null;
           const existing = html ? html.getAttribute(attrName) : null;
           let action: string;
           if (existing === id) {
@@ -152,7 +163,7 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
             if (html) html.setAttribute(attrName, id);
             action = 'init';
           }
-          (self as any)[actionKey] = action;
+          w[actionKey] = action;
         },
         args: [id, SW_ID_ATTR_NAME, INJECT_ACTION_KEY],
         injectImmediately: true,
