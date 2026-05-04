@@ -112,10 +112,17 @@ export type ContentToBackgroundMessage =
   | ContentScriptReadyMessage
   | StaleFrameMessage;
 
-// DOM attribute on document.documentElement holding the SW startup ID that
-// last injected a content script. Persists across extension instances because
-// the DOM is shared across isolated worlds, unlike window-property expandos.
-export const SW_ID_ATTR_NAME = 'data-messages-inspector-sw-id';
+// Window expando set by the bootstrap and read by the content script (same
+// isolated world). The content script uses it to identify itself when
+// responding to probes from a future re-injection.
+export const SW_ID_KEY = '__pm_devtools_sw_id__';
+
+// Custom DOM events used by the bootstrap to detect orphan content scripts
+// from a previous extension lifetime. DOM events propagate synchronously
+// across isolated worlds, so the orphan's response listener fires during
+// the bootstrap's own dispatchEvent call. Both event names are namespaced.
+export const PROBE_EVENT_NAME = '__messages_inspector_probe__';
+export const PROBE_RESPONSE_EVENT_NAME = '__messages_inspector_probe_response__';
 
 // __pm_devtools_inject_action__ is written by the bootstrap and read by the
 // content script. Tells the content script what to do this injection.

@@ -109,18 +109,19 @@ export class ChromeExtensionEnv {
             // Simulate Chrome injecting a function into the page's isolated
             // world. Real Chrome serializes options.func via toString() and
             // calls it with options.args inside the isolated world, where
-            // bare `self`/`document` references resolve to the page globals.
-            // The harness can't change globalThis.document (non-configurable
+            // bare `self`/`window` references resolve to the page globals.
+            // The harness can't change globalThis.window (non-configurable
             // getter in real browsers), so the convention is: bootstrap-style
             // funcs accept optional trailing overrides for `self` and
-            // `document` and fall back to the real globals when absent.
-            // We pass the frame's window and document as those overrides.
+            // `window` and fall back to the real globals when absent.
+            // We pass the frame's window for both override slots — they are
+            // conceptually the same in the isolated world.
             for (const frame of frames) {
               if (!frame.window) continue;
               options.func.apply(null, [
                 ...(options.args ?? []),
                 frame.window,
-                (frame.window as any).document,
+                frame.window,
               ]);
             }
             return [];

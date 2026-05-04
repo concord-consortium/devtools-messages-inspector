@@ -537,6 +537,19 @@ describe('extension reload recovery', () => {
     actions = new HarnessActions(runtime);
   });
 
+  // Simulate an orphan content script from a previous extension lifetime by
+  // installing a probe response listener on the harness window that echoes
+  // the supplied (older) swId. Mirrors what an actual orphan would do.
+  function simulateOrphan(win: any, swId: string): void {
+    win.addEventListener('__messages_inspector_probe__', (e: any) => {
+      const nonce = e?.detail?.nonce;
+      if (typeof nonce !== 'string') return;
+      win.dispatchEvent(new CustomEvent('__messages_inspector_probe_response__', {
+        detail: { nonce, swId },
+      }));
+    });
+  }
+
   it('does not flag stale frames on the very first injection', async () => {
     const top = actions.createTab({ url: 'https://parent.example.com/', title: 'Parent' });
     const { messages } = env.connectPanel(top.tab.id);
@@ -548,12 +561,9 @@ describe('extension reload recovery', () => {
   it('emits stale-frame to the panel when a previous swStartupId is found in the window', async () => {
     const top = actions.createTab({ url: 'https://parent.example.com/', title: 'Parent' });
 
-    // Simulate orphan: top frame's documentElement already has a stale
-    // sw-id attribute from a previous extension lifetime.
-    (top.window as any).document.documentElement.setAttribute(
-      'data-messages-inspector-sw-id',
-      'PREVIOUS-LIFETIME',
-    );
+    // Simulate orphan: a probe response listener installed by a previous
+    // extension lifetime is still attached to the top frame's window.
+    simulateOrphan(top.window, 'PREVIOUS-LIFETIME');
 
     const { messages } = env.connectPanel(top.tab.id);
     await flushPromises();
@@ -565,10 +575,7 @@ describe('extension reload recovery', () => {
 
   it('clears stale-frame after a fresh content-script-ready arrives for the frame', async () => {
     const top = actions.createTab({ url: 'https://parent.example.com/', title: 'Parent' });
-    (top.window as any).document.documentElement.setAttribute(
-      'data-messages-inspector-sw-id',
-      'PREVIOUS-LIFETIME',
-    );
+    simulateOrphan(top.window, 'PREVIOUS-LIFETIME');
 
     const { messages } = env.connectPanel(top.tab.id);
     await flushPromises();
@@ -602,16 +609,10 @@ describe('extension reload recovery', () => {
     const top = actions.createTab({ url: 'https://parent.example.com/', title: 'Parent' });
     const child = actions.addIframe(top, { url: 'https://child.example.com/', iframeId: 'child-iframe', title: 'Child' });
 
-    // Simulate orphan: BOTH top frame and child iframe have a previous-lifetime sw id
-    // on their documentElement.
-    (top.window as any).document.documentElement.setAttribute(
-      'data-messages-inspector-sw-id',
-      'PREVIOUS-LIFETIME-TOP',
-    );
-    (child.window as any).document.documentElement.setAttribute(
-      'data-messages-inspector-sw-id',
-      'PREVIOUS-LIFETIME-CHILD',
-    );
+    // Simulate orphan: BOTH top frame and child iframe have probe response
+    // listeners from a previous extension lifetime.
+    simulateOrphan(top.window, 'PREVIOUS-LIFETIME-TOP');
+    simulateOrphan(child.window, 'PREVIOUS-LIFETIME-CHILD');
 
     const { messages } = env.connectPanel(top.tab.id);
     await flushPromises();

@@ -5,7 +5,8 @@
 import {
   REGISTRATION_MESSAGE_TYPE, BackgroundToContentMessage, IframeElementInfo,
   RawCapturedMessage, FrameInfoResponse, OpenerInfo, PostMessageCapturedMessage,
-  ContentToBackgroundMessage, INJECT_ACTION_KEY, InjectAction,
+  ContentToBackgroundMessage, INJECT_ACTION_KEY, SW_ID_KEY, InjectAction,
+  PROBE_EVENT_NAME, PROBE_RESPONSE_EVENT_NAME,
 } from './types';
 
 /** Minimal window interface needed by the content script */
@@ -21,7 +22,9 @@ export interface ContentWindow {
   };
   frames: { length: number; [index: number]: any };
   addEventListener(type: string, callback: (event: any) => void, capture?: boolean): void;
+  dispatchEvent(event: any): boolean;
   __pm_devtools_inject_action__?: 'init' | 'skip' | 'stale';
+  __pm_devtools_sw_id__?: string;
 }
 
 /** Minimal chrome API interface needed by the content script */
@@ -51,6 +54,22 @@ export function initContentScript(win: ContentWindow, chrome: ContentChrome): vo
     return;
   }
   // action === 'init': fall through to fresh init.
+
+  const swId = win[SW_ID_KEY];
+
+  // Probe listener: future re-injections (in the same or a later extension
+  // lifetime) detect this content script's existence by dispatching a probe
+  // event. We respond with our own swId so the new bootstrap can decide
+  // whether we are an orphan from a previous lifetime. Once this content
+  // script becomes an orphan (extension reload), this closure still holds
+  // the OLD swId — exactly what the new bootstrap needs to detect mismatch.
+  win.addEventListener(PROBE_EVENT_NAME, (event: any) => {
+    const nonce = event?.detail?.nonce;
+    if (typeof nonce !== 'string') return;
+    win.dispatchEvent(new CustomEvent(PROBE_RESPONSE_EVENT_NAME, {
+      detail: { nonce, swId },
+    }));
+  });
 
   const sourceEntries = new WeakMap<object, { sourceId: string; type: string }>();
 

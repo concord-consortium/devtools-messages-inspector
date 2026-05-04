@@ -5,7 +5,8 @@
 import {
   IMessage, ContentToBackgroundMessage, SendMessageMessage, FrameInfo, FrameInfoResponse,
   GetFrameInfoMessage, OpenerInfo,
-  REGISTRATION_MESSAGE_TYPE, INJECT_ACTION_KEY, SW_ID_ATTR_NAME, SW_STARTUP_ID_STORAGE_KEY,
+  REGISTRATION_MESSAGE_TYPE, INJECT_ACTION_KEY, SW_ID_KEY, SW_STARTUP_ID_STORAGE_KEY,
+  PROBE_EVENT_NAME, PROBE_RESPONSE_EVENT_NAME,
 } from './types';
 
 /** Minimal chrome API surface needed by the background script */
@@ -129,43 +130,59 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
       if (!injectedFrames.has(tabId)) injectedFrames.set(tabId, new Set());
       if (frameId !== null && injectedFrames.get(tabId)!.has(frameId)) return;
 
-      // Step 1: bootstrap. Reads existing documentElement[SW_ID_ATTR_NAME],
-      // compares to id, and writes window[INJECT_ACTION_KEY] = 'init' |
-      // 'skip' | 'stale'. The function source is serialized and re-executed
-      // in the page's isolated world — no closures, must inline constants.
-      // The DOM attribute is used (not a window expando) because Chrome MV3
-      // creates a fresh isolated world for each extension lifetime, so a
-      // window property from a previous extension instance is invisible to
-      // the new content script. The DOM is shared across isolated worlds.
+      // Step 1: bootstrap. Dispatches a custom DOM event on window to probe
+      // for orphan content scripts from a previous extension lifetime. DOM
+      // events propagate synchronously across isolated worlds, so any orphan
+      // content script's response listener (registered on the same shared
+      // window) fires during dispatchEvent. The bootstrap collects responses
+      // and decides:
+      //   - no responses → 'init' (fresh frame)
+      //   - all responses match current swId → 'skip' (idempotent re-inject)
+      //   - any response differs → 'stale' (orphan from previous lifetime)
+      // The function source is serialized and re-executed in the page's
+      // isolated world — no closures, must inline constants.
       await chrome.scripting.executeScript({
         target,
         func: (
           id: string,
-          attrName: string,
+          swIdKey: string,
           actionKey: string,
-          // Test-harness overrides. Production Chrome only passes the 3 args
+          probeEventName: string,
+          probeResponseEventName: string,
+          // Test-harness overrides. Production Chrome only passes the 5 args
           // above; the default-undefined params fall through to the page's
-          // own `self` and `document` globals in the isolated world.
+          // own `self` and `window` globals in the isolated world.
           _selfOverride?: any,
-          _documentOverride?: any,
+          _windowOverride?: any,
         ) => {
           const w: any = _selfOverride ?? self;
-          const d: any = _documentOverride ?? document;
-          const html = d ? d.documentElement : null;
-          const existing = html ? html.getAttribute(attrName) : null;
-          let action: string;
-          if (existing === id) {
-            action = 'skip';
-          } else if (existing) {
-            action = 'stale';
-            if (html) html.setAttribute(attrName, id);
-          } else {
-            if (html) html.setAttribute(attrName, id);
-            action = 'init';
+          const win: any = _windowOverride ?? (typeof window !== 'undefined' ? window : self);
+
+          const nonce = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+          const responses: Array<{ swId: string }> = [];
+          const handler = (e: any) => {
+            if (e?.detail?.nonce !== nonce) return;
+            if (typeof e.detail.swId === 'string') responses.push({ swId: e.detail.swId });
+          };
+          win.addEventListener(probeResponseEventName, handler);
+          try {
+            win.dispatchEvent(new CustomEvent(probeEventName, { detail: { nonce } }));
+          } finally {
+            win.removeEventListener(probeResponseEventName, handler);
           }
+
+          let action: string;
+          if (responses.length === 0) {
+            action = 'init';
+          } else if (responses.every((r) => r.swId === id)) {
+            action = 'skip';
+          } else {
+            action = 'stale';
+          }
+          w[swIdKey] = id;
           w[actionKey] = action;
         },
-        args: [id, SW_ID_ATTR_NAME, INJECT_ACTION_KEY],
+        args: [id, SW_ID_KEY, INJECT_ACTION_KEY, PROBE_EVENT_NAME, PROBE_RESPONSE_EVENT_NAME],
         injectImmediately: true,
       });
 
