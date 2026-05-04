@@ -70,11 +70,16 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
   // different ID after reload means orphan content scripts get detected).
   const swStartupIdReady: Promise<string> = (async () => {
     const result = await chrome.storage.session.get([SW_STARTUP_ID_STORAGE_KEY]);
-    let id: string | undefined = result[SW_STARTUP_ID_STORAGE_KEY];
-    if (typeof id !== 'string' || !id) {
+    const stored: unknown = result[SW_STARTUP_ID_STORAGE_KEY];
+    const fromStorage = typeof stored === 'string' && !!stored;
+    let id: string;
+    if (fromStorage) {
+      id = stored as string;
+    } else {
       id = generateSwStartupId();
       await chrome.storage.session.set({ [SW_STARTUP_ID_STORAGE_KEY]: id });
     }
+    console.log('[Messages reload] sw startup id', { id, fromStorage });
     return id;
   })();
 
@@ -137,14 +142,21 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
         target,
         func: (id: string, swIdKey: string, actionKey: string) => {
           const w: any = self;
-          if (w[swIdKey] === id) {
-            w[actionKey] = 'skip';
-          } else if (w[swIdKey]) {
-            w[actionKey] = 'stale';
+          const existing = w[swIdKey];
+          let action: string;
+          if (existing === id) {
+            action = 'skip';
+          } else if (existing) {
+            action = 'stale';
           } else {
             w[swIdKey] = id;
-            w[actionKey] = 'init';
+            action = 'init';
           }
+          w[actionKey] = action;
+          try {
+            // eslint-disable-next-line no-console
+            console.log('[Messages reload] bootstrap', { url: location.href, existing, current: id, action });
+          } catch {}
         },
         args: [id, SW_ID_KEY, INJECT_ACTION_KEY],
         injectImmediately: true,
@@ -252,7 +264,8 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
 
         // Replay any frames already known stale for this tab.
         const stale = staleFrames.get(msg.tabId);
-        if (stale) {
+        if (stale && stale.size > 0) {
+          console.log('[Messages reload] bg replaying stale frames to panel', { tabId: msg.tabId, frameIds: Array.from(stale) });
           for (const fid of stale) port.postMessage({ type: 'stale-frame', frameId: fid });
         }
 
@@ -396,6 +409,7 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
 
     if (message.type === 'stale-frame') {
       if (tabId == null || frameId == null) return;
+      console.log('[Messages reload] bg got stale-frame', { tabId, frameId, panelConnected: panelConnections.has(tabId) });
       if (!staleFrames.has(tabId)) staleFrames.set(tabId, new Set());
       staleFrames.get(tabId)!.add(frameId);
       const panel = panelConnections.get(tabId);
@@ -405,6 +419,8 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
 
     if (message.type === 'content-script-ready') {
       if (tabId == null || frameId == null) return;
+      const wasStale = staleFrames.get(tabId)?.has(frameId) ?? false;
+      console.log('[Messages reload] bg got content-script-ready', { tabId, frameId, wasStale });
       const set = staleFrames.get(tabId);
       if (set?.has(frameId)) {
         set.delete(frameId);
