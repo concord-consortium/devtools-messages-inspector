@@ -44,8 +44,6 @@ export function initContentScript(win: ContentWindow, chrome: ContentChrome): vo
   const action: InjectAction = win[INJECT_ACTION_KEY] as InjectAction ?? 'init';
   delete win[INJECT_ACTION_KEY];
 
-  console.log('[Messages reload] content-init', { url: win.location.href, action });
-
   if (action === 'skip') return;
 
   if (action === 'stale') {
@@ -252,6 +250,5 @@ export function initContentScript(win: ContentWindow, chrome: ContentChrome): vo
   });
 
   // Tell background this fresh injection succeeded — used to clear stale-frame state.
-  console.log('[Messages reload] content-script-ready ->', win.location.href);
   chrome.runtime.sendMessage({ type: 'content-script-ready' });
 }

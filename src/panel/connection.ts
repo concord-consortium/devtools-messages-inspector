@@ -31,7 +31,6 @@ export function connect(): void {
     runtimeId = undefined;
   }
   if (!runtimeId) {
-    console.log('[Messages reload] panel: chrome.runtime.id is undefined → setting extensionContextInvalidated');
     store.setExtensionContextInvalidated(true);
     return;
   }
@@ -40,7 +39,6 @@ export function connect(): void {
     port = chrome.runtime.connect({ name: 'postmessage-panel' });
   } catch (e) {
     if (String(e).includes(EXTENSION_INVALIDATED_MARKER)) {
-      console.log('[Messages reload] panel: chrome.runtime.connect threw invalidation marker → setting extensionContextInvalidated');
       store.setExtensionContextInvalidated(true);
       return;
     }
@@ -62,11 +60,9 @@ export function connect(): void {
       chrome.devtools.inspectedWindow.eval(`console.log(${JSON.stringify(text)})`);
     } else if (msg.type === 'stale-frame' && typeof msg.frameId === 'number') {
       const frameId = msg.frameId;
-      console.log('[Messages reload] panel: stale-frame received', { frameId });
       store.addStaleFrame(frameId);
     } else if (msg.type === 'stale-frame-cleared' && typeof msg.frameId === 'number') {
       const frameId = msg.frameId;
-      console.log('[Messages reload] panel: stale-frame-cleared received', { frameId });
       store.clearStaleFrame(frameId);
     }
   });
