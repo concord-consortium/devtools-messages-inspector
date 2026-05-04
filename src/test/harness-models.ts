@@ -152,10 +152,32 @@ export interface HarnessWindowOptions {
   title?: string;
 }
 
+export interface HarnessDocumentElement {
+  getAttribute(name: string): string | null;
+  setAttribute(name: string, value: string): void;
+}
+
+function createDocumentElementMock(): HarnessDocumentElement {
+  const attrs = new Map<string, string>();
+  return {
+    getAttribute(name: string): string | null {
+      return attrs.has(name) ? attrs.get(name)! : null;
+    },
+    setAttribute(name: string, value: string): void {
+      attrs.set(name, value);
+    },
+  };
+}
+
 export class HarnessWindow {
   location: { href: string; origin: string };
   top: HarnessWindow;
-  document: { title: string; querySelector(selector: string): Element | null; querySelectorAll(selector: string): NodeListOf<Element> };
+  document: {
+    title: string;
+    documentElement: HarnessDocumentElement;
+    querySelector(selector: string): Element | null;
+    querySelectorAll(selector: string): NodeListOf<Element>;
+  };
 
   /** Mirrors window.origin — shorthand for location.origin */
   get origin(): string { return this.location.origin; }
@@ -182,6 +204,7 @@ export class HarnessWindow {
     const container = this._iframeContainer;
     this.document = {
       title: options.title ?? '',
+      documentElement: createDocumentElementMock(),
       querySelector(selector: string) {
         return container.querySelector(selector);
       },

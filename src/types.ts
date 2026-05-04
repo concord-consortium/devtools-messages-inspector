@@ -112,11 +112,10 @@ export type ContentToBackgroundMessage =
   | ContentScriptReadyMessage
   | StaleFrameMessage;
 
-// Window globals used by the inject bootstrap.
-// __pm_devtools_sw_id__ holds the service-worker startup ID that injected the
-// most recent content script. The bootstrap stores it on the page window so
-// future injections (after extension reload) can detect mismatch.
-export const SW_ID_KEY = '__pm_devtools_sw_id__';
+// DOM attribute on document.documentElement holding the SW startup ID that
+// last injected a content script. Persists across extension instances because
+// the DOM is shared across isolated worlds, unlike window-property expandos.
+export const SW_ID_ATTR_NAME = 'data-messages-inspector-sw-id';
 
 // __pm_devtools_inject_action__ is written by the bootstrap and read by the
 // content script. Tells the content script what to do this injection.

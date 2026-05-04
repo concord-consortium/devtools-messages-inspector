@@ -22,7 +22,6 @@ export interface ContentWindow {
   frames: { length: number; [index: number]: any };
   addEventListener(type: string, callback: (event: any) => void, capture?: boolean): void;
   __pm_devtools_inject_action__?: 'init' | 'skip' | 'stale';
-  __pm_devtools_sw_id__?: string;
 }
 
 /** Minimal chrome API interface needed by the content script */

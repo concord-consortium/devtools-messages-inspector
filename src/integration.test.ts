@@ -548,9 +548,12 @@ describe('extension reload recovery', () => {
   it('emits stale-frame to the panel when a previous swStartupId is found in the window', async () => {
     const top = actions.createTab({ url: 'https://parent.example.com/', title: 'Parent' });
 
-    // Simulate orphan: top frame's window already has a stale __pm_devtools_sw_id__
-    // from a previous extension lifetime.
-    (top.window as any).__pm_devtools_sw_id__ = 'PREVIOUS-LIFETIME';
+    // Simulate orphan: top frame's documentElement already has a stale
+    // sw-id attribute from a previous extension lifetime.
+    (top.window as any).document.documentElement.setAttribute(
+      'data-messages-inspector-sw-id',
+      'PREVIOUS-LIFETIME',
+    );
 
     const { messages } = env.connectPanel(top.tab.id);
     await flushPromises();
@@ -562,7 +565,10 @@ describe('extension reload recovery', () => {
 
   it('clears stale-frame after a fresh content-script-ready arrives for the frame', async () => {
     const top = actions.createTab({ url: 'https://parent.example.com/', title: 'Parent' });
-    (top.window as any).__pm_devtools_sw_id__ = 'PREVIOUS-LIFETIME';
+    (top.window as any).document.documentElement.setAttribute(
+      'data-messages-inspector-sw-id',
+      'PREVIOUS-LIFETIME',
+    );
 
     const { messages } = env.connectPanel(top.tab.id);
     await flushPromises();

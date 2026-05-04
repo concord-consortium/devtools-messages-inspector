@@ -88,23 +88,27 @@ export class ChromeExtensionEnv {
 
           if (options.func) {
             // Simulate Chrome injecting a function into the page's isolated world
-            // by temporarily aliasing globalThis.self to the frame's window for
-            // the duration of the call. The injected func reads/writes globals
-            // via `self`.
+            // by temporarily aliasing globalThis.self and globalThis.document to
+            // the frame's window/document for the duration of the call. The
+            // injected func reads/writes via `self` and `document`.
             //
             // Limitation: only safe for synchronous injected functions. If `func`
-            // schedules a microtask or timer that touches `self`, that work runs
-            // after the swap is restored and will mutate the test runner's globals.
-            // Real Chrome runs the injected function in the page's isolated world,
-            // so this divergence is a harness limitation, not a production bug.
+            // schedules a microtask or timer that touches `self` or `document`,
+            // that work runs after the swap is restored and will mutate the test
+            // runner's globals. Real Chrome runs the injected function in the
+            // page's isolated world, so this divergence is a harness limitation,
+            // not a production bug.
             for (const frame of frames) {
               if (!frame.window) continue;
               const origSelf = (globalThis as any).self;
+              const origDocument = (globalThis as any).document;
               (globalThis as any).self = frame.window;
+              (globalThis as any).document = (frame.window as any).document;
               try {
                 options.func.apply(null, options.args ?? []);
               } finally {
                 (globalThis as any).self = origSelf;
+                (globalThis as any).document = origDocument;
               }
             }
             return [];

@@ -5,7 +5,7 @@
 import {
   IMessage, ContentToBackgroundMessage, SendMessageMessage, FrameInfo, FrameInfoResponse,
   GetFrameInfoMessage, OpenerInfo,
-  REGISTRATION_MESSAGE_TYPE, INJECT_ACTION_KEY, SW_ID_KEY, SW_STARTUP_ID_STORAGE_KEY,
+  REGISTRATION_MESSAGE_TYPE, INJECT_ACTION_KEY, SW_ID_ATTR_NAME, SW_STARTUP_ID_STORAGE_KEY,
 } from './types';
 
 /** Minimal chrome API surface needed by the background script */
@@ -134,31 +134,36 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
       if (!injectedFrames.has(tabId)) injectedFrames.set(tabId, new Set());
       if (frameId !== null && injectedFrames.get(tabId)!.has(frameId)) return;
 
-      // Step 1: bootstrap. Reads existing window[SW_ID_KEY], compares to id,
-      // and writes window[INJECT_ACTION_KEY] = 'init' | 'skip' | 'stale'.
-      // The function source is serialized and re-executed in the page's
-      // isolated world — no closures, must inline constants.
+      // Step 1: bootstrap. Reads existing documentElement[SW_ID_ATTR_NAME],
+      // compares to id, and writes window[INJECT_ACTION_KEY] = 'init' |
+      // 'skip' | 'stale'. The function source is serialized and re-executed
+      // in the page's isolated world — no closures, must inline constants.
+      // The DOM attribute is used (not a window expando) because Chrome MV3
+      // creates a fresh isolated world for each extension lifetime, so a
+      // window property from a previous extension instance is invisible to
+      // the new content script. The DOM is shared across isolated worlds.
       await chrome.scripting.executeScript({
         target,
-        func: (id: string, swIdKey: string, actionKey: string) => {
-          const w: any = self;
-          const existing = w[swIdKey];
+        func: (id: string, attrName: string, actionKey: string) => {
+          const html = document.documentElement;
+          const existing = html ? html.getAttribute(attrName) : null;
           let action: string;
           if (existing === id) {
             action = 'skip';
           } else if (existing) {
             action = 'stale';
+            if (html) html.setAttribute(attrName, id);
           } else {
-            w[swIdKey] = id;
+            if (html) html.setAttribute(attrName, id);
             action = 'init';
           }
-          w[actionKey] = action;
+          (self as any)[actionKey] = action;
           try {
             // eslint-disable-next-line no-console
             console.log('[Messages reload] bootstrap', { url: location.href, existing, current: id, action });
           } catch {}
         },
-        args: [id, SW_ID_KEY, INJECT_ACTION_KEY],
+        args: [id, SW_ID_ATTR_NAME, INJECT_ACTION_KEY],
         injectImmediately: true,
       });
 
