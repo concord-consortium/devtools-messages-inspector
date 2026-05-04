@@ -630,6 +630,20 @@ export function initBackgroundScript(chrome: BackgroundChrome): void {
     }
 
     if (frameId === 0) {
+      // Top-frame navigation destroys all subframes. Clear any stale-frame
+      // entries we've tracked for this tab; their orphans are gone, and
+      // any surviving subframes get fresh frameIds we cannot correlate
+      // with the old stale entries.
+      const stale = staleFrames.get(tabId);
+      if (stale && stale.size > 0) {
+        const panel = panelConnections.get(tabId);
+        console.log('[Messages reload] bg clearing all stale frames for tab on top-frame navigation', { tabId, frameIds: Array.from(stale) });
+        for (const fid of stale) {
+          if (panel) panel.postMessage({ type: 'stale-frame-cleared', frameId: fid });
+        }
+        staleFrames.delete(tabId);
+      }
+
       const preserveLog = preserveLogPrefs.get(tabId);
       if (!preserveLog) {
         const panel = panelConnections.get(tabId);

@@ -597,4 +597,39 @@ describe('extension reload recovery', () => {
 
     expect(second.messages.some(m => m.type === 'stale-frame')).toBe(false);
   });
+
+  it('clears stale entries for all frames in a tab when top frame navigates (multi-frame)', async () => {
+    const top = actions.createTab({ url: 'https://parent.example.com/', title: 'Parent' });
+    const child = actions.addIframe(top, { url: 'https://child.example.com/', iframeId: 'child-iframe', title: 'Child' });
+
+    // Simulate orphan: BOTH top frame and child iframe have a previous-lifetime sw id
+    // on their documentElement.
+    (top.window as any).document.documentElement.setAttribute(
+      'data-messages-inspector-sw-id',
+      'PREVIOUS-LIFETIME-TOP',
+    );
+    (child.window as any).document.documentElement.setAttribute(
+      'data-messages-inspector-sw-id',
+      'PREVIOUS-LIFETIME-CHILD',
+    );
+
+    const { messages } = env.connectPanel(top.tab.id);
+    await flushPromises();
+
+    const stale = messages.filter(m => m.type === 'stale-frame');
+    const staleFrameIds = stale.map(m => m.frameId).sort();
+    expect(staleFrameIds).toEqual([0, child.frameId].sort());
+
+    // Reload only the top frame. In the harness, navigate(top, ...) fires onCommitted
+    // for the top frame and creates a fresh window for it. The child iframe is left
+    // in place by the harness, but in production a top-frame reload destroys all
+    // subframes — the background-core code clears all stale entries for the tab
+    // regardless of whether the harness models the subframe destruction.
+    actions.navigate(top, { url: 'https://parent.example.com/', title: 'Parent' });
+    await flushPromises();
+
+    const cleared = messages.filter(m => m.type === 'stale-frame-cleared');
+    const clearedFrameIds = cleared.map(m => m.frameId).sort();
+    expect(clearedFrameIds).toEqual([0, child.frameId].sort());
+  });
 });
