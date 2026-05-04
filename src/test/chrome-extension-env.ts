@@ -22,12 +22,14 @@ export { HarnessTab, HarnessFrame, HarnessDocument, HarnessWindow } from './harn
 // ---------------------------------------------------------------------------
 
 export class ChromeExtensionEnv {
-  // Events for the background service worker's listener registrations
-  readonly bgOnConnect = new ChromeEvent<(port: any) => void>();
-  readonly bgRuntimeOnMessage = new ChromeEvent<(msg: any, sender: any, sendResponse: any) => void>();
-  readonly bgOnCommitted = new ChromeEvent<(details: { tabId: number; frameId: number; url: string; transitionType: string; transitionQualifiers: string[] }) => void>();
-  readonly bgOnCreatedNavTarget = new ChromeEvent<(details: any) => void>();
-  readonly bgOnTabRemoved = new ChromeEvent<(tabId: number) => void>();
+  // Events for the background service worker's listener registrations.
+  // Not `readonly` because resetBgEvents() reassigns them when simulating
+  // a service-worker restart (e.g., the harness's "Reload extension" button).
+  bgOnConnect = new ChromeEvent<(port: any) => void>();
+  bgRuntimeOnMessage = new ChromeEvent<(msg: any, sender: any, sendResponse: any) => void>();
+  bgOnCommitted = new ChromeEvent<(details: { tabId: number; frameId: number; url: string; transitionType: string; transitionQualifiers: string[] }) => void>();
+  bgOnCreatedNavTarget = new ChromeEvent<(details: any) => void>();
+  bgOnTabRemoved = new ChromeEvent<(tabId: number) => void>();
 
   /** Mock storage data — returned by chrome.storage.local.get */
   storageData: Record<string, any> = {};
@@ -60,6 +62,23 @@ export class ChromeExtensionEnv {
   }
 
   /**
+   * Reset all background-side event channels. Used by the harness to simulate
+   * an SW restart: the next initBackgroundScript() call won't accumulate
+   * listeners on top of the previous SW's. Tabs already registered are re-wired
+   * to the new bgOnCommitted so navigation events still flow.
+   */
+  resetBgEvents(): void {
+    this.bgOnConnect = new ChromeEvent<(port: any) => void>();
+    this.bgRuntimeOnMessage = new ChromeEvent<(msg: any, sender: any, sendResponse: any) => void>();
+    this.bgOnCommitted = new ChromeEvent<(details: { tabId: number; frameId: number; url: string; transitionType: string; transitionQualifiers: string[] }) => void>();
+    this.bgOnCreatedNavTarget = new ChromeEvent<(details: any) => void>();
+    this.bgOnTabRemoved = new ChromeEvent<(tabId: number) => void>();
+    for (const tab of this.tabs.values()) {
+      tab.onCommitted = this.bgOnCommitted;
+    }
+  }
+
+  /**
    * Creates the chrome API mock for the background service worker.
    * Pass to initBackgroundScript() directly.
    */
@@ -87,29 +106,35 @@ export class ChromeExtensionEnv {
           }
 
           if (options.func) {
-            // Simulate Chrome injecting a function into the page's isolated world
-            // by temporarily aliasing globalThis.self and globalThis.document to
-            // the frame's window/document for the duration of the call. The
-            // injected func reads/writes via `self` and `document`.
+            // Simulate Chrome injecting a function into the page's isolated world.
+            // In real Chrome, the injected function's `self` and `document`
+            // identifiers resolve to the target frame's window/document. We
+            // can't reassign `document` on the harness Window (it's a
+            // non-configurable getter in real browsers), so instead we
+            // re-execute the function source inside a `with` block that
+            // shadows `self` and `document` in the scope chain. Bare
+            // references like `document.documentElement` and `(self as any)[k]`
+            // resolve to the frame's mock instead of the host page's.
             //
-            // Limitation: only safe for synchronous injected functions. If `func`
-            // schedules a microtask or timer that touches `self` or `document`,
-            // that work runs after the swap is restored and will mutate the test
-            // runner's globals. Real Chrome runs the injected function in the
-            // page's isolated world, so this divergence is a harness limitation,
-            // not a production bug.
+            // Limitation: only safe for synchronous injected functions. If
+            // `func` schedules a microtask or timer that touches `self` or
+            // `document`, that work runs in the host page's context. Real
+            // Chrome isolates the injected function fully, so this divergence
+            // is a harness limitation, not a production bug.
             for (const frame of frames) {
               if (!frame.window) continue;
-              const origSelf = (globalThis as any).self;
-              const origDocument = (globalThis as any).document;
-              (globalThis as any).self = frame.window;
-              (globalThis as any).document = (frame.window as any).document;
-              try {
-                options.func.apply(null, options.args ?? []);
-              } finally {
-                (globalThis as any).self = origSelf;
-                (globalThis as any).document = origDocument;
-              }
+              const scope = {
+                self: frame.window,
+                document: (frame.window as any).document,
+              };
+              const fnSrc = options.func.toString();
+              // eslint-disable-next-line no-new-func
+              const runner = new Function(
+                'scope',
+                'args',
+                `with (scope) { return (${fnSrc}).apply(null, args); }`,
+              );
+              runner(scope, options.args ?? []);
             }
             return [];
           }
